@@ -3,6 +3,13 @@ const path = require('path');
 const app = express();
 const port = 3000;
 
+// Mock data
+const companies = [
+    { id: 1, name: 'Banorte' },
+    { id: 2, name: 'Banamex' },
+    { id: 3, name: 'Santander' }
+];
+
 app.use(express.static(path.join(__dirname, '../client')));
 
 app.use(express.urlencoded({ extended: true }));
@@ -28,6 +35,11 @@ app.post('/forgot-password', (req, res) => {
     const { email } = req.body;
     console.log(`Password reset requested for email: ${email}`);
     res.send('If an account with that email exists, a password reset link has been sent.');
+});
+
+// API endpoint to get the list of companies
+app.get('/api/companies', (req, res) => {
+    res.json(companies);
 });
 
 app.listen(port, () => {

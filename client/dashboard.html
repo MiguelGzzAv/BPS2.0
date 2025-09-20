@@ -61,8 +61,64 @@
                 <p class="col-md-8 fs-4">This is your new dashboard. Use the menu to navigate through the different sections of the application.</p>
             </div>
         </div>
+
+        <hr>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Companies</h2>
+            <div>
+                <button id="add-company-btn" class="btn btn-success">Add</button>
+                <button id="edit-company-btn" class="btn btn-warning" disabled>Edit</button>
+                <button id="delete-company-btn" class="btn btn-danger" disabled>Delete</button>
+            </div>
+        </div>
+        <div id="company-list" class="row">
+            <!-- Company cards will be inserted here by JavaScript -->
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const companyList = document.getElementById('company-list');
+            const editBtn = document.getElementById('edit-company-btn');
+            const deleteBtn = document.getElementById('delete-company-btn');
+
+            fetch('/api/companies')
+                .then(response => response.json())
+                .then(companies => {
+                    console.log('Companies loaded:', companies);
+                    companyList.innerHTML = ''; // Clear existing content
+                    companies.forEach(company => {
+                        const companyCard = document.createElement('div');
+                        companyCard.className = 'col-md-4 mb-4';
+                        companyCard.innerHTML = `
+                            <div class="card" style="cursor: pointer;" data-id="${company.id}">
+                                <div class="card-body">
+                                    <h5 class="card-title">${company.name}</h5>
+                                </div>
+                            </div>
+                        `;
+                        companyList.appendChild(companyCard);
+
+                        // Add click listener for selection
+                        companyCard.querySelector('.card').addEventListener('click', (event) => {
+                            // Remove active state from all other cards
+                            document.querySelectorAll('#company-list .card').forEach(card => {
+                                card.classList.remove('border-primary');
+                            });
+                            // Add active state to the clicked card
+                            event.currentTarget.classList.add('border-primary');
+                            console.log('Selected company ID:', company.id);
+
+                            // Enable Edit and Delete buttons
+                            editBtn.disabled = false;
+                            deleteBtn.disabled = false;
+                        });
+                    });
+                })
+                .catch(error => console.error('Error fetching companies:', error));
+        });
+    </script>
 </body>
 </html>
