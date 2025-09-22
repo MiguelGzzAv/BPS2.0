@@ -13,6 +13,7 @@ const companies = [
 app.use(express.static(path.join(__dirname, '../client')));
 
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // Middleware to parse JSON bodies
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client', 'login.html'));
@@ -40,6 +41,54 @@ app.post('/forgot-password', (req, res) => {
 // API endpoint to get the list of companies
 app.get('/api/companies', (req, res) => {
     res.json(companies);
+});
+
+// API endpoint to add a new company
+app.post('/api/companies', (req, res) => {
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ error: 'Company name is required' });
+    }
+
+    const newId = companies.length > 0 ? Math.max(...companies.map(c => c.id)) + 1 : 1;
+    const newCompany = { id: newId, name };
+    companies.push(newCompany);
+
+    console.log('Added new company:', newCompany);
+    res.status(201).json(newCompany);
+});
+
+// API endpoint to delete a company
+app.delete('/api/companies/:id', (req, res) => {
+    const { id } = req.params;
+    const companyIndex = companies.findIndex(c => c.id === parseInt(id));
+
+    if (companyIndex === -1) {
+        return res.status(404).json({ error: 'Company not found' });
+    }
+
+    companies.splice(companyIndex, 1);
+    console.log(`Deleted company with id: ${id}`);
+    res.status(204).send();
+});
+
+// API endpoint to update a company
+app.put('/api/companies/:id', (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+    const company = companies.find(c => c.id === parseInt(id));
+
+    if (!company) {
+        return res.status(404).json({ error: 'Company not found' });
+    }
+
+    if (!name) {
+        return res.status(400).json({ error: 'Company name is required' });
+    }
+
+    company.name = name;
+    console.log('Updated company:', company);
+    res.json(company);
 });
 
 app.listen(port, () => {
