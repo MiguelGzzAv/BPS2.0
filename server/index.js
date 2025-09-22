@@ -22,18 +22,10 @@ app.get('/', (req, res) => {
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     if (username === 'admin' && password === '12345') {
-        res.redirect('/selection');
+        res.redirect('/selection.html');
     } else {
         res.send('Invalid username or password');
     }
-});
-
-app.get('/selection', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client', 'selection.html'));
-});
-
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client', 'dashboard.html'));
 });
 
 app.post('/forgot-password', (req, res) => {
@@ -104,6 +96,36 @@ app.put('/api/companies/:id', (req, res) => {
     company.name = name;
     console.log('Updated company:', company);
     res.json(company);
+});
+
+// Mock data for processes
+const processes = [
+    {
+        id: 'PRO7032',
+        name: 'PROCESS TO-LUN VIE PROCESOS NOCTURNO',
+        organization: 'SECURITAS Y PENSIONES',
+        businessArea: 'COBRANZA',
+        frequency: 'LUNES A VIERNES',
+        processType: 'multiple',
+        values: [], // For the dynamic form schema
+        subprocesses: [] // For the nested subprocesses
+    }
+];
+
+// API endpoint to get the list of processes
+app.get('/api/processes', (req, res) => {
+    res.json(processes);
+});
+
+// API endpoint to add a new process
+app.post('/api/processes', (req, res) => {
+    const newProcess = req.body;
+    if (!newProcess || !newProcess.id || !newProcess.name) {
+        return res.status(400).json({ error: 'Process ID and name are required' });
+    }
+    processes.push(newProcess);
+    console.log('Added new process:', newProcess);
+    res.status(201).json(newProcess);
 });
 
 app.listen(port, () => {
