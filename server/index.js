@@ -102,11 +102,13 @@ app.put('/api/companies/:id', (req, res) => {
 const processes = [
     {
         id: 'PRO7032',
-        name: 'PROCESS TO-LUN VIE PROCESOS NOCTURNO',
-        organization: 'SECURITAS Y PENSIONES',
-        businessArea: 'COBRANZA',
-        frequency: 'LUNES A VIERNES',
-        processType: 'multiple',
+        name: 'PROCESO NOCTURNO EJEMPLO',
+        processType: 'Padre',
+        fillType: 'Valores',
+        startTime: '21:00',
+        endTime: '23:00',
+        frequency: 'Personalizado',
+        days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         values: [], // For the dynamic form schema
         subprocesses: [] // For the nested subprocesses
     }

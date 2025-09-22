@@ -7,10 +7,42 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
+    <!-- Offcanvas Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a href="/dashboard.html" class="nav-link" id="menu-dashboard">Dashboard</a>
+                </li>
+                <li>
+                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
+                </li>
+                <li>
+                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
+                </li>
+                <li>
+                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
+                </li>
+                <li>
+                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
     <!-- Main Content -->
     <main class="container mt-4">
         <header class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Process Definition</h1>
+            <div>
+                <button class="btn btn-primary me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                    Menu
+                </button>
+                <h1 class="d-inline-block align-middle">Process Definition</h1>
+            </div>
             <button id="add-process-btn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProcessModal">
                 Add New Process
             </button>
@@ -21,10 +53,11 @@
                 <tr>
                     <th>ID</th>
                     <th>Name</th>
-                    <th>Organization</th>
-                    <th>Business Area</th>
-                    <th>Frequency</th>
                     <th>Process Type</th>
+                    <th>Frequency</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Fill Type</th>
                 </tr>
             </thead>
             <tbody id="process-list">
@@ -43,21 +76,44 @@
                 </div>
                 <div class="modal-body">
                     <form id="add-process-form">
-                        <div class="mb-3">
-                            <label for="process-id" class="form-label">Process ID</label>
-                            <input type="text" class="form-control" id="process-id" required>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="process-id" class="form-label">Process ID</label>
+                                <input type="text" class="form-control" id="process-id" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="process-name" class="form-label">Process Name</label>
+                                <input type="text" class="form-control" id="process-name" required>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="process-name" class="form-label">Process Name</label>
-                            <input type="text" class="form-control" id="process-name" required>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="process-processType" class="form-label">Process Type</label>
+                                <select class="form-select" id="process-processType">
+                                    <option selected>Choose...</option>
+                                    <option value="Padre">Padre</option>
+                                    <option value="Hijo">Hijo</option>
+                                    <option value="Nieto">Nieto</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="process-fillType" class="form-label">Fill Type</label>
+                                <select class="form-select" id="process-fillType">
+                                    <option selected>Choose...</option>
+                                    <option value="Archivos">Archivos</option>
+                                    <option value="Valores">Valores</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="process-organization" class="form-label">Organization</label>
-                            <input type="text" class="form-control" id="process-organization">
-                        </div>
-                        <div class="mb-3">
-                            <label for="process-businessArea" class="form-label">Business Area</label>
-                            <input type="text" class="form-control" id="process-businessArea">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="process-startTime" class="form-label">Start Time</label>
+                                <input type="time" class="form-control" id="process-startTime">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="process-endTime" class="form-label">End Time</label>
+                                <input type="time" class="form-control" id="process-endTime">
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="process-frequency" class="form-label">Frequency</label>
@@ -67,14 +123,38 @@
                                 <option value="Personalizado">Personalizado</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="process-processType" class="form-label">Process Type</label>
-                            <select class="form-select" id="process-processType">
-                                <option selected>Choose...</option>
-                                <option value="Padre">Padre</option>
-                                <option value="Hijo">Hijo</option>
-                                <option value="Nieto">Nieto</option>
-                            </select>
+                        <div id="custom-frequency-days" class="mb-3" style="display: none;">
+                            <label class="form-label">Select Days</label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="day-mon" value="Monday">
+                                    <label class="form-check-label" for="day-mon">Mon</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="day-tue" value="Tuesday">
+                                    <label class="form-check-label" for="day-tue">Tue</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="day-wed" value="Wednesday">
+                                    <label class="form-check-label" for="day-wed">Wed</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="day-thu" value="Thursday">
+                                    <label class="form-check-label" for="day-thu">Thu</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="day-fri" value="Friday">
+                                    <label class="form-check-label" for="day-fri">Fri</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="day-sat" value="Saturday">
+                                    <label class="form-check-label" for="day-sat">Sat</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="day-sun" value="Sunday">
+                                    <label class="form-check-label" for="day-sun">Sun</label>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -93,7 +173,27 @@
             const addProcessModalEl = document.getElementById('addProcessModal');
             const addProcessModal = new bootstrap.Modal(addProcessModalEl);
             const addProcessForm = document.getElementById('add-process-form');
+            const menu = document.getElementById('offcanvasMenu');
+            const urlParams = new URLSearchParams(window.location.search);
+            const companyId = urlParams.get('companyId');
 
+            // --- Menu Logic ---
+            const updateMenuLinks = (id) => {
+                if (!id) return;
+                // Update links that need company context
+                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+
+                // Set active class
+                const currentPage = window.location.pathname;
+                if (currentPage.includes('processes.html')) {
+                    menu.querySelector('#menu-processes').classList.add('active');
+                }
+            };
+
+            // --- Page Logic ---
             const renderProcesses = (processes) => {
                 processList.innerHTML = '';
                 processes.forEach(proc => {
@@ -101,10 +201,11 @@
                     row.innerHTML = `
                         <td>${proc.id}</td>
                         <td>${proc.name}</td>
-                        <td>${proc.organization}</td>
-                        <td>${proc.businessArea}</td>
-                        <td>${proc.frequency}</td>
                         <td>${proc.processType}</td>
+                        <td>${proc.frequency} ${proc.days ? proc.days.join(', ') : ''}</td>
+                        <td>${proc.startTime}</td>
+                        <td>${proc.endTime}</td>
+                        <td>${proc.fillType}</td>
                     `;
                     processList.appendChild(row);
                 });
@@ -117,15 +218,37 @@
                     .catch(error => console.error('Error fetching processes:', error));
             };
 
+            const frequencySelect = document.getElementById('process-frequency');
+            const customDaysDiv = document.getElementById('custom-frequency-days');
+
+            frequencySelect.addEventListener('change', () => {
+                if (frequencySelect.value === 'Personalizado') {
+                    customDaysDiv.style.display = 'block';
+                } else {
+                    customDaysDiv.style.display = 'none';
+                }
+            });
+
             addProcessForm.addEventListener('submit', (event) => {
                 event.preventDefault();
+
+                const selectedDays = [];
+                if (frequencySelect.value === 'Personalizado') {
+                    const checkboxes = customDaysDiv.querySelectorAll('input[type="checkbox"]:checked');
+                    checkboxes.forEach(checkbox => {
+                        selectedDays.push(checkbox.value);
+                    });
+                }
+
                 const newProcess = {
                     id: document.getElementById('process-id').value,
                     name: document.getElementById('process-name').value,
-                    organization: document.getElementById('process-organization').value,
-                    businessArea: document.getElementById('process-businessArea').value,
-                    frequency: document.getElementById('process-frequency').value,
                     processType: document.getElementById('process-processType').value,
+                    fillType: document.getElementById('process-fillType').value,
+                    startTime: document.getElementById('process-startTime').value,
+                    endTime: document.getElementById('process-endTime').value,
+                    frequency: frequencySelect.value,
+                    days: selectedDays,
                     values: [],
                     subprocesses: []
                 };
@@ -143,13 +266,15 @@
                 })
                 .then(() => {
                     addProcessForm.reset();
+                    customDaysDiv.style.display = 'none';
                     addProcessModal.hide();
                     fetchAndRenderProcesses();
                 })
                 .catch(error => console.error('Error adding process:', error));
             });
 
-            // Initial load
+            // --- Initial Load ---
+            updateMenuLinks(companyId);
             fetchAndRenderProcesses();
         });
     </script>

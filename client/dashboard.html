@@ -17,35 +17,19 @@
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column mb-auto">
                 <li class="nav-item">
-                    <a href="#" class="nav-link active" aria-current="page">
-                        Dashboard
-                    </a>
+                    <a href="/dashboard.html" class="nav-link" id="menu-dashboard">Dashboard</a>
                 </li>
                 <li>
-                    <a href="#" class="nav-link text-dark">
-                        Users
-                    </a>
+                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
                 </li>
                 <li>
-                    <a href="#" class="nav-link text-dark">
-                        Companies
-                    </a>
+                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
                 </li>
                 <li>
-                    <a href="#" class="nav-link text-dark">
-                        Departments
-                    </a>
+                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
                 </li>
                 <li>
-                    <a href="/processes.html" class="nav-link text-dark">
-                        Processes
-                    </a>
-                </li>
-                <hr>
-                <li>
-                    <a href="#" class="nav-link text-dark" id="back-to-selection-btn">
-                        Back to Selection
-                    </a>
+                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
                 </li>
             </ul>
         </div>
@@ -54,7 +38,6 @@
     <!-- Main Content -->
     <main class="container mt-4">
         <header class="d-flex justify-content-between align-items-center mb-4">
-            <!-- Button to toggle the offcanvas menu -->
             <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
                 Menu
             </button>
@@ -75,32 +58,45 @@
             const companyNameDisplay = document.getElementById('company-name-display');
             const urlParams = new URLSearchParams(window.location.search);
             const companyId = urlParams.get('companyId');
+            const menu = document.getElementById('offcanvasMenu');
+
+            const updateMenuLinks = (id) => {
+                // Update links that need company context
+                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+
+                // Set active class
+                const currentPage = window.location.pathname;
+                if (currentPage.includes('dashboard.html')) {
+                    menu.querySelector('#menu-dashboard').classList.add('active');
+                }
+            };
 
             if (companyId) {
-                // Find the company name from the mock data
-                fetch('/api/companies')
-                    .then(response => response.json())
-                    .then(companies => {
-                        const company = companies.find(c => c.id === parseInt(companyId));
-                        if (company) {
-                            companyNameDisplay.textContent = `Welcome, ${company.name}!`;
-                        } else {
-                            companyNameDisplay.textContent = 'Company not found';
+                // Fetch company name for welcome message
+                fetch(`/api/companies/${companyId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Company not found');
                         }
+                        return response.json();
+                    })
+                    .then(company => {
+                        companyNameDisplay.textContent = `Welcome, ${company.name}!`;
                     })
                     .catch(error => {
-                        console.error('Error fetching companies:', error);
-                        companyNameDisplay.textContent = 'Welcome!';
+                        console.error('Error fetching company:', error);
+                        companyNameDisplay.textContent = 'Company not found';
                     });
-            }
 
-            const backToSelectionBtn = document.getElementById('back-to-selection-btn');
-            backToSelectionBtn.addEventListener('click', (event) => {
-                event.preventDefault();
-                if (confirm('Are you sure you want to go back to the company selection?')) {
-                    window.location.href = '/selection.html';
-                }
-            });
+                // Update navigation
+                updateMenuLinks(companyId);
+
+            } else {
+                companyNameDisplay.textContent = 'No Company Selected';
+            }
         });
     </script>
 </body>
