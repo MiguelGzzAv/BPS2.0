@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Offcanvas Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Management Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li>
+                    <a href="/dashboard.html" class="nav-link text-dark">
+                        &larr; Back to Companies
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" id="nav-departments" aria-current="page">
+                        Departments
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link text-dark" id="nav-processes">
+                        Processes
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link text-dark" id="nav-responsibles">
+                        Responsibles
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                Menu
+            </button>
+            <h1 id="company-name-header">Loading...</h1>
+        </header>
+
+        <div id="departments-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>Departments</h2>
+                <button id="add-department-btn" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDepartmentModal">Add Department</button>
+            </div>
+            <ul id="department-list" class="list-group">
+                <!-- Department items will be inserted here -->
+            </ul>
+        </div>
+    </main>
+
+    <!-- Add Department Modal -->
+    <div class="modal fade" id="addDepartmentModal" tabindex="-1" aria-labelledby="addDepartmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addDepartmentModalLabel">Add New Department</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-department-form">
+                        <div class="mb-3">
+                            <label for="department-name" class="form-label">Department Name</label>
+                            <input type="text" class="form-control" id="department-name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="add-department-form" class="btn btn-primary">Save Department</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const companyNameHeader = document.getElementById('company-name-header');
+            const departmentList = document.getElementById('department-list');
+            const addDepartmentForm = document.getElementById('add-department-form');
+            const departmentNameInput = document.getElementById('department-name');
+            const addDepartmentModalEl = document.getElementById('addDepartmentModal');
+            const addDepartmentModal = new bootstrap.Modal(addDepartmentModalEl);
+            let companyId = null;
+
+            // Render departments in the list
+            const renderDepartments = (departments) => {
+                departmentList.innerHTML = '';
+                if (departments.length === 0) {
+                    departmentList.innerHTML = '<li class="list-group-item text-muted">No departments found. Add one to get started.</li>';
+                    return;
+                }
+                departments.forEach(dept => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.textContent = dept.name;
+                    departmentList.appendChild(li);
+                });
+            };
+
+            // Fetch departments for the current company
+            const fetchDepartments = () => {
+                if (!companyId) return;
+                fetch(`/api/companies/${companyId}/departments`)
+                    .then(response => response.json())
+                    .then(renderDepartments)
+                    .catch(error => console.error('Error fetching departments:', error));
+            };
+
+            // Fetch company details and then fetch its departments
+            const initializeDashboard = () => {
+                const params = new URLSearchParams(window.location.search);
+                companyId = params.get('id');
+
+                if (!companyId) {
+                    alert('No company ID provided. Redirecting...');
+                    window.location.href = '/dashboard.html';
+                    return;
+                }
+
+                fetch(`/api/companies/${companyId}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Company not found.');
+                        return response.json();
+                    })
+                    .then(company => {
+                        companyNameHeader.textContent = `Dashboard: ${company.name}`;
+                        document.title = `Dashboard - ${company.name}`;
+                        // Once we have the company ID, fetch its departments
+                        fetchDepartments();
+                    })
+                    .catch(error => {
+                        alert(error.message + ' Redirecting...');
+                        window.location.href = '/dashboard.html';
+                    });
+            };
+
+            // Handle Add Department form submission
+            addDepartmentForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const departmentName = departmentNameInput.value.trim();
+                if (!departmentName || !companyId) return;
+
+                fetch(`/api/companies/${companyId}/departments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: departmentName })
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to add department.');
+                    return response.json();
+                })
+                .then(() => {
+                    addDepartmentModal.hide();
+                    addDepartmentForm.reset();
+                    fetchDepartments(); // Refresh the list
+                })
+                .catch(error => {
+                    console.error('Error adding department:', error);
+                    alert(error.message);
+                });
+            });
+
+            // Initial load
+            initializeDashboard();
+        });
+    </script>
+</body>
+</html>
