@@ -22,10 +22,14 @@ app.get('/', (req, res) => {
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     if (username === 'admin' && password === '12345') {
-        res.redirect('/dashboard');
+        res.redirect('/selection');
     } else {
         res.send('Invalid username or password');
     }
+});
+
+app.get('/selection', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client', 'selection.html'));
 });
 
 app.get('/dashboard', (req, res) => {
@@ -41,6 +45,17 @@ app.post('/forgot-password', (req, res) => {
 // API endpoint to get the list of companies
 app.get('/api/companies', (req, res) => {
     res.json(companies);
+});
+
+// API endpoint to get a single company by ID
+app.get('/api/companies/:id', (req, res) => {
+    const { id } = req.params;
+    const company = companies.find(c => c.id === parseInt(id));
+    if (company) {
+        res.json(company);
+    } else {
+        res.status(404).json({ error: 'Company not found' });
+    }
 });
 
 // API endpoint to add a new company
