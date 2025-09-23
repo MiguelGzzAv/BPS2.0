@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Offcanvas Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a href="/dashboard.html" class="nav-link text-dark" id="menu-dashboard">Dashboard</a>
+                </li>
+                <li>
+                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
+                </li>
+                <li>
+                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
+                </li>
+                <li>
+                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
+                </li>
+                <li>
+                    <a href="/processes.html" class="nav-link" id="menu-processes">Processes</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                Menu
+            </button>
+            <h1>Registros</h1>
+        </header>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <button class="btn btn-outline-secondary">Anterior</button>
+                <button class="btn btn-primary">Actual</button>
+            </div>
+            <button class="btn btn-outline-primary">Actualizar</button>
+        </div>
+
+        <div class="mb-4">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Search...">
+                <button class="btn btn-outline-secondary" type="button">Search</button>
+            </div>
+        </div>
+
+        <div id="process-list" class="list-group">
+            <!-- Process items will be injected here by JavaScript -->
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const companyNameDisplay = document.getElementById('company-name-display');
+            const urlParams = new URLSearchParams(window.location.search);
+            const companyId = urlParams.get('companyId');
+            const menu = document.getElementById('offcanvasMenu');
+            const processList = document.getElementById('process-list');
+
+            const updateMenuLinks = (id) => {
+                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+
+                const currentPage = window.location.pathname;
+                if (currentPage.includes('processes.html')) {
+                    menu.querySelector('#menu-processes').classList.add('active');
+                }
+            };
+
+            const getStatusBadge = (status) => {
+                switch (status) {
+                    case 'TERMINADO':
+                        return 'bg-success';
+                    case 'POR INICIAR':
+                        return 'bg-danger';
+                    default:
+                        return 'bg-secondary';
+                }
+            };
+
+            if (companyId) {
+                updateMenuLinks(companyId);
+
+                fetch(`/api/processes?companyId=${companyId}`)
+                    .then(response => response.json())
+                    .then(processes => {
+                        processList.innerHTML = ''; // Clear existing
+                        if (processes.length > 0) {
+                            // Header
+                            const header = document.createElement('div');
+                            header.className = 'list-group-item list-group-item-action active';
+                            header.innerHTML = `
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">PROCESO</h5>
+                                    <small>INICIO</small>
+                                    <small>FIN</small>
+                                    <small>ESTATUS</small>
+                                </div>`;
+                            processList.appendChild(header);
+
+                            const statuses = ['TERMINADO', 'POR INICIAR', 'TERMINADO', 'TERMINADO', 'TERMINADO', 'POR INICIAR'];
+
+                            processes.forEach((process, index) => {
+                                const processItem = document.createElement('a');
+                                processItem.href = `/process-details.html?companyId=${companyId}&processId=${process.id}`;
+                                processItem.className = 'list-group-item list-group-item-action';
+                                const status = statuses[index % statuses.length]; // Cycle through statuses
+
+                                processItem.innerHTML = `
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <h6 class="mb-1 text-success">${process.name}</h6>
+                                        <small>${process.startTime}</small>
+                                        <small>${process.endTime}</small>
+                                        <span class="badge ${getStatusBadge(status)}">${status}</span>
+                                    </div>
+                                `;
+                                processList.appendChild(processItem);
+                            });
+                        } else {
+                            processList.innerHTML = '<p class="text-center">No processes found for this company.</p>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching processes:', error);
+                        processList.innerHTML = '<p class="text-center text-danger">Failed to load processes.</p>';
+                    });
+
+            } else {
+                processList.innerHTML = '<p class="text-center">No Company Selected. Please go back to the selection page.</p>';
+                updateMenuLinks(''); // Clear links if no company
+            }
+        });
+    </script>
+</body>
+</html>
