@@ -3,204 +3,18 @@ const path = require('path');
 const app = express();
 const port = 3000;
 
-// --- Mock Data ---
+// Mock data
 const companies = [
     { id: 1, name: 'Banorte' },
     { id: 2, name: 'Banamex' },
     { id: 3, name: 'Santander' }
 ];
-const processesByCompany = {
-    '1': [
-        {
-            id: 'PRO7032',
-            name: 'PROCESO NOCTURNO BANORTE',
-            processType: 'Padre',
-            fillType: 'Valores',
-            startTime: '21:00',
-            endTime: '23:00',
-            frequency: 'Personalizado',
-            days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-            values: [],
-            subprocesses: []
-        }
-    ],
-    '2': []
-};
-const usersByCompany = {
-    '1': [
-        { id: 1, name: 'John Doe', email: 'john@example.com', phone: '123-456-7890', username: 'johndoe', password: 'password123', groupId: 1 },
-        { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321', username: 'janesmith', password: 'password123', groupId: 2 }
-    ]
-};
-const groupsByCompany = {
-    '1': [
-        { id: 1, name: 'Administrators' },
-        { id: 2, name: 'Operators' }
-    ]
-};
-const departmentsByCompany = {
-    '1': [
-        { id: 1, name: 'Human Resources' },
-        { id: 2, name: 'IT' }
-    ]
-};
 
-// --- Middleware ---
+app.use(express.static(path.join(__dirname, '../client')));
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // Middleware to parse JSON bodies
 
-// --- API Routes ---
-// Companies
-app.get('/api/companies', (req, res) => {
-    res.json(companies);
-});
-
-app.get('/api/companies/:id', (req, res) => {
-    const { id } = req.params;
-    const company = companies.find(c => c.id === parseInt(id));
-    if (company) {
-        res.json(company);
-    } else {
-        res.status(404).json({ error: 'Company not found' });
-    }
-});
-
-app.post('/api/companies', (req, res) => {
-    const { name } = req.body;
-    if (!name) {
-        return res.status(400).json({ error: 'Company name is required' });
-    }
-    const newId = companies.length > 0 ? Math.max(...companies.map(c => c.id)) + 1 : 1;
-    const newCompany = { id: newId, name };
-    companies.push(newCompany);
-    res.status(201).json(newCompany);
-});
-
-app.delete('/api/companies/:id', (req, res) => {
-    const { id } = req.params;
-    const companyIndex = companies.findIndex(c => c.id === parseInt(id));
-    if (companyIndex === -1) {
-        return res.status(404).json({ error: 'Company not found' });
-    }
-    companies.splice(companyIndex, 1);
-    res.status(204).send();
-});
-
-app.put('/api/companies/:id', (req, res) => {
-    const { id } = req.params;
-    const { name } = req.body;
-    const company = companies.find(c => c.id === parseInt(id));
-    if (!company) {
-        return res.status(404).json({ error: 'Company not found' });
-    }
-    if (!name) {
-        return res.status(400).json({ error: 'Company name is required' });
-    }
-    company.name = name;
-    res.json(company);
-});
-
-// Processes
-app.get('/api/processes', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
-    const processes = processesByCompany[companyId] || [];
-    res.json(processes);
-});
-
-app.post('/api/processes', (req, res) => {
-    const { companyId, processData } = req.body;
-    if (!companyId || !processData || !processData.id || !processData.name) {
-        return res.status(400).json({ error: 'companyId and process data (including id and name) are required' });
-    }
-    if (!processesByCompany[companyId]) {
-        processesByCompany[companyId] = [];
-    }
-    processesByCompany[companyId].push(processData);
-    console.log(`Added new process to company ${companyId}:`, processData);
-    res.status(201).json(processData);
-});
-
-// Users
-app.get('/api/users', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
-    const users = usersByCompany[companyId] || [];
-    res.json(users);
-});
-
-app.post('/api/users', (req, res) => {
-    const { companyId, ...newUser } = req.body;
-    if (!companyId || !newUser.username || !newUser.name) {
-        return res.status(400).json({ error: 'companyId, username, and name are required' });
-    }
-    if (!usersByCompany[companyId]) {
-        usersByCompany[companyId] = [];
-    }
-    // In a real app, hash the password here. For now, storing plain text.
-    usersByCompany[companyId].push(newUser);
-    console.log(`Added new user to company ${companyId}:`, newUser);
-    res.status(201).json(newUser);
-});
-
-// Groups
-app.get('/api/groups', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
-    const groups = groupsByCompany[companyId] || [];
-    res.json(groups);
-});
-
-app.post('/api/groups', (req, res) => {
-    const { companyId, ...newGroup } = req.body;
-    if (!companyId || !newGroup.name) {
-        return res.status(400).json({ error: 'companyId and group name are required' });
-    }
-    if (!groupsByCompany[companyId]) {
-        groupsByCompany[companyId] = [];
-    }
-    newGroup.id = Date.now(); // Simple unique ID
-    groupsByCompany[companyId].push(newGroup);
-    console.log(`Added new group to company ${companyId}:`, newGroup);
-    res.status(201).json(newGroup);
-});
-
-// Departments
-app.get('/api/departments', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
-    const departments = departmentsByCompany[companyId] || [];
-    res.json(departments);
-});
-
-app.post('/api/departments', (req, res) => {
-    const { companyId, ...newDepartment } = req.body;
-    if (!companyId || !newDepartment.name) {
-        return res.status(400).json({ error: 'companyId and department name are required' });
-    }
-    if (!departmentsByCompany[companyId]) {
-        departmentsByCompany[companyId] = [];
-    }
-    newDepartment.id = Date.now(); // Simple unique ID
-    departmentsByCompany[companyId].push(newDepartment);
-    console.log(`Added new department to company ${companyId}:`, newDepartment);
-    res.status(201).json(newDepartment);
-});
-
-
-// --- Static Files ---
-app.use(express.static(path.join(__dirname, '../client')));
-
-
-// --- Page-serving Routes ---
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client', 'login.html'));
 });
@@ -208,13 +22,75 @@ app.get('/', (req, res) => {
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     if (username === 'admin' && password === '12345') {
-        res.redirect('/selection.html');
+        res.redirect('/dashboard');
     } else {
         res.send('Invalid username or password');
     }
 });
 
-// --- Server Start ---
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client', 'dashboard.html'));
+});
+
+app.post('/forgot-password', (req, res) => {
+    const { email } = req.body;
+    console.log(`Password reset requested for email: ${email}`);
+    res.send('If an account with that email exists, a password reset link has been sent.');
+});
+
+// API endpoint to get the list of companies
+app.get('/api/companies', (req, res) => {
+    res.json(companies);
+});
+
+// API endpoint to add a new company
+app.post('/api/companies', (req, res) => {
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ error: 'Company name is required' });
+    }
+
+    const newId = companies.length > 0 ? Math.max(...companies.map(c => c.id)) + 1 : 1;
+    const newCompany = { id: newId, name };
+    companies.push(newCompany);
+
+    console.log('Added new company:', newCompany);
+    res.status(201).json(newCompany);
+});
+
+// API endpoint to delete a company
+app.delete('/api/companies/:id', (req, res) => {
+    const { id } = req.params;
+    const companyIndex = companies.findIndex(c => c.id === parseInt(id));
+
+    if (companyIndex === -1) {
+        return res.status(404).json({ error: 'Company not found' });
+    }
+
+    companies.splice(companyIndex, 1);
+    console.log(`Deleted company with id: ${id}`);
+    res.status(204).send();
+});
+
+// API endpoint to update a company
+app.put('/api/companies/:id', (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+    const company = companies.find(c => c.id === parseInt(id));
+
+    if (!company) {
+        return res.status(404).json({ error: 'Company not found' });
+    }
+
+    if (!name) {
+        return res.status(400).json({ error: 'Company name is required' });
+    }
+
+    company.name = name;
+    console.log('Updated company:', company);
+    res.json(company);
+});
+
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
 });

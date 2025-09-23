@@ -17,19 +17,19 @@
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column mb-auto">
                 <li class="nav-item">
-                    <a href="/dashboard.html" class="nav-link" id="menu-dashboard">Dashboard</a>
+                    <a href="#" class="nav-link active" aria-current="page">
+                        Companies
+                    </a>
                 </li>
-                <li>
-                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
-                </li>
-                <li>
-                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
-                </li>
-                <li>
-                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
-                </li>
-                <li>
-                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
+                <li class="nav-item">
+                    <a class="nav-link text-dark" data-bs-toggle="collapse" href="#config-submenu" role="button" aria-expanded="false" aria-controls="config-submenu">
+                        Configuration
+                    </a>
+                    <div class="collapse" id="config-submenu">
+                        <ul class="nav flex-column ms-3">
+                            <li class="nav-item"><a href="#" class="nav-link text-dark" id="db-connection-btn">DB Connection</a></li>
+                        </ul>
+                    </div>
                 </li>
             </ul>
         </div>
@@ -38,65 +38,243 @@
     <!-- Main Content -->
     <main class="container mt-4">
         <header class="d-flex justify-content-between align-items-center mb-4">
-            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
-                Menu
-            </button>
-            <h1>Dashboard</h1>
+            <div>
+                <button class="btn btn-primary me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                    Menu
+                </button>
+                <h1 class="d-inline-block align-middle">Company Selection</h1>
+            </div>
         </header>
 
         <div class="p-5 mb-4 bg-light rounded-3">
             <div class="container-fluid py-5">
-                <h1 class="display-5 fw-bold" id="company-name-display">Welcome!</h1>
-                <p class="col-md-8 fs-4">This is your company dashboard. Use the menu to navigate through the different sections.</p>
+                <h1 class="display-5 fw-bold">Welcome, Captain!</h1>
+                <p class="col-md-8 fs-4">Select a company to manage its dashboard, or set up the application configuration.</p>
             </div>
         </div>
+
+        <hr>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Companies</h2>
+            <div>
+                <button id="add-company-btn" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCompanyModal">Add</button>
+                <button id="edit-company-btn" class="btn btn-warning" disabled>Edit</button>
+                <button id="delete-company-btn" class="btn btn-danger" disabled>Delete</button>
+            </div>
+        </div>
+        <div id="company-list" class="row">
+            <!-- Company cards will be inserted here by JavaScript -->
+        </div>
     </main>
+
+    <!-- Add Company Modal -->
+    <div class="modal fade" id="addCompanyModal" tabindex="-1" aria-labelledby="addCompanyModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addCompanyModalLabel">Add New Company</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-company-form">
+                        <div class="mb-3">
+                            <label for="company-name" class="form-label">Company Name</label>
+                            <input type="text" class="form-control" id="company-name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="add-company-form" class="btn btn-primary">Save Company</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Company Modal -->
+    <div class="modal fade" id="editCompanyModal" tabindex="-1" aria-labelledby="editCompanyModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCompanyModalLabel">Edit Company</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-company-form">
+                        <div class="mb-3">
+                            <label for="edit-company-name" class="form-label">Company Name</label>
+                            <input type="text" class="form-control" id="edit-company-name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="edit-company-form" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DB Connection Modal -->
+    <div class="modal fade" id="dbConnectionModal" tabindex="-1" aria-labelledby="dbConnectionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dbConnectionModalLabel">Database Connection Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="db-connection-form">
+                        <div class="mb-3">
+                            <label for="db-host" class="form-label">Host</label>
+                            <input type="text" class="form-control" id="db-host" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="db-port" class="form-label">Port</label>
+                            <input type="text" class="form-control" id="db-port" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="db-user" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="db-user" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="db-password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="db-password" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="db-name" class="form-label">Database Name</label>
+                            <input type="text" class="form-control" id="db-name" disabled>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="db-connection-form" class="btn btn-primary" disabled>Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const companyNameDisplay = document.getElementById('company-name-display');
-            const urlParams = new URLSearchParams(window.location.search);
-            const companyId = urlParams.get('companyId');
-            const menu = document.getElementById('offcanvasMenu');
+            const companyList = document.getElementById('company-list');
+            const editBtn = document.getElementById('edit-company-btn');
+            const deleteBtn = document.getElementById('delete-company-btn');
+            const addCompanyBtn = document.getElementById('add-company-btn');
+            const addCompanyModalEl = document.getElementById('addCompanyModal');
+            const addCompanyModal = new bootstrap.Modal(addCompanyModalEl);
+            const addCompanyForm = document.getElementById('add-company-form');
+            const companyNameInput = document.getElementById('company-name');
+            const editCompanyModalEl = document.getElementById('editCompanyModal');
+            const editCompanyModal = new bootstrap.Modal(editCompanyModalEl);
+            const editCompanyForm = document.getElementById('edit-company-form');
+            const editCompanyNameInput = document.getElementById('edit-company-name');
+            const dbConnectionBtn = document.getElementById('db-connection-btn');
+            const dbConnectionModalEl = document.getElementById('dbConnectionModal');
+            const dbConnectionModal = new bootstrap.Modal(dbConnectionModalEl);
 
-            const updateMenuLinks = (id) => {
-                // Update links that need company context
-                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
-                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
-                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
-                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+            let selectedCompanyId = null;
+            let companiesData = [];
 
-                // Set active class
-                const currentPage = window.location.pathname;
-                if (currentPage.includes('dashboard.html')) {
-                    menu.querySelector('#menu-dashboard').classList.add('active');
-                }
+            const renderCompanies = (companies) => {
+                companiesData = companies;
+                companyList.innerHTML = '';
+                companies.forEach(company => {
+                    const companyCard = document.createElement('div');
+                    companyCard.className = 'col-md-4 mb-4';
+                    companyCard.innerHTML = `<div class="card" style="cursor: pointer;" data-id="${company.id}"><div class="card-body"><h5 class="card-title">${company.name}</h5></div></div>`;
+                    companyList.appendChild(companyCard);
+
+                    companyCard.querySelector('.card').addEventListener('click', (event) => {
+                        document.querySelectorAll('#company-list .card').forEach(card => card.classList.remove('border-primary'));
+                        const selectedCard = event.currentTarget;
+                        selectedCard.classList.add('border-primary');
+                        selectedCompanyId = company.id;
+                        editBtn.disabled = false;
+                        deleteBtn.disabled = false;
+                    });
+                });
             };
 
-            if (companyId) {
-                // Fetch company name for welcome message
-                fetch(`/api/companies/${companyId}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Company not found');
+            const fetchAndRenderCompanies = () => {
+                fetch('/api/companies').then(response => response.json()).then(renderCompanies).catch(error => console.error('Error fetching companies:', error));
+            };
+
+            addCompanyBtn.addEventListener('click', () => {
+                addCompanyForm.reset();
+                addCompanyModal.show();
+            });
+
+            addCompanyForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const companyName = companyNameInput.value.trim();
+                if (!companyName) return;
+                fetch('/api/companies', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: companyName })
+                }).then(response => response.json()).then(() => {
+                    addCompanyModal.hide();
+                    fetchAndRenderCompanies();
+                }).catch(error => console.error('Error adding company:', error));
+            });
+
+            deleteBtn.addEventListener('click', () => {
+                if (!selectedCompanyId) {
+                    alert('Please select a company to delete.');
+                    return;
+                }
+                if (confirm('Are you sure you want to delete this company?')) {
+                    fetch(`/api/companies/${selectedCompanyId}`, { method: 'DELETE' }).then(response => {
+                        if (response.ok) {
+                            selectedCompanyId = null;
+                            editBtn.disabled = true;
+                            deleteBtn.disabled = true;
+                            fetchAndRenderCompanies();
+                        } else {
+                            alert('Failed to delete company.');
                         }
-                        return response.json();
-                    })
-                    .then(company => {
-                        companyNameDisplay.textContent = `Welcome, ${company.name}!`;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching company:', error);
-                        companyNameDisplay.textContent = 'Company not found';
-                    });
+                    }).catch(error => console.error('Error deleting company:', error));
+                }
+            });
 
-                // Update navigation
-                updateMenuLinks(companyId);
+            editBtn.addEventListener('click', () => {
+                if (!selectedCompanyId) {
+                    alert('Please select a company to edit.');
+                    return;
+                }
+                const companyToEdit = companiesData.find(c => c.id === selectedCompanyId);
+                if (companyToEdit) {
+                    editCompanyNameInput.value = companyToEdit.name;
+                    editCompanyModal.show();
+                }
+            });
 
-            } else {
-                companyNameDisplay.textContent = 'No Company Selected';
-            }
+            editCompanyForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const newName = editCompanyNameInput.value.trim();
+                if (!newName || !selectedCompanyId) return;
+                fetch(`/api/companies/${selectedCompanyId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                }).then(response => response.json()).then(() => {
+                    editCompanyModal.hide();
+                    selectedCompanyId = null;
+                    editBtn.disabled = true;
+                    deleteBtn.disabled = true;
+                    fetchAndRenderCompanies();
+                }).catch(error => console.error('Error updating company:', error));
+            });
+
+            dbConnectionBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                dbConnectionModal.show();
+            });
+
+            fetchAndRenderCompanies();
         });
     </script>
 </body>
