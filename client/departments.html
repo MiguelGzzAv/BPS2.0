@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Offcanvas Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a href="/dashboard.html" class="nav-link text-dark" id="menu-dashboard">Dashboard</a>
+                </li>
+                <li>
+                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
+                </li>
+                <li>
+                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
+                </li>
+                <li>
+                    <a href="/departments.html" class="nav-link" id="menu-departments">Departments</a>
+                </li>
+                <li>
+                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <button class="btn btn-primary me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                    Menu
+                </button>
+                <h1 class="d-inline-block align-middle">Department Management</h1>
+            </div>
+            <button id="add-department-btn" class="btn btn-primary">Add Department</button>
+        </header>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Department Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="department-list">
+                <!-- Department rows will be injected here -->
+            </tbody>
+        </table>
+    </main>
+
+    <!-- Add Department Modal -->
+    <div class="modal fade" id="addDepartmentModal" tabindex="-1" aria-labelledby="addDepartmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addDepartmentModalLabel">Add New Department</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-department-form">
+                        <div class="mb-3">
+                            <label for="department-name" class="form-label">Department Name</label>
+                            <input type="text" class="form-control" id="department-name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="add-department-form" class="btn btn-primary">Save Department</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const menu = document.getElementById('offcanvasMenu');
+            const urlParams = new URLSearchParams(window.location.search);
+            const companyId = urlParams.get('companyId');
+
+            // --- Menu Logic ---
+            const updateMenuLinks = (id) => {
+                if (!id) return;
+                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+
+                const currentPage = window.location.pathname;
+                if (currentPage.includes('departments.html')) {
+                    menu.querySelector('#menu-departments').classList.add('active');
+                }
+            };
+
+            const addDepartmentModalEl = document.getElementById('addDepartmentModal');
+            const addDepartmentModal = new bootstrap.Modal(addDepartmentModalEl);
+            const addDepartmentBtn = document.getElementById('add-department-btn');
+            const addDepartmentForm = document.getElementById('add-department-form');
+            const departmentList = document.getElementById('department-list');
+
+            const fetchAndRenderDepartments = () => {
+                if (!companyId) return;
+                fetch(`/api/departments?companyId=${companyId}`)
+                    .then(response => response.json())
+                    .then(departments => {
+                        departmentList.innerHTML = '';
+                        departments.forEach(dept => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${dept.name}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" disabled>Edit</button>
+                                    <button class="btn btn-sm btn-danger" disabled>Delete</button>
+                                </td>
+                            `;
+                            departmentList.appendChild(row);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching departments:', error));
+            };
+
+            addDepartmentBtn.addEventListener('click', () => {
+                addDepartmentForm.reset();
+                addDepartmentModal.show();
+            });
+
+            addDepartmentForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const newDepartment = {
+                    companyId: companyId,
+                    name: document.getElementById('department-name').value,
+                };
+
+                fetch('/api/departments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newDepartment)
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to add department');
+                    return response.json();
+                })
+                .then(() => {
+                    addDepartmentModal.hide();
+                    fetchAndRenderDepartments();
+                })
+                .catch(error => console.error('Error adding department:', error));
+            });
+
+            // --- Initial Load ---
+            updateMenuLinks(companyId);
+            fetchAndRenderDepartments();
+        });
+    </script>
+</body>
+</html>

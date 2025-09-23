@@ -38,6 +38,12 @@ const groupsByCompany = {
         { id: 2, name: 'Operators' }
     ]
 };
+const departmentsByCompany = {
+    '1': [
+        { id: 1, name: 'Human Resources' },
+        { id: 2, name: 'IT' }
+    ]
+};
 
 // --- Middleware ---
 app.use(express.urlencoded({ extended: true }));
@@ -163,6 +169,30 @@ app.post('/api/groups', (req, res) => {
     groupsByCompany[companyId].push(newGroup);
     console.log(`Added new group to company ${companyId}:`, newGroup);
     res.status(201).json(newGroup);
+});
+
+// Departments
+app.get('/api/departments', (req, res) => {
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+    const departments = departmentsByCompany[companyId] || [];
+    res.json(departments);
+});
+
+app.post('/api/departments', (req, res) => {
+    const { companyId, ...newDepartment } = req.body;
+    if (!companyId || !newDepartment.name) {
+        return res.status(400).json({ error: 'companyId and department name are required' });
+    }
+    if (!departmentsByCompany[companyId]) {
+        departmentsByCompany[companyId] = [];
+    }
+    newDepartment.id = Date.now(); // Simple unique ID
+    departmentsByCompany[companyId].push(newDepartment);
+    console.log(`Added new department to company ${companyId}:`, newDepartment);
+    res.status(201).json(newDepartment);
 });
 
 
