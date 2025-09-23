@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Offcanvas Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a href="/dashboard.html" class="nav-link text-dark" id="menu-dashboard">Dashboard</a>
+                </li>
+                <li>
+                    <a href="/users.html" class="nav-link" id="menu-users">Users</a>
+                </li>
+                <li>
+                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
+                </li>
+                <li>
+                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
+                </li>
+                <li>
+                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <button class="btn btn-primary me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                    Menu
+                </button>
+                <h1 class="d-inline-block align-middle">User and Group Management</h1>
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="managementTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-panel" type="button" role="tab" aria-controls="users-panel" aria-selected="true">Manage Users</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups-panel" type="button" role="tab" aria-controls="groups-panel" aria-selected="false">Manage Groups</button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="managementTabsContent">
+            <div class="tab-pane fade show active" id="users-panel" role="tabpanel" aria-labelledby="users-tab" tabindex="0">
+                <!-- User management content will go here -->
+                <div class="d-flex justify-content-end my-3">
+                    <button id="add-user-btn" class="btn btn-primary">Add User</button>
+                </div>
+                <div id="user-list-container">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Username</th>
+                                <th>Group</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-list">
+                            <!-- User rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="groups-panel" role="tabpanel" aria-labelledby="groups-tab" tabindex="0">
+                <!-- Group management content will go here -->
+                <div class="d-flex justify-content-end my-3">
+                    <button id="add-group-btn" class="btn btn-primary">Add Group</button>
+                </div>
+                <div id="group-list-container">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Group Name</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="group-list">
+                            <!-- Group rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add User Modal -->
+    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addUserModalLabel">Add New User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-user-form">
+                        <div class="mb-3">
+                            <label for="user-name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="user-name" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="user-email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="user-email" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="user-phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="user-phone">
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="user-username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="user-username" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="user-password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="user-password" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="user-group" class="form-label">Group</label>
+                            <select id="user-group" class="form-select">
+                                <!-- Group options will be populated by JS -->
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="add-user-form" class="btn btn-primary">Save User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Group Modal -->
+    <div class="modal fade" id="addGroupModal" tabindex="-1" aria-labelledby="addGroupModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addGroupModalLabel">Add New Group</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-group-form">
+                        <div class="mb-3">
+                            <label for="group-name" class="form-label">Group Name</label>
+                            <input type="text" class="form-control" id="group-name" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="add-group-form" class="btn btn-primary">Save Group</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const menu = document.getElementById('offcanvasMenu');
+            const urlParams = new URLSearchParams(window.location.search);
+            const companyId = urlParams.get('companyId');
+
+            // --- Menu Logic ---
+            const updateMenuLinks = (id) => {
+                if (!id) return;
+                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+
+                const currentPage = window.location.pathname;
+                if (currentPage.includes('users.html')) {
+                    menu.querySelector('#menu-users').classList.add('active');
+                }
+            };
+
+            const addUserModalEl = document.getElementById('addUserModal');
+            const addUserModal = new bootstrap.Modal(addUserModalEl);
+            const addUserBtn = document.getElementById('add-user-btn');
+            const addUserForm = document.getElementById('add-user-form');
+            const userList = document.getElementById('user-list');
+            const groupSelect = document.getElementById('user-group');
+
+            let groupsData = [];
+
+            const fetchAndRenderUsers = () => {
+                if (!companyId) return;
+                fetch(`/api/users?companyId=${companyId}`)
+                    .then(response => response.json())
+                    .then(users => {
+                        userList.innerHTML = '';
+                        users.forEach(user => {
+                            const group = groupsData.find(g => g.id === user.groupId) || {};
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td>${user.phone}</td>
+                                <td>${user.username}</td>
+                                <td>${group.name || 'N/A'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" disabled>Edit</button>
+                                    <button class="btn btn-sm btn-danger" disabled>Delete</button>
+                                    <button class="btn btn-sm btn-info" disabled>Reset Password</button>
+                                </td>
+                            `;
+                            userList.appendChild(row);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching users:', error));
+            };
+
+            addUserBtn.addEventListener('click', () => {
+                addUserForm.reset();
+                addUserModal.show();
+            });
+
+            addUserForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const selectedGroupId = document.getElementById('user-group').value;
+                if (isNaN(selectedGroupId)) {
+                    alert('Please select a valid group.');
+                    return;
+                }
+
+                const newUser = {
+                    companyId: companyId,
+                    name: document.getElementById('user-name').value,
+                    email: document.getElementById('user-email').value,
+                    phone: document.getElementById('user-phone').value,
+                    username: document.getElementById('user-username').value,
+                    password: document.getElementById('user-password').value,
+                    groupId: parseInt(selectedGroupId, 10)
+                };
+
+                fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newUser)
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to add user');
+                    return response.json();
+                })
+                .then(() => {
+                    addUserModal.hide();
+                    fetchAndRenderUsers();
+                })
+                .catch(error => console.error('Error adding user:', error));
+            });
+
+
+            const addGroupModalEl = document.getElementById('addGroupModal');
+            const addGroupModal = new bootstrap.Modal(addGroupModalEl);
+            const addGroupBtn = document.getElementById('add-group-btn');
+            const addGroupForm = document.getElementById('add-group-form');
+            const groupList = document.getElementById('group-list');
+
+            const fetchAndRenderGroups = () => {
+                if (!companyId) return Promise.resolve();
+                return fetch(`/api/groups?companyId=${companyId}`)
+                    .then(response => response.json())
+                    .then(groups => {
+                        groupList.innerHTML = '';
+                        groups.forEach(group => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${group.name}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" disabled>Edit</button>
+                                    <button class="btn btn-sm btn-danger" disabled>Delete</button>
+                                </td>
+                            `;
+                            groupList.appendChild(row);
+                        });
+                        // Also update the dropdown in the other form
+                        groupsData = groups;
+                        groupSelect.innerHTML = '<option selected>Choose...</option>';
+                        groups.forEach(group => {
+                            const option = document.createElement('option');
+                            option.value = group.id;
+                            option.textContent = group.name;
+                            groupSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching groups:', error));
+            };
+
+            addGroupBtn.addEventListener('click', () => {
+                addGroupForm.reset();
+                addGroupModal.show();
+            });
+
+            addGroupForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const newGroup = {
+                    companyId: companyId,
+                    name: document.getElementById('group-name').value,
+                };
+
+                fetch('/api/groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newGroup)
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to add group');
+                    return response.json();
+                })
+                .then(() => {
+                    addGroupModal.hide();
+                    fetchAndRenderGroups(); // This now also refreshes the dropdown
+                })
+                .catch(error => console.error('Error adding group:', error));
+            });
+
+            // --- Initial Load ---
+            updateMenuLinks(companyId);
+            fetchAndRenderGroups().then(() => {
+                fetchAndRenderUsers();
+            });
+        });
+    </script>
+</body>
+</html>

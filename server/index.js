@@ -26,6 +26,18 @@ const processesByCompany = {
     ],
     '2': []
 };
+const usersByCompany = {
+    '1': [
+        { id: 1, name: 'John Doe', email: 'john@example.com', phone: '123-456-7890', username: 'johndoe', password: 'password123', groupId: 1 },
+        { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321', username: 'janesmith', password: 'password123', groupId: 2 }
+    ]
+};
+const groupsByCompany = {
+    '1': [
+        { id: 1, name: 'Administrators' },
+        { id: 2, name: 'Operators' }
+    ]
+};
 
 // --- Middleware ---
 app.use(express.urlencoded({ extended: true }));
@@ -103,6 +115,54 @@ app.post('/api/processes', (req, res) => {
     processesByCompany[companyId].push(processData);
     console.log(`Added new process to company ${companyId}:`, processData);
     res.status(201).json(processData);
+});
+
+// Users
+app.get('/api/users', (req, res) => {
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+    const users = usersByCompany[companyId] || [];
+    res.json(users);
+});
+
+app.post('/api/users', (req, res) => {
+    const { companyId, ...newUser } = req.body;
+    if (!companyId || !newUser.username || !newUser.name) {
+        return res.status(400).json({ error: 'companyId, username, and name are required' });
+    }
+    if (!usersByCompany[companyId]) {
+        usersByCompany[companyId] = [];
+    }
+    // In a real app, hash the password here. For now, storing plain text.
+    usersByCompany[companyId].push(newUser);
+    console.log(`Added new user to company ${companyId}:`, newUser);
+    res.status(201).json(newUser);
+});
+
+// Groups
+app.get('/api/groups', (req, res) => {
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+    const groups = groupsByCompany[companyId] || [];
+    res.json(groups);
+});
+
+app.post('/api/groups', (req, res) => {
+    const { companyId, ...newGroup } = req.body;
+    if (!companyId || !newGroup.name) {
+        return res.status(400).json({ error: 'companyId and group name are required' });
+    }
+    if (!groupsByCompany[companyId]) {
+        groupsByCompany[companyId] = [];
+    }
+    newGroup.id = Date.now(); // Simple unique ID
+    groupsByCompany[companyId].push(newGroup);
+    console.log(`Added new group to company ${companyId}:`, newGroup);
+    res.status(201).json(newGroup);
 });
 
 
