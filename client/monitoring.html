@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Monitoring</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-terminated { background-color: #d1e7dd; color: #0f5132; }
+        .status-pending { background-color: #f8d7da; color: #842029; }
+        .status-inprogress { background-color: #cff4fc; color: #055160; }
+        .badge { font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <!-- Offcanvas Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a href="/dashboard.html" class="nav-link" id="menu-dashboard">Dashboard</a>
+                </li>
+                <li>
+                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
+                </li>
+                <li>
+                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
+                </li>
+                <li>
+                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
+                </li>
+                <li>
+                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
+                </li>
+                <li>
+                    <a href="/monitoring.html" class="nav-link text-dark" id="menu-monitoring">Monitoring</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <button class="btn btn-primary me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                    Menu
+                </button>
+                <h1 class="d-inline-block align-middle">Process Monitoring</h1>
+            </div>
+        </header>
+
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>PROCESO</th>
+                    <th>INICIO</th>
+                    <th>FIN</th>
+                    <th>ESTATUS</th>
+                    <th>ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody id="monitoring-list">
+                <!-- Process rows will be inserted here by JavaScript -->
+            </tbody>
+        </table>
+    </main>
+
+    <!-- Registration Modal -->
+    <div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: #343a40; color: white;">
+                    <h5 class="modal-title" id="registrationModalLabel">Crear Registro</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="process-info-bar mb-3 p-2 rounded" style="background-color: #e9ecef;">
+                        <div class="d-flex justify-content-between">
+                            <div><strong>Proceso:</strong> <span id="modal-process-name"></span></div>
+                            <div>
+                                <strong>Hora Inicio:</strong> <span id="modal-start-time"></span>
+                                <strong class="ms-4">Hora Fin:</strong> <span id="modal-end-time"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>MODULO</th>
+                                    <th>SISTEMA ORIGEN</th>
+                                    <th>FECHA PROCESO</th>
+                                    <th>HORA PROCESO</th>
+                                    <th>MENSAJE_ERROR</th>
+                                    <th>ESTATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-fields-body">
+                                <!-- Dynamic form fields will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-primary">Guardar Registro</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const monitoringList = document.getElementById('monitoring-list');
+            const menu = document.getElementById('offcanvasMenu');
+            const urlParams = new URLSearchParams(window.location.search);
+            const companyId = urlParams.get('companyId') || 'default'; // Using a default for now
+            const registrationModal = new bootstrap.Modal(document.getElementById('registrationModal'));
+            const modalProcessName = document.getElementById('modal-process-name');
+            const modalStartTime = document.getElementById('modal-start-time');
+            const modalEndTime = document.getElementById('modal-end-time');
+            const modalFieldsBody = document.getElementById('modal-fields-body');
+
+            // --- Menu Logic ---
+            const updateMenuLinks = (id) => {
+                if (!id) return;
+                menu.querySelector('#menu-dashboard').href = `dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `processes.html?companyId=${id}`;
+                menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
+
+                const currentPage = window.location.pathname;
+                if (currentPage.includes('monitoring.html')) {
+                    menu.querySelector('#menu-monitoring').classList.add('active');
+                }
+            };
+
+            // --- Page Logic ---
+            const renderProcesses = (processes) => {
+                monitoringList.innerHTML = '';
+                if (!processes || processes.length === 0) {
+                    monitoringList.innerHTML = '<tr><td colspan="5" class="text-center">No processes found for this company.</td></tr>';
+                    return;
+                }
+
+                processes.forEach(proc => {
+                    const row = document.createElement('tr');
+                    const status = 'POR INICIAR'; // Static for now
+                    const statusClass = status === 'TERMINADO' ? 'status-terminated' : 'status-pending';
+
+                    // Store the complex 'values' data in a data attribute, ensuring proper escaping
+                    const fieldsData = JSON.stringify(proc.values || []);
+
+                    row.innerHTML = `
+                        <td>${proc.name}</td>
+                        <td>${proc.startTime}</td>
+                        <td>${proc.endTime}</td>
+                        <td><span class="badge ${statusClass}">${status}</span></td>
+                        <td>
+                            <button class="btn btn-primary btn-sm register-btn"
+                                data-bs-toggle="modal"
+                                data-bs-target="#registrationModal"
+                                data-process-id="${proc.id}"
+                                data-process-name="${proc.name}"
+                                data-start-time="${proc.startTime}"
+                                data-end-time="${proc.endTime}"
+                                data-fields='${fieldsData}'>
+                                Registrar
+                            </button>
+                        </td>
+                    `;
+                    monitoringList.appendChild(row);
+                });
+            };
+
+            const fetchAndRenderProcesses = () => {
+                fetch(`/api/processes?companyId=${companyId}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to fetch processes');
+                        return response.json();
+                    })
+                    .then(renderProcesses)
+                    .catch(error => {
+                        console.error('Error fetching processes:', error);
+                        monitoringList.innerHTML = '<tr><td colspan="5" class="text-center">Error loading processes.</td></tr>';
+                    });
+            };
+
+            // --- Initial Load ---
+            updateMenuLinks(companyId);
+            fetchAndRenderProcesses();
+
+            // --- Modal Logic ---
+            document.getElementById('registrationModal').addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const processName = button.getAttribute('data-process-name');
+                const startTime = button.getAttribute('data-start-time');
+                const endTime = button.getAttribute('data-end-time');
+                const fields = JSON.parse(button.getAttribute('data-fields'));
+
+                // Populate modal header
+                modalProcessName.textContent = processName;
+                modalStartTime.textContent = startTime;
+                modalEndTime.textContent = endTime;
+
+                // Populate modal body table
+                modalFieldsBody.innerHTML = '';
+                if (fields && fields.length > 0) {
+                    fields.forEach(field => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="text" class="form-control" value="${field.name}" readonly></td>
+                            <td><input type="text" class="form-control"></td>
+                            <td><input type="date" class="form-control"></td>
+                            <td><input type="time" class="form-control"></td>
+                            <td><input type="text" class="form-control"></td>
+                            <td>
+                                <select class="form-select">
+                                    <option selected>Choose...</option>
+                                    <option value="Success">Success</option>
+                                    <option value="Failed">Failed</option>
+                                    <option value="Pending">Pending</option>
+                                </select>
+                            </td>
+                        `;
+                        modalFieldsBody.appendChild(row);
+                    });
+                } else {
+                    modalFieldsBody.innerHTML = '<tr><td colspan="6" class="text-center">No registration fields defined for this process.</td></tr>';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

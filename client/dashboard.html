@@ -31,6 +31,9 @@
                 <li>
                     <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
                 </li>
+                <li>
+                    <a href="/monitoring.html" class="nav-link text-dark" id="menu-monitoring">Monitoring</a>
+                </li>
             </ul>
         </div>
     </div>
@@ -66,6 +69,7 @@
                 menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
                 menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
                 menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+                menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
 
                 // Set active class
                 const currentPage = window.location.pathname;

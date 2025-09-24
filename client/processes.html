@@ -30,6 +30,9 @@
                 <li>
                     <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
                 </li>
+                <li>
+                    <a href="/monitoring.html" class="nav-link text-dark" id="menu-monitoring">Monitoring</a>
+                </li>
             </ul>
         </div>
     </div>
@@ -169,10 +172,11 @@
             const updateMenuLinks = (id) => {
                 if (!id) return;
                 // Update links that need company context
-                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
-                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
-                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
-                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+                menu.querySelector('#menu-dashboard').href = `dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `processes.html?companyId=${id}`;
+                menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
 
                 // Set active class
                 const currentPage = window.location.pathname;
@@ -186,11 +190,6 @@
                 processList.innerHTML = '';
                 processes.forEach(proc => {
                     const row = document.createElement('tr');
-                    // Add data attribute for the process ID and a class for styling
-                    row.dataset.processId = proc.id;
-                    row.style.cursor = 'pointer';
-                    row.title = 'Click to view registration details';
-
                     row.innerHTML = `
                         <td>${proc.id}</td>
                         <td>${proc.name}</td>
@@ -203,19 +202,6 @@
                     processList.appendChild(row);
                 });
             };
-
-            // Add a single event listener to the table body to handle clicks
-            processList.addEventListener('click', (event) => {
-                const row = event.target.closest('tr');
-                if (row && row.dataset.processId) {
-                    const processId = row.dataset.processId;
-                    if (companyId && processId) {
-                        window.location.href = `registro.html?companyId=${companyId}&processId=${processId}`;
-                    } else {
-                        console.error('Missing companyId or processId');
-                    }
-                }
-            });
 
             const fetchAndRenderProcesses = () => {
                 if (!companyId) return;
