@@ -235,7 +235,7 @@
             };
 
             const fetchAndRenderProcesses = () => {
-                fetch(`/api/processes?companyId=${companyId}`)
+                return fetch(`/api/processes?companyId=${companyId}`)
                     .then(response => {
                         if (!response.ok) throw new Error('Failed to fetch processes');
                         return response.json();
@@ -337,6 +337,8 @@
                 const endTime = button.getAttribute('data-end-time');
                 const fieldsString = button.getAttribute('data-fields');
                 const fields = fieldsString ? JSON.parse(fieldsString) : [];
+
+                console.log('Fields for modal:', fields); // Debugging log
 
                 // Populate modal header
                 modalProcessName.textContent = processName;
