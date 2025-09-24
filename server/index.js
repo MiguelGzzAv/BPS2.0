@@ -258,6 +258,30 @@ app.post('/api/departments', (req, res) => {
     res.status(201).json(newDepartment);
 });
 
+// Registrations
+app.post('/api/registrations', (req, res) => {
+    const { companyId, processId, timestamp, values } = req.body;
+
+    if (!companyId || !processId || !values) {
+        return res.status(400).json({ error: 'companyId, processId, and values are required' });
+    }
+
+    if (!registrationsByCompany[companyId]) {
+        registrationsByCompany[companyId] = [];
+    }
+
+    const newRegistration = {
+        id: Date.now(), // Simple unique ID for the registration
+        processId,
+        timestamp,
+        values
+    };
+
+    registrationsByCompany[companyId].push(newRegistration);
+    console.log(`Added new registration to company ${companyId}:`, newRegistration);
+    res.status(201).json(newRegistration);
+});
+
 
 // --- Static Files ---
 app.use(express.static(path.join(__dirname, '../client')));
