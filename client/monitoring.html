@@ -223,7 +223,8 @@
                                 data-process-id="${proc.id}"
                                 data-process-name="${proc.name}"
                                 data-start-time="${proc.startTime}"
-                                data-end-time="${proc.endTime}">
+                                data-end-time="${proc.endTime}"
+                                data-fields='${fieldsData}'>
                                 Registrar
                             </button>
                         </td>
@@ -331,19 +332,16 @@
             document.getElementById('registrationModal').addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
                 currentProcessId = button.getAttribute('data-process-id');
-
-                const process = masterProcessList.find(p => p.id === currentProcessId);
-                if (!process) {
-                    console.error('Could not find process with ID:', currentProcessId);
-                    return;
-                }
-
-                const fields = process.values || [];
+                const processName = button.getAttribute('data-process-name');
+                const startTime = button.getAttribute('data-start-time');
+                const endTime = button.getAttribute('data-end-time');
+                const fieldsString = button.getAttribute('data-fields');
+                const fields = fieldsString ? JSON.parse(fieldsString) : [];
 
                 // Populate modal header
-                modalProcessName.textContent = process.name;
-                modalStartTime.textContent = process.startTime;
-                modalEndTime.textContent = process.endTime;
+                modalProcessName.textContent = processName;
+                modalStartTime.textContent = startTime;
+                modalEndTime.textContent = endTime;
 
                 // Populate modal body with a dynamic form
                 modalRegistrationForm.innerHTML = '';
