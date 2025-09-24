@@ -24,12 +24,12 @@
 <body>
     <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <img src="logo.png" alt="Avatar Logo" style="width:40px;" class="rounded-pill">
-            </a>
             <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
                 Menu
             </button>
+            <a class="navbar-brand" href="#">
+                <img src="logo.png" alt="Avatar Logo" style="width:40px;" class="rounded-pill">
+            </a>
         </div>
     </nav>
     <!-- Offcanvas Menu -->
@@ -146,9 +146,6 @@
             const modalEndTime = document.getElementById('modal-end-time');
             const modalRegistrationForm = document.getElementById('modal-registration-form');
             const saveRegistrationBtn = document.querySelector('#registrationModal .btn-primary');
-            let userList = []; // To store users for the dropdown
-            let currentProcessId = null; // To store the process ID for saving
-            let masterProcessList = []; // To hold the original, full list of processes
             const sortTimeButton = document.getElementById('sort-time');
             let userList = []; // To store users for the dropdown
             let currentProcessId = null; // To store the process ID for saving
