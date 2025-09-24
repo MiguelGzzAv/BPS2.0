@@ -44,7 +44,24 @@ const departmentsByCompany = {
         { id: 2, name: 'IT' }
     ]
 };
-const registrationsByCompany = {};
+// --- Mock Data ---
+const yesterday = new Date();
+yesterday.setDate(yesterday.getDate() - 1);
+const yesterdayISO = yesterday.toISOString();
+
+const registrationsByCompany = {
+    '1': [
+        {
+            id: 12345,
+            processId: 'PRO7032',
+            timestamp: yesterdayISO,
+            values: [
+                { name: 'Status', value: 'ok' },
+                { name: 'Responsable', value: 'Jane Smith' }
+            ]
+        }
+    ]
+};
 
 // --- Middleware ---
 app.use(express.urlencoded({ extended: true }));
@@ -256,6 +273,30 @@ app.post('/api/departments', (req, res) => {
     departmentsByCompany[companyId].push(newDepartment);
     console.log(`Added new department to company ${companyId}:`, newDepartment);
     res.status(201).json(newDepartment);
+});
+
+// Registrations
+app.post('/api/registrations', (req, res) => {
+    const { companyId, processId, timestamp, values } = req.body;
+
+    if (!companyId || !processId || !values) {
+        return res.status(400).json({ error: 'companyId, processId, and values are required' });
+    }
+
+    if (!registrationsByCompany[companyId]) {
+        registrationsByCompany[companyId] = [];
+    }
+
+    const newRegistration = {
+        id: Date.now(), // Simple unique ID for the registration
+        processId,
+        timestamp,
+        values
+    };
+
+    registrationsByCompany[companyId].push(newRegistration);
+    console.log(`Added new registration to company ${companyId}:`, newRegistration);
+    res.status(201).json(newRegistration);
 });
 
 app.get('/api/summary', (req, res) => {
