@@ -88,23 +88,9 @@
                             </div>
                         </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>MODULO</th>
-                                    <th>SISTEMA ORIGEN</th>
-                                    <th>FECHA PROCESO</th>
-                                    <th>HORA PROCESO</th>
-                                    <th>MENSAJE_ERROR</th>
-                                    <th>ESTATUS</th>
-                                </tr>
-                            </thead>
-                            <tbody id="modal-fields-body">
-                                <!-- Dynamic form fields will be injected here -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <form id="modal-registration-form">
+                        <!-- Dynamic form fields will be injected here by JS -->
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -125,7 +111,8 @@
             const modalProcessName = document.getElementById('modal-process-name');
             const modalStartTime = document.getElementById('modal-start-time');
             const modalEndTime = document.getElementById('modal-end-time');
-            const modalFieldsBody = document.getElementById('modal-fields-body');
+            const modalRegistrationForm = document.getElementById('modal-registration-form');
+            let userList = []; // To store users for the dropdown
 
             // --- Menu Logic ---
             const updateMenuLinks = (id) => {
@@ -193,9 +180,27 @@
                     });
             };
 
+            // --- Data Fetching ---
+            const fetchUsers = () => {
+                if (!companyId) return Promise.resolve();
+                return fetch(`/api/users?companyId=${companyId}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to fetch users');
+                        return response.json();
+                    })
+                    .then(data => {
+                        userList = data; // Cache the user list
+                    })
+                    .catch(error => {
+                        console.error('Error fetching users:', error);
+                        userList = []; // Ensure it's an empty array on error
+                    });
+            };
+
             // --- Initial Load ---
             updateMenuLinks(companyId);
             fetchAndRenderProcesses();
+            fetchUsers(); // Fetch users once on page load
 
             // --- Modal Logic ---
             document.getElementById('registrationModal').addEventListener('show.bs.modal', function (event) {
@@ -210,30 +215,50 @@
                 modalStartTime.textContent = startTime;
                 modalEndTime.textContent = endTime;
 
-                // Populate modal body table
-                modalFieldsBody.innerHTML = '';
+                // Populate modal body with a dynamic form
+                modalRegistrationForm.innerHTML = '';
                 if (fields && fields.length > 0) {
                     fields.forEach(field => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td><input type="text" class="form-control" value="${field.name}" readonly></td>
-                            <td><input type="text" class="form-control"></td>
-                            <td><input type="date" class="form-control"></td>
-                            <td><input type="time" class="form-control"></td>
-                            <td><input type="text" class="form-control"></td>
-                            <td>
-                                <select class="form-select">
+                        const formRow = document.createElement('div');
+                        formRow.className = 'row mb-3 align-items-center';
+
+                        let inputHtml = '';
+                        switch (field.type) {
+                            case 'status':
+                                const statusOptions = ['falla', 'ambar', 'ok', 'error', 'sin ejecucion'];
+                                inputHtml = `<select class="form-select">
                                     <option selected>Choose...</option>
-                                    <option value="Success">Success</option>
-                                    <option value="Failed">Failed</option>
-                                    <option value="Pending">Pending</option>
-                                </select>
-                            </td>
+                                    ${statusOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                                </select>`;
+                                break;
+                            case 'responsable':
+                                inputHtml = `<select class="form-select">
+                                    <option selected>Choose...</option>
+                                    ${userList.map(user => `<option value="${user.id}">${user.name}</option>`).join('')}
+                                </select>`;
+                                break;
+                            case 'number':
+                                inputHtml = '<input type="number" class="form-control">';
+                                break;
+                            case 'date':
+                                inputHtml = '<input type="date" class="form-control">';
+                                break;
+                            case 'text':
+                            default:
+                                inputHtml = '<input type="text" class="form-control">';
+                                break;
+                        }
+
+                        formRow.innerHTML = `
+                            <label class="col-sm-4 col-form-label">${field.name}</label>
+                            <div class="col-sm-8">
+                                ${inputHtml}
+                            </div>
                         `;
-                        modalFieldsBody.appendChild(row);
+                        modalRegistrationForm.appendChild(formRow);
                     });
                 } else {
-                    modalFieldsBody.innerHTML = '<tr><td colspan="6" class="text-center">No registration fields defined for this process.</td></tr>';
+                    modalRegistrationForm.innerHTML = '<p class="text-center">No registration fields defined for this process.</p>';
                 }
             });
         });
