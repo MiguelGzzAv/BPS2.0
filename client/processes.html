@@ -186,6 +186,11 @@
                 processList.innerHTML = '';
                 processes.forEach(proc => {
                     const row = document.createElement('tr');
+                    // Add data attribute for the process ID and a class for styling
+                    row.dataset.processId = proc.id;
+                    row.style.cursor = 'pointer';
+                    row.title = 'Click to view registration details';
+
                     row.innerHTML = `
                         <td>${proc.id}</td>
                         <td>${proc.name}</td>
@@ -198,6 +203,19 @@
                     processList.appendChild(row);
                 });
             };
+
+            // Add a single event listener to the table body to handle clicks
+            processList.addEventListener('click', (event) => {
+                const row = event.target.closest('tr');
+                if (row && row.dataset.processId) {
+                    const processId = row.dataset.processId;
+                    if (companyId && processId) {
+                        window.location.href = `registro.html?companyId=${companyId}&processId=${processId}`;
+                    } else {
+                        console.error('Missing companyId or processId');
+                    }
+                }
+            });
 
             const fetchAndRenderProcesses = () => {
                 if (!companyId) return;
