@@ -240,7 +240,6 @@
                         return response.json();
                     })
                     .then(processes => {
-                        console.log('Processes received from server:', JSON.stringify(processes, null, 2));
                         masterProcessList = processes;
                         displayProcesses();
                     })
@@ -349,7 +348,9 @@
                 // Populate modal body with a dynamic form
                 modalRegistrationForm.innerHTML = '';
                 if (fields.length > 0) {
+                    console.log(`Rendering ${fields.length} fields...`);
                     fields.forEach(field => {
+                        console.log(`  - Rendering field: ${field.name} (Type: ${field.type})`);
                         const formRow = document.createElement('div');
                         formRow.className = 'row mb-3 align-items-center';
 

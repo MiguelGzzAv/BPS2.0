@@ -110,8 +110,6 @@ app.get('/api/processes', (req, res) => {
     const processes = processesByCompany[companyId] || [];
     const registrations = registrationsByCompany[companyId] || [];
 
-    console.log(`[GET /api/processes] Found ${processes.length} processes for companyId: ${companyId}.`);
-
     const today = new Date().toISOString().slice(0, 10); // Get YYYY-MM-DD
 
     const processesWithStatus = processes.map(proc => {
@@ -154,7 +152,6 @@ app.post('/api/processes', (req, res) => {
     if (!Array.isArray(processData.values)) {
         processData.values = [];
     }
-    console.log('[POST /api/processes] Received data:', JSON.stringify(processData, null, 2));
     processesByCompany[companyId].push(processData);
     res.status(201).json(processData);
 });
@@ -165,7 +162,6 @@ app.put('/api/processes/:id', (req, res) => {
     if (!companyId || !processData) {
         return res.status(400).json({ error: 'companyId and processData are required' });
     }
-    console.log(`[PUT /api/processes/${id}] Received data:`, JSON.stringify(processData, null, 2));
     const processes = processesByCompany[companyId] || [];
     const processIndex = processes.findIndex(p => p.id === id);
     if (processIndex === -1) {
