@@ -258,28 +258,48 @@ app.post('/api/departments', (req, res) => {
     res.status(201).json(newDepartment);
 });
 
-// Registrations
-app.post('/api/registrations', (req, res) => {
-    const { companyId, processId, timestamp, values } = req.body;
+app.get('/api/summary', (req, res) => {
+    const { companyId, date } = req.query;
 
-    if (!companyId || !processId || !values) {
-        return res.status(400).json({ error: 'companyId, processId, and values are required' });
+    if (!companyId || !date) {
+        return res.status(400).json({ error: 'companyId and date are required' });
     }
 
-    if (!registrationsByCompany[companyId]) {
-        registrationsByCompany[companyId] = [];
-    }
+    const processes = processesByCompany[companyId] || [];
+    const registrations = registrationsByCompany[companyId] || [];
 
-    const newRegistration = {
-        id: Date.now(), // Simple unique ID for the registration
-        processId,
-        timestamp,
-        values
+    const summary = {
+        'ok': 0,
+        'falla': 0,
+        'error': 0,
+        'ambar': 0,
+        'sin ejecucion': 0
     };
 
-    registrationsByCompany[companyId].push(newRegistration);
-    console.log(`Added new registration to company ${companyId}:`, newRegistration);
-    res.status(201).json(newRegistration);
+    const dailyRegistrations = registrations.filter(r => r.timestamp.startsWith(date));
+    const registeredProcessIds = new Set(dailyRegistrations.map(r => r.processId));
+
+    dailyRegistrations.forEach(reg => {
+        const process = processes.find(p => p.id === reg.processId);
+        if (!process) return;
+
+        const statusField = (process.values || []).find(f => f.type === 'status');
+        if (!statusField) return;
+
+        const registrationValue = reg.values.find(v => v.name === statusField.name);
+        if (registrationValue && registrationValue.value) {
+            const status = registrationValue.value.toLowerCase();
+            if (summary.hasOwnProperty(status)) {
+                summary[status]++;
+            }
+        }
+    });
+
+    const totalProcesses = processes.length;
+    const runProcesses = registeredProcessIds.size;
+    summary['sin ejecucion'] = totalProcesses - runProcesses;
+
+    res.json({ date, summary });
 });
 
 
