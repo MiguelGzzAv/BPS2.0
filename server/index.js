@@ -152,6 +152,7 @@ app.post('/api/processes', (req, res) => {
     if (!Array.isArray(processData.values)) {
         processData.values = [];
     }
+    console.log('Received process data:', JSON.stringify(processData, null, 2));
     processesByCompany[companyId].push(processData);
     console.log(`Added new process to company ${companyId}:`, processData);
     res.status(201).json(processData);

@@ -192,6 +192,8 @@
             const addProcessForm = document.getElementById('add-process-form');
             const menu = document.getElementById('offcanvasMenu');
             let currentProcessId = null; // To track which process is being edited/deleted
+            let isEditMode = false;
+            let masterProcessList = [];
             const urlParams = new URLSearchParams(window.location.search);
             const companyId = urlParams.get('companyId');
 
@@ -214,6 +216,7 @@
 
             // --- Page Logic ---
             const renderProcesses = (processes) => {
+                masterProcessList = processes; // Cache the full list
                 processList.innerHTML = '';
                 processes.forEach(proc => {
                     const row = document.createElement('tr');
@@ -292,8 +295,11 @@
                     subprocesses: []
                 };
 
-                fetch('/api/processes', {
-                    method: 'POST',
+                const url = isEditMode ? `/api/processes/${currentProcessId}` : '/api/processes';
+                const method = isEditMode ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ companyId: companyId, processData: processData })
                 })
@@ -351,13 +357,63 @@
                 if (target.classList.contains('delete-btn')) {
                     currentProcessId = processId;
                     deleteProcessModal.show();
-                }
+                } else if (target.classList.contains('edit-btn')) {
+                    isEditMode = true;
+                    currentProcessId = processId;
+                    const processToEdit = masterProcessList.find(p => p.id === processId);
+                    if (processToEdit) {
+                        // Populate form
+                        document.getElementById('process-id').value = processToEdit.id;
+                        document.getElementById('process-id').disabled = true; // Don't allow editing ID
+                        document.getElementById('process-name').value = processToEdit.name;
+                        document.getElementById('process-processType').value = processToEdit.processType;
+                        document.getElementById('process-fillType').value = processToEdit.fillType;
+                        document.getElementById('process-startTime').value = processToEdit.startTime;
+                        document.getElementById('process-endTime').value = processToEdit.endTime;
+                        document.getElementById('process-frequency').value = processToEdit.frequency;
 
-                if (target.classList.contains('edit-btn')) {
-                    // This is a simplified edit. It just opens the modal.
-                    // A full implementation would pre-fill the modal with existing process data.
-                    addProcessModal.show();
-                    // You would typically fetch the process data and populate the form here.
+                        // Handle custom days
+                        const customDaysDiv = document.getElementById('custom-frequency-days');
+                        if (processToEdit.frequency === 'Personalizado') {
+                            customDaysDiv.style.display = 'block';
+                            const checkboxes = customDaysDiv.querySelectorAll('input[type="checkbox"]');
+                            checkboxes.forEach(cb => {
+                                cb.checked = (processToEdit.days || []).includes(cb.value);
+                            });
+                        } else {
+                            customDaysDiv.style.display = 'none';
+                        }
+
+                        // Populate registration fields
+                        fieldsContainer.innerHTML = ''; // Clear old fields
+                        (processToEdit.values || []).forEach(field => {
+                            const fieldRow = document.createElement('div');
+                            fieldRow.className = 'row mb-2 align-items-center dynamic-field-row';
+                            fieldRow.innerHTML = `
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control field-name" placeholder="Field Name" value="${field.name}">
+                                </div>
+                                <div class="col-md-5">
+                                    <select class="form-select field-type">
+                                        <option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option>
+                                        <option value="number" ${field.type === 'number' ? 'selected' : ''}>Number</option>
+                                        <option value="date" ${field.type === 'date' ? 'selected' : ''}>Date</option>
+                                        <option value="status" ${field.type === 'status' ? 'selected' : ''}>Status</option>
+                                        <option value="responsable" ${field.type === 'responsable' ? 'selected' : ''}>Responsable</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-danger btn-sm remove-field-btn">Remove</button>
+                                </div>
+                            `;
+                            fieldsContainer.appendChild(fieldRow);
+                        });
+
+                        // Change modal title and button text
+                        document.getElementById('addProcessModalLabel').textContent = 'Edit Process';
+                        document.querySelector('#addProcessModal .btn-primary').textContent = 'Save Changes';
+                        addProcessModal.show();
+                    }
                 }
             });
 
@@ -375,6 +431,16 @@
                     fetchAndRenderProcesses();
                 })
                 .catch(error => console.error('Error deleting process:', error));
+            });
+
+            document.getElementById('add-process-btn').addEventListener('click', () => {
+                isEditMode = false;
+                currentProcessId = null;
+                addProcessForm.reset();
+                document.getElementById('addProcessModalLabel').textContent = 'Add New Process';
+                document.querySelector('#addProcessModal .btn-primary').textContent = 'Save Process';
+                document.getElementById('process-id').disabled = false;
+                fieldsContainer.innerHTML = ''; // Clear old fields
             });
 
             // --- Initial Load ---
