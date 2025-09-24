@@ -44,6 +44,7 @@ const departmentsByCompany = {
         { id: 2, name: 'IT' }
     ]
 };
+const registrationsByCompany = {};
 
 // --- Middleware ---
 app.use(express.urlencoded({ extended: true }));
