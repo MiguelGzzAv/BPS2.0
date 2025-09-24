@@ -148,9 +148,43 @@ app.post('/api/processes', (req, res) => {
     if (!processesByCompany[companyId]) {
         processesByCompany[companyId] = [];
     }
+    // Ensure the values property is always an array
+    if (!Array.isArray(processData.values)) {
+        processData.values = [];
+    }
     processesByCompany[companyId].push(processData);
     console.log(`Added new process to company ${companyId}:`, processData);
     res.status(201).json(processData);
+});
+
+app.put('/api/processes/:id', (req, res) => {
+    const { id } = req.params;
+    const { companyId, processData } = req.body;
+    if (!companyId || !processData) {
+        return res.status(400).json({ error: 'companyId and processData are required' });
+    }
+    const processes = processesByCompany[companyId] || [];
+    const processIndex = processes.findIndex(p => p.id === id);
+    if (processIndex === -1) {
+        return res.status(404).json({ error: 'Process not found' });
+    }
+    processes[processIndex] = processData;
+    res.json(processData);
+});
+
+app.delete('/api/processes/:id', (req, res) => {
+    const { id } = req.params;
+    const { companyId } = req.query; // companyId from query string
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+    const processes = processesByCompany[companyId] || [];
+    const processIndex = processes.findIndex(p => p.id === id);
+    if (processIndex === -1) {
+        return res.status(404).json({ error: 'Process not found' });
+    }
+    processes.splice(processIndex, 1);
+    res.status(204).send();
 });
 
 // Users
