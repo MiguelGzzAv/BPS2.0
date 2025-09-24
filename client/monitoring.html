@@ -22,6 +22,16 @@
     </style>
 </head>
 <body>
+    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <img src="logo.png" alt="Avatar Logo" style="width:40px;" class="rounded-pill">
+            </a>
+            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                Menu
+            </button>
+        </div>
+    </nav>
     <!-- Offcanvas Menu -->
     <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
         <div class="offcanvas-header">
@@ -54,14 +64,7 @@
 
     <!-- Main Content -->
     <main class="container mt-4">
-        <header class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <button class="btn btn-primary me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
-                    Menu
-                </button>
-                <h1 class="d-inline-block align-middle">Process Monitoring</h1>
-            </div>
-        </header>
+        <h1 class="mb-4">Process Monitoring</h1>
 
         <div class="row mb-3 gx-2">
             <div class="col-md-5">
@@ -146,7 +149,10 @@
             let userList = []; // To store users for the dropdown
             let currentProcessId = null; // To store the process ID for saving
             let masterProcessList = []; // To hold the original, full list of processes
-            let isSortedAsc = true; // To track sort order
+            const sortTimeButton = document.getElementById('sort-time');
+            let userList = []; // To store users for the dropdown
+            let currentProcessId = null; // To store the process ID for saving
+            let masterProcessList = []; // To hold the original, full list of processes
 
             // --- Menu Logic ---
             const updateMenuLinks = (id) => {
@@ -178,12 +184,15 @@
                     processesToDisplay = processesToDisplay.filter(p => p.status === statusFilter);
                 }
 
-                // Apply sorting
-                processesToDisplay.sort((a, b) => {
-                    const timeA = a.startTime.replace(':', '');
-                    const timeB = b.startTime.replace(':', '');
-                    return isSortedAsc ? timeA.localeCompare(timeB) : timeB.localeCompare(timeA);
-                });
+                // Apply sorting only if the button has been clicked
+                if (sortTimeButton.dataset.sortOrder) {
+                    const sortOrder = sortTimeButton.dataset.sortOrder;
+                    processesToDisplay.sort((a, b) => {
+                        const timeA = parseInt(a.startTime.replace(':', ''), 10);
+                        const timeB = parseInt(b.startTime.replace(':', ''), 10);
+                        return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+                    });
+                }
 
                 monitoringList.innerHTML = '';
                 if (processesToDisplay.length === 0) {
@@ -315,34 +324,39 @@
             // --- Filter and Sort Event Listeners ---
             document.getElementById('filter-name').addEventListener('input', displayProcesses);
             document.getElementById('filter-status').addEventListener('change', displayProcesses);
-            document.getElementById('sort-time').addEventListener('click', () => {
-                isSortedAsc = !isSortedAsc; // Toggle sort order
+            sortTimeButton.addEventListener('click', () => {
+                const currentOrder = sortTimeButton.dataset.sortOrder;
+                const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                sortTimeButton.dataset.sortOrder = nextOrder;
                 displayProcesses();
             });
 
             // --- Modal Logic ---
             document.getElementById('registrationModal').addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
-                currentProcessId = button.getAttribute('data-process-id'); // Store the process ID
-                const processName = button.getAttribute('data-process-name');
-                const startTime = button.getAttribute('data-start-time');
-                const endTime = button.getAttribute('data-end-time');
-                const fields = JSON.parse(button.getAttribute('data-fields'));
+                currentProcessId = button.getAttribute('data-process-id');
+
+                const process = masterProcessList.find(p => p.id === currentProcessId);
+                if (!process) {
+                    console.error('Could not find process with ID:', currentProcessId);
+                    return;
+                }
+
+                const fields = process.values || [];
 
                 // Populate modal header
-                modalProcessName.textContent = processName;
-                modalStartTime.textContent = startTime;
-                modalEndTime.textContent = endTime;
+                modalProcessName.textContent = process.name;
+                modalStartTime.textContent = process.startTime;
+                modalEndTime.textContent = process.endTime;
 
                 // Populate modal body with a dynamic form
                 modalRegistrationForm.innerHTML = '';
-                if (fields && fields.length > 0) {
+                if (fields.length > 0) {
                     fields.forEach(field => {
                         const formRow = document.createElement('div');
                         formRow.className = 'row mb-3 align-items-center';
 
                         let inputHtml = '';
-                        // Use field.name as a unique identifier for the input
                         const fieldId = `field-${field.name.replace(/\s+/g, '-')}`;
                         switch (field.type) {
                             case 'status':
@@ -353,9 +367,11 @@
                                 </select>`;
                                 break;
                             case 'responsable':
+                                // Ensure userList is ready before rendering
+                                const userOptions = userList.map(user => `<option value="${user.name}">${user.name}</option>`).join('');
                                 inputHtml = `<select id="${fieldId}" class="form-select" data-field-name="${field.name}">
                                     <option selected>Choose...</option>
-                                    ${userList.map(user => `<option value="${user.name}">${user.name}</option>`).join('')}
+                                    ${userOptions}
                                 </select>`;
                                 break;
                             case 'number':
