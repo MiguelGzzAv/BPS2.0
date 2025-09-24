@@ -6,9 +6,18 @@
     <title>Process Monitoring</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .status-terminated { background-color: #d1e7dd; color: #0f5132; }
-        .status-pending { background-color: #f8d7da; color: #842029; }
-        .status-inprogress { background-color: #cff4fc; color: #055160; }
+        .status-ok { color: #198754; font-weight: bold; }
+        .status-falla, .status-error { color: #dc3545; font-weight: bold; }
+        .status-ambar { color: #ffc107; font-weight: bold; }
+        .status-sin-ejecucion { color: #6c757d; font-weight: bold; }
+        .status-por-iniciar { color: #adb5bd; }
+
+        .badge-ok { background-color: #198754; }
+        .badge-falla, .badge-error { background-color: #dc3545; }
+        .badge-ambar { background-color: #ffc107; color: #000; }
+        .badge-sin-ejecucion { background-color: #6c757d; }
+        .badge-por-iniciar { background-color: #adb5bd; }
+
         .badge { font-size: 0.9em; }
     </style>
 </head>
@@ -54,6 +63,26 @@
             </div>
         </header>
 
+        <div class="row mb-3 gx-2">
+            <div class="col-md-5">
+                <input type="text" id="filter-name" class="form-control" placeholder="Filter by process name...">
+            </div>
+            <div class="col-md-4">
+                <select id="filter-status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="ok">OK</option>
+                    <option value="falla">Falla</option>
+                    <option value="error">Error</option>
+                    <option value="ambar">Ambar</option>
+                    <option value="sin ejecucion">Sin Ejecucion</option>
+                    <option value="POR INICIAR">Por Iniciar</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button id="sort-time" class="btn btn-outline-secondary w-100">Sort by Time</button>
+            </div>
+        </div>
+
         <table class="table table-hover">
             <thead class="table-light">
                 <tr>
@@ -61,6 +90,7 @@
                     <th>INICIO</th>
                     <th>FIN</th>
                     <th>ESTATUS</th>
+                    <th>URGENCIA</th>
                     <th>ACCIONES</th>
                 </tr>
             </thead>
@@ -112,7 +142,11 @@
             const modalStartTime = document.getElementById('modal-start-time');
             const modalEndTime = document.getElementById('modal-end-time');
             const modalRegistrationForm = document.getElementById('modal-registration-form');
+            const saveRegistrationBtn = document.querySelector('#registrationModal .btn-primary');
             let userList = []; // To store users for the dropdown
+            let currentProcessId = null; // To store the process ID for saving
+            let masterProcessList = []; // To hold the original, full list of processes
+            let isSortedAsc = true; // To track sort order
 
             // --- Menu Logic ---
             const updateMenuLinks = (id) => {
@@ -130,26 +164,52 @@
             };
 
             // --- Page Logic ---
-            const renderProcesses = (processes) => {
+            const displayProcesses = () => {
+                const nameFilter = document.getElementById('filter-name').value.toLowerCase();
+                const statusFilter = document.getElementById('filter-status').value;
+
+                let processesToDisplay = [...masterProcessList];
+
+                // Apply filters
+                if (nameFilter) {
+                    processesToDisplay = processesToDisplay.filter(p => p.name.toLowerCase().includes(nameFilter));
+                }
+                if (statusFilter) {
+                    processesToDisplay = processesToDisplay.filter(p => p.status === statusFilter);
+                }
+
+                // Apply sorting
+                processesToDisplay.sort((a, b) => {
+                    const timeA = a.startTime.replace(':', '');
+                    const timeB = b.startTime.replace(':', '');
+                    return isSortedAsc ? timeA.localeCompare(timeB) : timeB.localeCompare(timeA);
+                });
+
                 monitoringList.innerHTML = '';
-                if (!processes || processes.length === 0) {
-                    monitoringList.innerHTML = '<tr><td colspan="5" class="text-center">No processes found for this company.</td></tr>';
+                if (processesToDisplay.length === 0) {
+                    monitoringList.innerHTML = '<tr><td colspan="6" class="text-center">No matching processes found.</td></tr>';
                     return;
                 }
 
-                processes.forEach(proc => {
+                processesToDisplay.forEach(proc => {
                     const row = document.createElement('tr');
-                    const status = 'POR INICIAR'; // Static for now
-                    const statusClass = status === 'TERMINADO' ? 'status-terminated' : 'status-pending';
+                    row.setAttribute('data-process-id', proc.id); // For the timer
+                    const status = proc.status || 'POR INICIAR';
+                    const statusClass = `status-${status.toLowerCase().replace(/\s+/g, '-')}`;
+                    const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
 
-                    // Store the complex 'values' data in a data attribute, ensuring proper escaping
                     const fieldsData = JSON.stringify(proc.values || []);
 
                     row.innerHTML = `
-                        <td>${proc.name}</td>
+                        <td class="${statusClass}">${proc.name}</td>
                         <td>${proc.startTime}</td>
                         <td>${proc.endTime}</td>
-                        <td><span class="badge ${statusClass}">${status}</span></td>
+                        <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
+                        <td class="spinner-cell">
+                            <div class="spinner-grow spinner-grow-sm text-secondary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </td>
                         <td>
                             <button class="btn btn-primary btn-sm register-btn"
                                 data-bs-toggle="modal"
@@ -165,6 +225,7 @@
                     `;
                     monitoringList.appendChild(row);
                 });
+                updateTimedElements(); // Refresh timers after rendering
             };
 
             const fetchAndRenderProcesses = () => {
@@ -173,10 +234,13 @@
                         if (!response.ok) throw new Error('Failed to fetch processes');
                         return response.json();
                     })
-                    .then(renderProcesses)
+                    .then(processes => {
+                        masterProcessList = processes;
+                        displayProcesses();
+                    })
                     .catch(error => {
                         console.error('Error fetching processes:', error);
-                        monitoringList.innerHTML = '<tr><td colspan="5" class="text-center">Error loading processes.</td></tr>';
+                        monitoringList.innerHTML = '<tr><td colspan="6" class="text-center">Error loading processes.</td></tr>';
                     });
             };
 
@@ -197,14 +261,69 @@
                     });
             };
 
+            // --- Time-based UI Updates ---
+            const updateTimedElements = () => {
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes();
+
+                document.querySelectorAll('#monitoring-list tr').forEach(row => {
+                    const startTimeStr = row.cells[1].textContent;
+                    const endTimeStr = row.cells[2].textContent;
+                    const registerBtn = row.querySelector('.register-btn');
+                    const spinner = row.querySelector('.spinner-grow');
+
+                    if (!startTimeStr || !endTimeStr || !registerBtn || !spinner) return;
+
+                    const [startH, startM] = startTimeStr.split(':').map(Number);
+                    const [endH, endM] = endTimeStr.split(':').map(Number);
+                    const startTime = startH * 60 + startM;
+                    const endTime = endH * 60 + endM;
+
+                    // Button enable/disable logic
+                    if (currentTime >= startTime && currentTime < endTime) {
+                        registerBtn.disabled = false;
+                    } else {
+                        registerBtn.disabled = true;
+                    }
+
+                    // Spinner color logic
+                    const totalDuration = endTime - startTime;
+                    const elapsedTime = currentTime - startTime;
+                    const percentage = totalDuration > 0 ? (elapsedTime / totalDuration) * 100 : 0;
+
+                    spinner.className = 'spinner-grow spinner-grow-sm'; // Reset classes
+                    if (currentTime < startTime || currentTime >= endTime) {
+                        spinner.classList.add('text-secondary'); // Off
+                    } else if (percentage < 50) { // 01:00 to 01:29 for a 1h window
+                        spinner.classList.add('text-success'); // Green
+                    } else if (percentage < 67) { // 01:30 to 01:40 for a 1h window (approx 66.6%)
+                        spinner.classList.add('text-warning'); // Yellow
+                    } else { // 01:41 to 02:00
+                        spinner.classList.add('text-danger'); // Red
+                    }
+                });
+            };
+
             // --- Initial Load ---
             updateMenuLinks(companyId);
-            fetchAndRenderProcesses();
+            fetchAndRenderProcesses().then(() => {
+                // The interval is now started after the first fetch completes
+                setInterval(updateTimedElements, 30000);
+            });
             fetchUsers(); // Fetch users once on page load
+
+            // --- Filter and Sort Event Listeners ---
+            document.getElementById('filter-name').addEventListener('input', displayProcesses);
+            document.getElementById('filter-status').addEventListener('change', displayProcesses);
+            document.getElementById('sort-time').addEventListener('click', () => {
+                isSortedAsc = !isSortedAsc; // Toggle sort order
+                displayProcesses();
+            });
 
             // --- Modal Logic ---
             document.getElementById('registrationModal').addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
+                currentProcessId = button.getAttribute('data-process-id'); // Store the process ID
                 const processName = button.getAttribute('data-process-name');
                 const startTime = button.getAttribute('data-start-time');
                 const endTime = button.getAttribute('data-end-time');
@@ -223,34 +342,36 @@
                         formRow.className = 'row mb-3 align-items-center';
 
                         let inputHtml = '';
+                        // Use field.name as a unique identifier for the input
+                        const fieldId = `field-${field.name.replace(/\s+/g, '-')}`;
                         switch (field.type) {
                             case 'status':
                                 const statusOptions = ['falla', 'ambar', 'ok', 'error', 'sin ejecucion'];
-                                inputHtml = `<select class="form-select">
+                                inputHtml = `<select id="${fieldId}" class="form-select" data-field-name="${field.name}">
                                     <option selected>Choose...</option>
                                     ${statusOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
                                 </select>`;
                                 break;
                             case 'responsable':
-                                inputHtml = `<select class="form-select">
+                                inputHtml = `<select id="${fieldId}" class="form-select" data-field-name="${field.name}">
                                     <option selected>Choose...</option>
-                                    ${userList.map(user => `<option value="${user.id}">${user.name}</option>`).join('')}
+                                    ${userList.map(user => `<option value="${user.name}">${user.name}</option>`).join('')}
                                 </select>`;
                                 break;
                             case 'number':
-                                inputHtml = '<input type="number" class="form-control">';
+                                inputHtml = `<input type="number" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
                                 break;
                             case 'date':
-                                inputHtml = '<input type="date" class="form-control">';
+                                inputHtml = `<input type="date" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
                                 break;
                             case 'text':
                             default:
-                                inputHtml = '<input type="text" class="form-control">';
+                                inputHtml = `<input type="text" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
                                 break;
                         }
 
                         formRow.innerHTML = `
-                            <label class="col-sm-4 col-form-label">${field.name}</label>
+                            <label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label>
                             <div class="col-sm-8">
                                 ${inputHtml}
                             </div>
@@ -260,6 +381,46 @@
                 } else {
                     modalRegistrationForm.innerHTML = '<p class="text-center">No registration fields defined for this process.</p>';
                 }
+            });
+
+            saveRegistrationBtn.addEventListener('click', () => {
+                const registrationData = {
+                    companyId: companyId,
+                    processId: currentProcessId,
+                    timestamp: new Date().toISOString(),
+                    values: []
+                };
+
+                const inputs = modalRegistrationForm.querySelectorAll('input, select');
+                inputs.forEach(input => {
+                    const fieldName = input.getAttribute('data-field-name');
+                    if (fieldName) {
+                        registrationData.values.push({
+                            name: fieldName,
+                            value: input.value
+                        });
+                    }
+                });
+
+                fetch('/api/registrations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(registrationData)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to save registration');
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    registrationModal.hide(); // Use the existing modal instance
+                    fetchAndRenderProcesses(); // Refresh the list to show the new status
+                })
+                .catch(error => {
+                    console.error('Error saving registration:', error);
+                    alert('Error saving registration. See console for details.');
+                });
             });
         });
     </script>

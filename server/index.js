@@ -107,7 +107,32 @@ app.get('/api/processes', (req, res) => {
         return res.status(400).json({ error: 'companyId is required' });
     }
     const processes = processesByCompany[companyId] || [];
-    res.json(processes);
+    const registrations = registrationsByCompany[companyId] || [];
+
+    const today = new Date().toISOString().slice(0, 10); // Get YYYY-MM-DD
+
+    const processesWithStatus = processes.map(proc => {
+        // Find the most recent registration for this process for today
+        const relevantRegistrations = registrations
+            .filter(r => r.processId === proc.id && r.timestamp.startsWith(today))
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        let status = 'POR INICIAR';
+        // Find the field in the process definition that is designated as the status field
+        const statusDefinitionField = proc.values.find(def => def.type === 'status');
+
+        if (statusDefinitionField && relevantRegistrations.length > 0) {
+            // Now find the value for that specific field name in the latest registration
+            const statusValueField = relevantRegistrations[0].values.find(v => v.name === statusDefinitionField.name);
+            if (statusValueField && statusValueField.value) {
+                status = statusValueField.value;
+            }
+        }
+
+        return { ...proc, status };
+    });
+
+    res.json(processesWithStatus);
 });
 
 app.post('/api/processes', (req, res) => {
