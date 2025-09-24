@@ -223,8 +223,7 @@
                                 data-process-id="${proc.id}"
                                 data-process-name="${proc.name}"
                                 data-start-time="${proc.startTime}"
-                                data-end-time="${proc.endTime}"
-                                data-fields='${fieldsData}'>
+                                data-end-time="${proc.endTime}">
                                 Registrar
                             </button>
                         </td>
@@ -241,6 +240,7 @@
                         return response.json();
                     })
                     .then(processes => {
+                        console.log('Processes received from server:', JSON.stringify(processes, null, 2));
                         masterProcessList = processes;
                         displayProcesses();
                     })
