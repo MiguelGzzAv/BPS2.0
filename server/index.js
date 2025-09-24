@@ -130,7 +130,11 @@ app.get('/api/processes', (req, res) => {
             }
         }
 
-        return { ...proc, status };
+        const safeProc = { ...proc };
+        if (!Array.isArray(safeProc.values)) {
+            safeProc.values = [];
+        }
+        return { ...safeProc, status };
     });
 
     res.json(processesWithStatus);
