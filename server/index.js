@@ -136,14 +136,23 @@ app.get('/api/processes', (req, res) => {
             .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         let status = 'POR INICIAR';
-        // Find the field in the process definition that is designated as the status field
-        const statusDefinitionField = proc.values.find(def => def.type === 'status');
+        let registrationId = null;
+        let registrationTimestamp = null;
 
-        if (statusDefinitionField && relevantRegistrations.length > 0) {
-            // Now find the value for that specific field name in the latest registration
-            const statusValueField = relevantRegistrations[0].values.find(v => v.name === statusDefinitionField.name);
-            if (statusValueField && statusValueField.value) {
-                status = statusValueField.value;
+        if (relevantRegistrations.length > 0) {
+            const latestRegistration = relevantRegistrations[0];
+            registrationId = latestRegistration.id;
+            registrationTimestamp = latestRegistration.timestamp;
+            const statusDefinitionField = (proc.values || []).find(def => def.type === 'status');
+            if (statusDefinitionField) {
+                const statusValueField = latestRegistration.values.find(v => v.name === statusDefinitionField.name);
+                if (statusValueField && statusValueField.value) {
+                    status = statusValueField.value;
+                } else {
+                    status = 'Sin Ejecucion';
+                }
+            } else {
+                status = 'Sin Ejecucion';
             }
         }
 
@@ -151,7 +160,7 @@ app.get('/api/processes', (req, res) => {
         if (!Array.isArray(safeProc.values)) {
             safeProc.values = [];
         }
-        return { ...safeProc, status };
+        return { ...safeProc, status, registrationId, registrationTimestamp };
     });
 
     res.json(processesWithStatus);
@@ -297,6 +306,55 @@ app.post('/api/registrations', (req, res) => {
     registrationsByCompany[companyId].push(newRegistration);
     console.log(`Added new registration to company ${companyId}:`, newRegistration);
     res.status(201).json(newRegistration);
+});
+
+app.put('/api/registrations/:id', (req, res) => {
+    const { id } = req.params;
+    const { companyId, values } = req.body;
+
+    if (!companyId || !values) {
+        return res.status(400).json({ error: 'companyId and values are required' });
+    }
+
+    const registrations = registrationsByCompany[companyId] || [];
+    const registrationIndex = registrations.findIndex(r => r.id == id);
+
+    if (registrationIndex === -1) {
+        return res.status(404).json({ error: 'Registration not found' });
+    }
+
+    // Check if it's been more than 24 hours
+    const registrationTime = new Date(registrations[registrationIndex].timestamp);
+    const now = new Date();
+    const diffHours = (now - registrationTime) / (1000 * 60 * 60);
+
+    if (diffHours > 24) {
+        return res.status(403).json({ error: 'Cannot edit a registration after 24 hours' });
+    }
+
+    registrations[registrationIndex].values = values;
+    registrations[registrationIndex].timestamp = new Date().toISOString(); // Update timestamp on edit
+
+    console.log(`Updated registration ${id} for company ${companyId}:`, registrations[registrationIndex]);
+    res.json(registrations[registrationIndex]);
+});
+
+app.get('/api/registrations/:id', (req, res) => {
+    const { id } = req.params;
+    const { companyId } = req.query;
+
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+
+    const registrations = registrationsByCompany[companyId] || [];
+    const registration = registrations.find(r => r.id == id);
+
+    if (!registration) {
+        return res.status(404).json({ error: 'Registration not found' });
+    }
+
+    res.json(registration);
 });
 
 app.get('/api/summary', (req, res) => {
