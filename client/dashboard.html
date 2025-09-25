@@ -157,32 +157,48 @@
                     const container = document.createElement('div');
                     container.className = 'col-lg-4 col-md-6 mb-4';
 
+                    const topProcesses = [...data.processes.Alta, ...data.processes.Media, ...data.processes.Baja].slice(0, 5);
+                    const footerHtml = `
+                        <div class="card-footer clickable-footer" data-status="${status}" style="cursor: pointer;">
+                            <h6 class="text-muted">Top Procesos</h6>
+                            <ul class="list-group list-group-flush">
+                                ${topProcesses.map(p => `<li class="list-group-item">${p}</li>`).join('')}
+                            </ul>
+                            ${data.total > 5 ? '<small class="text-primary">Ver más...</small>' : ''}
+                        </div>`;
+
+                    let cardBodyHtml = '';
                     if (currentView === 'cards') {
-                        const topProcesses = [...data.processes.Alta, ...data.processes.Media, ...data.processes.Baja].slice(0, 5);
-                        container.innerHTML = `
-                            <div class="card summary-card border-${status.replace(/\s+/g, '-')} h-100">
-                                <div class="card-body text-center">
-                                    <h5 class="card-title text-uppercase">${status}</h5>
-                                    <p class="card-text display-4 fw-bold">${data.total}</p>
-                                    <table class="table table-sm mt-3">
-                                        <tbody>
-                                            <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
-                                            <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
-                                            <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="card-footer clickable-footer" data-status="${status}" style="cursor: pointer;">
-                                    <h6 class="text-muted">Top Procesos</h6>
-                                    <ul class="list-group list-group-flush">
-                                        ${topProcesses.map(p => `<li class="list-group-item">${p}</li>`).join('')}
-                                    </ul>
-                                    ${data.total > 5 ? '<small class="text-primary">Ver más...</small>' : ''}
-                                </div>
-                            </div>`;
+                        cardBodyHtml = `
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-uppercase">${status}</h5>
+                                <p class="card-text display-4 fw-bold">${data.total}</p>
+                                <table class="table table-sm mt-3">
+                                    <tbody>
+                                        <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
+                                        <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
+                                        <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            ${footerHtml}`;
                     } else {
-                        container.innerHTML = `<canvas id="chart-${status}"></canvas>`;
+                        cardBodyHtml = `
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-uppercase">${status}</h5>
+                                <canvas id="chart-${status}" style="margin-top: -20px; max-height: 150px;"></canvas>
+                                <table class="table table-sm mt-3">
+                                    <tbody>
+                                        <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
+                                        <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
+                                        <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            ${footerHtml}`;
                     }
+
+                    container.innerHTML = `<div class="card summary-card border-${status.replace(/\s+/g, '-')} h-100">${cardBodyHtml}</div>`;
                     summaryContainer.appendChild(container);
 
                     if (currentView !== 'cards') {
@@ -196,9 +212,10 @@
                         };
                         const options = {
                             responsive: true,
+                            maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'top' },
-                                title: { display: true, text: `${status.toUpperCase()} (${data.total})` }
+                                legend: { display: false },
+                                title: { display: false }
                             },
                             circumference: currentView === 'gauges' ? 180 : 360,
                             rotation: currentView === 'gauges' ? -90 : 0
