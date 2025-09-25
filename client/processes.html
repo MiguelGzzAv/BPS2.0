@@ -63,6 +63,7 @@
                     <th>Name</th>
                     <th>Process Type</th>
                     <th>Frequency</th>
+                    <th>Criticality</th>
                     <th>Start Time</th>
                     <th>End Time</th>
                     <th>Fill Type</th>
@@ -143,13 +144,24 @@
                                 <input type="time" class="form-control" id="process-endTime">
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="process-frequency" class="form-label">Frequency</label>
-                            <select class="form-select" id="process-frequency">
-                                <option selected>Choose...</option>
-                                <option value="Diario">Diario</option>
-                                <option value="Personalizado">Personalizado</option>
-                            </select>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="process-frequency" class="form-label">Frequency</label>
+                                <select class="form-select" id="process-frequency">
+                                    <option selected>Choose...</option>
+                                    <option value="Diario">Diario</option>
+                                    <option value="Personalizado">Personalizado</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="process-criticality" class="form-label">Criticality</label>
+                                <select class="form-select" id="process-criticality">
+                                    <option selected>Choose...</option>
+                                    <option value="Baja">Baja</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Alta">Alta</option>
+                                </select>
+                            </div>
                         </div>
                         <div id="custom-frequency-days" class="mb-3" style="display: none;">
                             <label class="form-label">Select Days</label>
@@ -225,6 +237,7 @@
                         <td>${proc.name}</td>
                         <td>${proc.processType}</td>
                         <td>${proc.frequency} ${proc.days ? proc.days.join(', ') : ''}</td>
+                        <td>${proc.criticality || 'N/A'}</td>
                         <td>${proc.startTime}</td>
                         <td>${proc.endTime}</td>
                         <td>${proc.fillType}</td>
@@ -290,6 +303,7 @@
                     startTime: document.getElementById('process-startTime').value,
                     endTime: document.getElementById('process-endTime').value,
                     frequency: frequencySelect.value,
+                    criticality: document.getElementById('process-criticality').value,
                     days: selectedDays,
                     values: registrationFields,
                     subprocesses: []
@@ -371,6 +385,7 @@
                         document.getElementById('process-startTime').value = processToEdit.startTime;
                         document.getElementById('process-endTime').value = processToEdit.endTime;
                         document.getElementById('process-frequency').value = processToEdit.frequency;
+                        document.getElementById('process-criticality').value = processToEdit.criticality;
 
                         // Handle custom days
                         const customDaysDiv = document.getElementById('custom-frequency-days');

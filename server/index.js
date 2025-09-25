@@ -19,6 +19,7 @@ const processesByCompany = {
             startTime: '21:00',
             endTime: '23:00',
             frequency: 'Personalizado',
+            criticality: 'Alta',
             days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
             values: [
                 { name: 'Status', type: 'status' },
@@ -370,13 +371,11 @@ app.get('/api/summary', (req, res) => {
     const processes = processesByCompany[companyId] || [];
     const registrations = registrationsByCompany[companyId] || [];
 
-    const summary = {
-        'ok': 0,
-        'falla': 0,
-        'error': 0,
-        'ambar': 0,
-        'sin ejecucion': 0
-    };
+    const summary = {};
+    const statuses = ['ok', 'falla', 'error', 'ambar', 'sin ejecucion'];
+    statuses.forEach(s => {
+        summary[s] = { total: 0, Alta: 0, Media: 0, Baja: 0 };
+    });
 
     const dailyRegistrations = registrations.filter(r => r.timestamp.startsWith(date));
     const registeredProcessIds = new Set(dailyRegistrations.map(r => r.processId));
@@ -391,15 +390,20 @@ app.get('/api/summary', (req, res) => {
         const registrationValue = reg.values.find(v => v.name === statusField.name);
         if (registrationValue && registrationValue.value) {
             const status = registrationValue.value.toLowerCase();
-            if (summary.hasOwnProperty(status)) {
-                summary[status]++;
+            const criticality = process.criticality || 'Baja'; // Default to 'Baja'
+            if (summary[status]) {
+                summary[status].total++;
+                summary[status][criticality]++;
             }
         }
     });
 
-    const totalProcesses = processes.length;
-    const runProcesses = registeredProcessIds.size;
-    summary['sin ejecucion'] = totalProcesses - runProcesses;
+    const notRunProcesses = processes.filter(p => !registeredProcessIds.has(p.id));
+    summary['sin ejecucion'].total = notRunProcesses.length;
+    notRunProcesses.forEach(p => {
+        const criticality = p.criticality || 'Baja';
+        summary['sin ejecucion'][criticality]++;
+    });
 
     res.json({ date, summary });
 });
