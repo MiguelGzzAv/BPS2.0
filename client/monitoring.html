@@ -149,6 +149,8 @@
             const sortTimeButton = document.getElementById('sort-time');
             let userList = []; // To store users for the dropdown
             let currentProcessId = null; // To store the process ID for saving
+            let currentRegistrationId = null; // To store the registration ID for editing
+            let isEditMode = false; // To track if the modal is for editing or creating
             let masterProcessList = []; // To hold the original, full list of processes
 
             // --- Menu Logic ---
@@ -228,15 +230,32 @@
                             </div>
                         </td>
                         <td>
-                            <button class="btn btn-primary btn-sm register-btn"
-                                data-bs-toggle="modal"
-                                data-bs-target="#registrationModal"
-                                data-process-id="${proc.id}"
-                                data-process-name="${proc.name}"
-                                data-start-time="${proc.startTime}"
-                                data-end-time="${proc.endTime}">
-                                Registrar
-                            </button>
+                            ${proc.registrationId ? `
+                                <button class="btn btn-warning btn-sm edit-btn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#registrationModal"
+                                    data-process-id="${proc.id}"
+                                    data-registration-id="${proc.registrationId}"
+                                    data-registration-timestamp="${proc.registrationTimestamp}"
+                                    ${(new Date() - new Date(proc.registrationTimestamp)) / (1000 * 60 * 60) > 24 ? 'disabled' : ''}
+                                    data-process-name="${proc.name}"
+                                    data-start-time="${proc.startTime}"
+                                    data-end-time="${proc.endTime}"
+                                    data-fields='${fieldsData}'>
+                                    Editar
+                                </button>
+                            ` : `
+                                <button class="btn btn-primary btn-sm register-btn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#registrationModal"
+                                    data-process-id="${proc.id}"
+                                    data-process-name="${proc.name}"
+                                    data-start-time="${proc.startTime}"
+                                    data-end-time="${proc.endTime}"
+                                    data-fields='${fieldsData}'>
+                                    Registrar
+                                </button>
+                            `}
                         </td>
                     `;
                     monitoringList.appendChild(row);
@@ -245,7 +264,7 @@
             };
 
             const fetchAndRenderProcesses = () => {
-                fetch(`/api/processes?companyId=${companyId}`)
+                return fetch(`/api/processes?companyId=${companyId}`)
                     .then(response => {
                         if (!response.ok) throw new Error('Failed to fetch processes');
                         return response.json();
@@ -341,32 +360,34 @@
             // --- Modal Logic ---
             document.getElementById('registrationModal').addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
+                isEditMode = button.classList.contains('edit-btn');
+
                 currentProcessId = button.getAttribute('data-process-id');
+                currentRegistrationId = isEditMode ? button.getAttribute('data-registration-id') : null;
 
-                const process = masterProcessList.find(p => p.id === currentProcessId);
-                if (!process) {
-                    console.error('Could not find process with ID:', currentProcessId);
-                    return;
-                }
+                const processName = button.getAttribute('data-process-name');
+                const startTime = button.getAttribute('data-start-time');
+                const endTime = button.getAttribute('data-end-time');
+                const fieldsString = button.getAttribute('data-fields');
+                const fields = fieldsString ? JSON.parse(fieldsString) : [];
 
-                const fields = process.values || [];
+                const modalTitle = document.getElementById('registrationModalLabel');
+                modalTitle.textContent = isEditMode ? 'Editar Registro' : 'Crear Registro';
 
                 // Populate modal header
-                modalProcessName.textContent = process.name;
-                modalStartTime.textContent = process.startTime;
-                modalEndTime.textContent = process.endTime;
+                modalProcessName.textContent = processName;
+                modalStartTime.textContent = startTime;
+                modalEndTime.textContent = endTime;
 
                 // Populate modal body with a dynamic form
                 modalRegistrationForm.innerHTML = '';
                 if (fields.length > 0) {
-                    console.log(`Rendering ${fields.length} fields...`);
                     fields.forEach(field => {
-                        console.log(`  - Rendering field: ${field.name} (Type: ${field.type})`);
                         const formRow = document.createElement('div');
                         formRow.className = 'row mb-3 align-items-center';
-
                         let inputHtml = '';
                         const fieldId = `field-${field.name.replace(/\s+/g, '-')}`;
+                        // ... (form generation logic remains the same)
                         switch (field.type) {
                             case 'status':
                                 const statusOptions = ['falla', 'ambar', 'ok', 'error', 'sin ejecucion'];
@@ -376,7 +397,6 @@
                                 </select>`;
                                 break;
                             case 'responsable':
-                                // Ensure userList is ready before rendering
                                 const userOptions = userList.map(user => `<option value="${user.name}">${user.name}</option>`).join('');
                                 inputHtml = `<select id="${fieldId}" class="form-select" data-field-name="${field.name}">
                                     <option selected>Choose...</option>
@@ -389,62 +409,73 @@
                             case 'date':
                                 inputHtml = `<input type="date" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
                                 break;
-                            case 'text':
                             default:
                                 inputHtml = `<input type="text" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
                                 break;
                         }
-
                         formRow.innerHTML = `
                             <label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label>
-                            <div class="col-sm-8">
-                                ${inputHtml}
-                            </div>
-                        `;
+                            <div class="col-sm-8">${inputHtml}</div>`;
                         modalRegistrationForm.appendChild(formRow);
                     });
                 } else {
                     modalRegistrationForm.innerHTML = '<p class="text-center">No registration fields defined for this process.</p>';
                 }
+
+                if (isEditMode) {
+                    // Fetch the existing registration data and populate the form
+                    fetch(`/api/registrations/${currentRegistrationId}?companyId=${companyId}`)
+                        .then(res => res.json())
+                        .then(registration => {
+                            (registration.values || []).forEach(regValue => {
+                                const fieldInput = modalRegistrationForm.querySelector(`[data-field-name="${regValue.name}"]`);
+                                if (fieldInput) {
+                                    fieldInput.value = regValue.value;
+                                }
+                            });
+                        })
+                        .catch(err => console.error('Failed to fetch registration details:', err));
+                }
             });
 
             saveRegistrationBtn.addEventListener('click', () => {
-                const registrationData = {
-                    companyId: companyId,
-                    processId: currentProcessId,
-                    timestamp: new Date().toISOString(),
-                    values: []
-                };
+                if (!confirm('¿Desea guardar el resultado?')) {
+                    return;
+                }
 
+                const values = [];
                 const inputs = modalRegistrationForm.querySelectorAll('input, select');
                 inputs.forEach(input => {
                     const fieldName = input.getAttribute('data-field-name');
                     if (fieldName) {
-                        registrationData.values.push({
-                            name: fieldName,
-                            value: input.value
-                        });
+                        values.push({ name: fieldName, value: input.value });
                     }
                 });
 
-                fetch('/api/registrations', {
-                    method: 'POST',
+                const url = isEditMode ? `/api/registrations/${currentRegistrationId}` : '/api/registrations';
+                const method = isEditMode ? 'PUT' : 'POST';
+                const body = isEditMode
+                    ? JSON.stringify({ companyId: companyId, values: values })
+                    : JSON.stringify({ companyId: companyId, processId: currentProcessId, timestamp: new Date().toISOString(), values: values });
+
+                fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(registrationData)
+                    body: body
                 })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Failed to save registration');
+                        return response.json().then(err => { throw new Error(err.error || 'Failed to save registration') });
                     }
                     return response.json();
                 })
                 .then(() => {
-                    registrationModal.hide(); // Use the existing modal instance
-                    fetchAndRenderProcesses(); // Refresh the list to show the new status
+                    registrationModal.hide();
+                    fetchAndRenderProcesses();
                 })
                 .catch(error => {
                     console.error('Error saving registration:', error);
-                    alert('Error saving registration. See console for details.');
+                    alert(`Error: ${error.message}`);
                 });
             });
         });
