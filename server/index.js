@@ -19,12 +19,8 @@ const processesByCompany = {
             startTime: '21:00',
             endTime: '23:00',
             frequency: 'Personalizado',
-            criticality: 'Alta',
             days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-            values: [
-                { name: 'Status', type: 'status' },
-                { name: 'Responsable', type: 'responsable' }
-            ],
+            values: [],
             subprocesses: []
         }
     ],
@@ -48,24 +44,7 @@ const departmentsByCompany = {
         { id: 2, name: 'IT' }
     ]
 };
-// --- Mock Data ---
-const yesterday = new Date();
-yesterday.setDate(yesterday.getDate() - 1);
-const yesterdayISO = yesterday.toISOString();
-
-const registrationsByCompany = {
-    '1': [
-        {
-            id: 12345,
-            processId: 'PRO7032',
-            timestamp: yesterdayISO,
-            values: [
-                { name: 'Status', value: 'ok' },
-                { name: 'Responsable', value: 'Jane Smith' }
-            ]
-        }
-    ]
-};
+const registrationsByCompany = {};
 
 // --- Middleware ---
 app.use(express.urlencoded({ extended: true }));
@@ -140,23 +119,14 @@ app.get('/api/processes', (req, res) => {
             .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         let status = 'POR INICIAR';
-        let registrationId = null;
-        let registrationTimestamp = null;
+        // Find the field in the process definition that is designated as the status field
+        const statusDefinitionField = proc.values.find(def => def.type === 'status');
 
-        if (relevantRegistrations.length > 0) {
-            const latestRegistration = relevantRegistrations[0];
-            registrationId = latestRegistration.id;
-            registrationTimestamp = latestRegistration.timestamp;
-            const statusDefinitionField = (proc.values || []).find(def => def.type === 'status');
-            if (statusDefinitionField) {
-                const statusValueField = latestRegistration.values.find(v => v.name === statusDefinitionField.name);
-                if (statusValueField && statusValueField.value) {
-                    status = statusValueField.value;
-                } else {
-                    status = 'Sin Ejecucion';
-                }
-            } else {
-                status = 'Sin Ejecucion';
+        if (statusDefinitionField && relevantRegistrations.length > 0) {
+            // Now find the value for that specific field name in the latest registration
+            const statusValueField = relevantRegistrations[0].values.find(v => v.name === statusDefinitionField.name);
+            if (statusValueField && statusValueField.value) {
+                status = statusValueField.value;
             }
         }
 
@@ -164,7 +134,7 @@ app.get('/api/processes', (req, res) => {
         if (!Array.isArray(safeProc.values)) {
             safeProc.values = [];
         }
-        return { ...safeProc, status, registrationId, registrationTimestamp };
+        return { ...safeProc, status };
     });
 
     res.json(processesWithStatus);
@@ -286,132 +256,6 @@ app.post('/api/departments', (req, res) => {
     departmentsByCompany[companyId].push(newDepartment);
     console.log(`Added new department to company ${companyId}:`, newDepartment);
     res.status(201).json(newDepartment);
-});
-
-// Registrations
-app.post('/api/registrations', (req, res) => {
-    const { companyId, processId, timestamp, values } = req.body;
-
-    if (!companyId || !processId || !values) {
-        return res.status(400).json({ error: 'companyId, processId, and values are required' });
-    }
-
-    if (!registrationsByCompany[companyId]) {
-        registrationsByCompany[companyId] = [];
-    }
-
-    const newRegistration = {
-        id: Date.now(), // Simple unique ID for the registration
-        processId,
-        timestamp,
-        values
-    };
-
-    registrationsByCompany[companyId].push(newRegistration);
-    console.log(`Added new registration to company ${companyId}:`, newRegistration);
-    res.status(201).json(newRegistration);
-});
-
-app.put('/api/registrations/:id', (req, res) => {
-    const { id } = req.params;
-    const { companyId, values } = req.body;
-
-    if (!companyId || !values) {
-        return res.status(400).json({ error: 'companyId and values are required' });
-    }
-
-    const registrations = registrationsByCompany[companyId] || [];
-    const registrationIndex = registrations.findIndex(r => r.id == id);
-
-    if (registrationIndex === -1) {
-        return res.status(404).json({ error: 'Registration not found' });
-    }
-
-    // Check if it's been more than 24 hours
-    const registrationTime = new Date(registrations[registrationIndex].timestamp);
-    const now = new Date();
-    const diffHours = (now - registrationTime) / (1000 * 60 * 60);
-
-    if (diffHours > 24) {
-        return res.status(403).json({ error: 'Cannot edit a registration after 24 hours' });
-    }
-
-    registrations[registrationIndex].values = values;
-    registrations[registrationIndex].timestamp = new Date().toISOString(); // Update timestamp on edit
-
-    console.log(`Updated registration ${id} for company ${companyId}:`, registrations[registrationIndex]);
-    res.json(registrations[registrationIndex]);
-});
-
-app.get('/api/registrations/:id', (req, res) => {
-    const { id } = req.params;
-    const { companyId } = req.query;
-
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
-
-    const registrations = registrationsByCompany[companyId] || [];
-    const registration = registrations.find(r => r.id == id);
-
-    if (!registration) {
-        return res.status(404).json({ error: 'Registration not found' });
-    }
-
-    res.json(registration);
-});
-
-app.get('/api/summary', (req, res) => {
-    const { companyId, date } = req.query;
-
-    if (!companyId || !date) {
-        return res.status(400).json({ error: 'companyId and date are required' });
-    }
-
-    const processes = processesByCompany[companyId] || [];
-    const registrations = registrationsByCompany[companyId] || [];
-
-    const summary = {};
-    const statuses = ['ok', 'falla', 'error', 'ambar', 'sin ejecucion'];
-    statuses.forEach(s => {
-        summary[s] = {
-            total: 0,
-            Alta: 0, Media: 0, Baja: 0,
-            processes: { Alta: [], Media: [], Baja: [] }
-        };
-    });
-
-    const dailyRegistrations = registrations.filter(r => r.timestamp.startsWith(date));
-    const registeredProcessIds = new Set(dailyRegistrations.map(r => r.processId));
-
-    dailyRegistrations.forEach(reg => {
-        const process = processes.find(p => p.id === reg.processId);
-        if (!process) return;
-
-        const statusField = (process.values || []).find(f => f.type === 'status');
-        if (!statusField) return;
-
-        const registrationValue = reg.values.find(v => v.name === statusField.name);
-        if (registrationValue && registrationValue.value) {
-            const status = registrationValue.value.toLowerCase();
-            const criticality = process.criticality || 'Baja'; // Default to 'Baja'
-            if (summary[status]) {
-                summary[status].total++;
-                summary[status][criticality]++;
-                summary[status].processes[criticality].push(process.name);
-            }
-        }
-    });
-
-    const notRunProcesses = processes.filter(p => !registeredProcessIds.has(p.id));
-    summary['sin ejecucion'].total = notRunProcesses.length;
-    notRunProcesses.forEach(p => {
-        const criticality = p.criticality || 'Baja';
-        summary['sin ejecucion'][criticality]++;
-        summary['sin ejecucion'].processes[criticality].push(p.name);
-    });
-
-    res.json({ date, summary });
 });
 
 
