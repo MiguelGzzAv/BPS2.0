@@ -374,7 +374,11 @@ app.get('/api/summary', (req, res) => {
     const summary = {};
     const statuses = ['ok', 'falla', 'error', 'ambar', 'sin ejecucion'];
     statuses.forEach(s => {
-        summary[s] = { total: 0, Alta: 0, Media: 0, Baja: 0 };
+        summary[s] = {
+            total: 0,
+            Alta: 0, Media: 0, Baja: 0,
+            processes: { Alta: [], Media: [], Baja: [] }
+        };
     });
 
     const dailyRegistrations = registrations.filter(r => r.timestamp.startsWith(date));
@@ -394,6 +398,7 @@ app.get('/api/summary', (req, res) => {
             if (summary[status]) {
                 summary[status].total++;
                 summary[status][criticality]++;
+                summary[status].processes[criticality].push(process.name);
             }
         }
     });
@@ -403,6 +408,7 @@ app.get('/api/summary', (req, res) => {
     notRunProcesses.forEach(p => {
         const criticality = p.criticality || 'Baja';
         summary['sin ejecucion'][criticality]++;
+        summary['sin ejecucion'].processes[criticality].push(p.name);
     });
 
     res.json({ date, summary });

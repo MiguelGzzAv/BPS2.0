@@ -15,6 +15,10 @@
         .border-error { border-left-color: #dc3545; }
         .border-ambar { border-left-color: #ffc107; }
         .border-sin-ejecucion { border-left-color: #6c757d; }
+        .top-processes .list-group-item {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -94,6 +98,22 @@
         </div>
     </main>
 
+    <!-- Process List Modal -->
+    <div class="modal fade" id="processListModal" tabindex="-1" aria-labelledby="processListModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="processListModalLabel">Process List</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="processListModalBody">
+                    <!-- Process list will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -107,6 +127,10 @@
             let currentSummaryData = {};
             const viewToggles = document.querySelectorAll('input[name="view-toggle"]');
             const pinViewToggle = document.getElementById('pin-view-toggle');
+            const processListModal = new bootstrap.Modal(document.getElementById('processListModal'));
+            const processListModalLabel = document.getElementById('processListModalLabel');
+            const processListModalBody = document.getElementById('processListModalBody');
+
 
             // --- Menu Logic ---
             const updateMenuLinks = (id) => {
@@ -129,25 +153,31 @@
                 const statuses = ['ok', 'falla', 'error', 'ambar', 'sin ejecucion'];
 
                 statuses.forEach(status => {
-                    const data = currentSummaryData[status] || { total: 0, Alta: 0, Media: 0, Baja: 0 };
+                    const data = currentSummaryData[status] || { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } };
                     const container = document.createElement('div');
                     container.className = 'col-lg-4 col-md-6 mb-4';
 
                     if (currentView === 'cards') {
+                        const topProcesses = [...data.processes.Alta, ...data.processes.Media, ...data.processes.Baja].slice(0, 5);
                         container.innerHTML = `
                             <div class="card summary-card border-${status.replace(/\s+/g, '-')} h-100">
                                 <div class="card-body text-center">
                                     <h5 class="card-title text-uppercase">${status}</h5>
                                     <p class="card-text display-4 fw-bold">${data.total}</p>
-                                </div>
-                                <div class="card-footer">
-                                    <table class="table table-sm mb-0">
+                                    <table class="table table-sm mt-3">
                                         <tbody>
                                             <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
                                             <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
                                             <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
                                         </tbody>
                                     </table>
+                                </div>
+                                <div class="card-footer">
+                                    <h6 class="text-muted">Top Procesos</h6>
+                                    <ul class="list-group list-group-flush">
+                                        ${topProcesses.map(p => `<li class="list-group-item">${p}</li>`).join('')}
+                                    </ul>
+                                    ${data.total > 5 ? `<button class="btn btn-link btn-sm see-more-btn" data-status="${status}">Ver más</button>` : ''}
                                 </div>
                             </div>`;
                     } else {
@@ -226,6 +256,26 @@
 
             dateFilter.addEventListener('change', (e) => {
                 fetchSummary(e.target.value);
+            });
+
+            summaryContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('see-more-btn')) {
+                    const status = e.target.dataset.status;
+                    const processData = currentSummaryData[status].processes;
+                    processListModalLabel.textContent = `Lista Completa: ${status.toUpperCase()}`;
+
+                    let listHtml = '<ul class="list-group">';
+                    listHtml += '<li class="list-group-item list-group-item-danger"><strong>Alta</strong></li>';
+                    processData.Alta.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
+                    listHtml += '<li class="list-group-item list-group-item-warning mt-2"><strong>Media</strong></li>';
+                    processData.Media.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
+                    listHtml += '<li class="list-group-item list-group-item-success mt-2"><strong>Baja</strong></li>';
+                    processData.Baja.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
+                    listHtml += '</ul>';
+
+                    processListModalBody.innerHTML = listHtml;
+                    processListModal.show();
+                }
             });
 
             // --- Initial Load ---
