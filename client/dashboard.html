@@ -172,12 +172,12 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <div class="card-footer">
+                                <div class="card-footer clickable-footer" data-status="${status}" style="cursor: pointer;">
                                     <h6 class="text-muted">Top Procesos</h6>
                                     <ul class="list-group list-group-flush">
                                         ${topProcesses.map(p => `<li class="list-group-item">${p}</li>`).join('')}
                                     </ul>
-                                    ${data.total > 5 ? `<button class="btn btn-link btn-sm see-more-btn" data-status="${status}">Ver más</button>` : ''}
+                                    ${data.total > 5 ? '<small class="text-primary">Ver más...</small>' : ''}
                                 </div>
                             </div>`;
                     } else {
@@ -204,11 +204,20 @@
                             rotation: currentView === 'gauges' ? -90 : 0
                         };
 
-                        new Chart(ctx, {
+                        const chart = new Chart(ctx, {
                             type: 'doughnut',
                             data: chartData,
                             options: options
                         });
+
+                        ctx.canvas.onclick = (e) => {
+                            const activePoints = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+                            if (activePoints.length > 0) {
+                                const clickedIndex = activePoints[0].index;
+                                const criticality = chartData.labels[clickedIndex];
+                                showProcessListModal(status, criticality);
+                            }
+                        };
                     }
                 });
             };
@@ -258,23 +267,37 @@
                 fetchSummary(e.target.value);
             });
 
-            summaryContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('see-more-btn')) {
-                    const status = e.target.dataset.status;
-                    const processData = currentSummaryData[status].processes;
-                    processListModalLabel.textContent = `Lista Completa: ${status.toUpperCase()}`;
+            const showProcessListModal = (status, criticality = null) => {
+                const processData = currentSummaryData[status].processes;
+                let listHtml = '';
+                let title = '';
 
-                    let listHtml = '<ul class="list-group">';
+                if (criticality) {
+                    title = `Procesos: ${status.toUpperCase()} - ${criticality}`;
+                    const processes = processData[criticality] || [];
+                    listHtml = processes.length > 0
+                        ? processes.map(p => `<li class="list-group-item">${p}</li>`).join('')
+                        : '<li class="list-group-item">No hay procesos en esta categoría.</li>';
+                } else {
+                    title = `Lista Completa: ${status.toUpperCase()}`;
                     listHtml += '<li class="list-group-item list-group-item-danger"><strong>Alta</strong></li>';
                     processData.Alta.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
                     listHtml += '<li class="list-group-item list-group-item-warning mt-2"><strong>Media</strong></li>';
                     processData.Media.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
                     listHtml += '<li class="list-group-item list-group-item-success mt-2"><strong>Baja</strong></li>';
                     processData.Baja.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
-                    listHtml += '</ul>';
+                }
 
-                    processListModalBody.innerHTML = listHtml;
-                    processListModal.show();
+                processListModalLabel.textContent = title;
+                processListModalBody.innerHTML = `<ul class="list-group">${listHtml}</ul>`;
+                processListModal.show();
+            };
+
+            summaryContainer.addEventListener('click', (e) => {
+                const clickableFooter = e.target.closest('.clickable-footer');
+                if (clickableFooter) {
+                    const status = clickableFooter.dataset.status;
+                    showProcessListModal(status, null); // Pass null for criticality
                 }
             });
 
