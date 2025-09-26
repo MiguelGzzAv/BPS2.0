@@ -322,6 +322,15 @@ app.delete('/api/escalations/:id', (req, res) => {
 
 
 // Registrations
+app.get('/api/registrations', (req, res) => {
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+    const registrations = registrationsByCompany[companyId] || [];
+    res.json(registrations);
+});
+
 app.post('/api/registrations', (req, res) => {
     const { companyId, processId, timestamp, values } = req.body;
     if (!companyId || !processId || !timestamp || !values) {
