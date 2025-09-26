@@ -281,36 +281,77 @@
             const updateTimedElements = () => {
                 const now = new Date();
                 const currentTime = now.getHours() * 60 + now.getMinutes();
+
+                // Update main process rows
                 document.querySelectorAll('tr[data-process-id]').forEach(row => {
                     const procId = row.dataset.processId;
                     const proc = masterProcessList.find(p => p.id === procId);
                     if (!proc) return;
 
                     const registerBtn = row.querySelector('.register-btn');
-                    if (registerBtn) { // Main row button
-                        const startTime = parseInt(proc.startTime.replace(':', ''), 10);
-                        const endTime = parseInt(proc.endTime.replace(':', ''), 10);
-                        registerBtn.disabled = !(currentTime >= (startTime/100*60 + startTime%100) && currentTime < (endTime/100*60 + endTime%100));
+                    const spinner = row.querySelector('.spinner-grow');
+
+                    const startTime = parseInt(proc.startTime.replace(':', ''), 10);
+                    const endTime = parseInt(proc.endTime.replace(':', ''), 10);
+                    const startMinutes = Math.floor(startTime / 100) * 60 + (startTime % 100);
+                    const endMinutes = Math.floor(endTime / 100) * 60 + (endTime % 100);
+                    const isInTimeWindow = currentTime >= startMinutes && currentTime < endMinutes;
+
+                    if (registerBtn) {
+                        registerBtn.disabled = !isInTimeWindow;
+                    }
+
+                    if (spinner) {
+                        const totalDuration = endMinutes - startMinutes;
+                        const elapsedTime = currentTime - startMinutes;
+                        const percentage = totalDuration > 0 ? (elapsedTime / totalDuration) * 100 : 0;
+                        spinner.className = 'spinner-grow spinner-grow-sm';
+                        if (!isInTimeWindow) spinner.classList.add('text-secondary');
+                        else if (percentage < 50) spinner.classList.add('text-success');
+                        else if (percentage < 67) spinner.classList.add('text-warning');
+                        else spinner.classList.add('text-danger');
                     }
                 });
 
+                // Update elements within visible accordions
                 document.querySelectorAll('.collapse.show').forEach(detailView => {
-                    const procId = detailView.id.replace('collapse-', '');
-                    const proc = masterProcessList.find(p => p.id === procId);
-                    if (!proc) return;
+                    const parentProcId = detailView.id.replace('collapse-', '');
+                    const parentProc = masterProcessList.find(p => p.id === parentProcId);
+                    if (!parentProc) return;
+
+                    // Logic for internal phases
                     let lastPhaseStatusOk = true;
-                    if (proc.mode === 'Multiple') {
-                        proc.internalPhases.forEach(phase => {
+                    if (parentProc.mode === 'Multiple') {
+                        const parentRow = document.querySelector(`tr[data-process-id="${parentProcId}"]`);
+                        const isParentInTime = parentRow && !parentRow.querySelector('.register-btn')?.disabled;
+
+                        parentProc.internalPhases.forEach(phase => {
                             const phaseBtn = detailView.querySelector(`[data-phase-name="${phase.name}"]`);
                             if (phaseBtn) {
-                                phaseBtn.disabled = !lastPhaseStatusOk;
-                                const phaseRegistrations = allRegistrations.filter(r => r.processId === procId && r.phase === phase.name);
+                                phaseBtn.disabled = !lastPhaseStatusOk || !isParentInTime;
+
+                                const phaseRegistrations = allRegistrations.filter(r => r.processId === parentProcId && r.phase === phase.name);
                                 if (phaseRegistrations.length > 0) {
                                     const latestStatus = phaseRegistrations.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))[0].values.find(v=>v.name==='Status')?.value || '';
                                     lastPhaseStatusOk = latestStatus.toLowerCase() === 'ok';
                                 } else {
                                     lastPhaseStatusOk = false;
                                 }
+                            }
+                        });
+                    }
+
+                    // Logic for child processes
+                    if (parentProc.childProcesses && parentProc.childProcesses.length > 0) {
+                        parentProc.childProcesses.forEach(childId => {
+                            const childProc = masterProcessList.find(p => p.id === childId);
+                            const childBtn = detailView.querySelector(`button.register-child-btn[data-process-id="${childId}"]`);
+                            if (childProc && childBtn) {
+                                const childStartTime = parseInt(childProc.startTime.replace(':', ''), 10);
+                                const childEndTime = parseInt(childProc.endTime.replace(':', ''), 10);
+                                const childStartMinutes = Math.floor(childStartTime / 100) * 60 + (childStartTime % 100);
+                                const childEndMinutes = Math.floor(childEndTime / 100) * 60 + (childEndTime % 100);
+                                childBtn.disabled = !(currentTime >= childStartMinutes && currentTime < childEndMinutes);
                             }
                         });
                     }
@@ -322,12 +363,15 @@
                 const processId = event.target.id.replace('collapse-', '');
                 const proc = masterProcessList.find(p => p.id === processId);
                 if (!proc) { detailDiv.innerHTML = 'Error.'; return; }
-                if (proc.mode === 'Multiple' && proc.internalPhases.length > 1) {
-                    detailDiv.innerHTML = renderInternalPhasesDetails(proc);
-                } else if (proc.childProcesses && proc.childProcesses.length > 0) {
+
+                // Priority 1: Show linked children if they exist.
+                if (proc.childProcesses && proc.childProcesses.length > 0) {
                     detailDiv.innerHTML = renderChildProcessesDetails(proc);
+                // Priority 2: Show internal phases if it's a multi-phase process.
+                } else if (proc.mode === 'Multiple' && proc.internalPhases.length > 1) {
+                    detailDiv.innerHTML = renderInternalPhasesDetails(proc);
                 } else {
-                    detailDiv.innerHTML = 'No further details.';
+                    detailDiv.innerHTML = 'No further details for this process.';
                 }
             });
 
@@ -353,9 +397,17 @@
                     if (childProc) {
                         const status = calculatedProcessStates.get(childId) || 'POR INICIAR';
                         const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
-                        html += `<li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>${childProc.name}</span> <span class="badge ${badgeClass}">${status.toUpperCase()}</span>
-                        </li>`;
+                        html += `
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span>${childProc.name}</span>
+                                    <small class="text-muted d-block">${childProc.startTime} - ${childProc.endTime}</small>
+                                </div>
+                                <div>
+                                    <span class="badge ${badgeClass} me-2">${status.toUpperCase()}</span>
+                                    <button class="btn btn-outline-primary btn-sm register-child-btn" data-process-id="${childId}">Registrar</button>
+                                </div>
+                            </li>`;
                     }
                 });
                 return html + '</ul>';
@@ -369,10 +421,23 @@
                 modalEndTime.textContent = proc.endTime;
                 modalRegistrationForm.innerHTML = '';
                 const phase = proc.internalPhases.find(p => p.name === currentPhaseName) || { fields: [] };
+
                 if (phase.fields.length > 0) {
                     phase.fields.forEach(field => {
                         const fieldId = `field-${field.name.replace(/\s+/g, '-')}`;
-                        let inputHtml = `<input type="text" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
+                        let inputHtml;
+                        switch (field.type) {
+                            case 'status':
+                                const statusOptions = ['falla', 'ambar', 'ok', 'error', 'sin ejecucion'];
+                                inputHtml = `<select id="${fieldId}" class="form-select" data-field-name="${field.name}">${statusOptions.map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('')}</select>`;
+                                break;
+                            case 'responsable':
+                                const userOptions = userList.map(user => `<option value="${user.name}">${user.name}</option>`).join('');
+                                inputHtml = `<select id="${fieldId}" class="form-select" data-field-name="${field.name}"><option selected>Choose...</option>${userOptions}</select>`;
+                                break;
+                            default:
+                                inputHtml = `<input type="text" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
+                        }
                         modalRegistrationForm.innerHTML += `<div class="row mb-3"><label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label><div class="col-sm-8">${inputHtml}</div></div>`;
                     });
                 } else {
@@ -383,12 +448,16 @@
 
             monitoringList.addEventListener('click', (e) => {
                 const target = e.target;
+                let proc;
                 if (target.classList.contains('register-btn')) {
-                    const proc = masterProcessList.find(p => p.id === target.closest('tr').dataset.processId);
+                    proc = masterProcessList.find(p => p.id === target.closest('tr').dataset.processId);
                     if (proc) openRegistrationModal(proc);
                 } else if (target.classList.contains('register-phase-btn')) {
-                    const proc = masterProcessList.find(p => p.id === target.dataset.processId);
+                    proc = masterProcessList.find(p => p.id === target.dataset.processId);
                     if (proc) openRegistrationModal(proc, target.dataset.phaseName);
+                } else if (target.classList.contains('register-child-btn')) {
+                    proc = masterProcessList.find(p => p.id === target.dataset.processId);
+                    if (proc) openRegistrationModal(proc);
                 }
             });
 
