@@ -15,50 +15,13 @@ const processesByCompany = {
             id: 'PRO7032',
             name: 'PROCESO NOCTURNO BANORTE',
             processType: 'Padre',
-            criticidad: 'Alta',
+            fillType: 'Valores',
             startTime: '21:00',
             endTime: '23:00',
-            frequency: 'Diario',
-            days: [],
-            mode: 'Multiple',
-            internalPhases: [
-                { name: 'Backup', fields: [{ name: 'Status', type: 'status' }, { name: 'Backup Size', type: 'text' }] },
-                { name: 'Cierre', fields: [{ name: 'Status', type: 'status' }, { name: 'Transacciones', type: 'number' }] }
-            ],
-            childProcesses: ['PRO7033'],
-            exclusiveDependency: true
-        },
-        {
-            id: 'PRO7033',
-            name: 'REPORTE DIARIO',
-            processType: 'Hijo',
-            criticidad: 'Media',
-            startTime: '22:00',
-            endTime: '22:30',
-            frequency: 'Diario',
-            days: [],
-            mode: 'Individual',
-            internalPhases: [
-                { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
-            ],
-            childProcesses: ['PRO7034'],
-            exclusiveDependency: false
-        },
-        {
-            id: 'PRO7034',
-            name: 'GENERACION DE ARCHIVO',
-            processType: 'Nieto',
-            criticidad: 'Baja',
-            startTime: '22:15',
-            endTime: '22:25',
-            frequency: 'Diario',
-            days: [],
-            mode: 'Individual',
-            internalPhases: [
-                { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
-            ],
-            childProcesses: [],
-            exclusiveDependency: false
+            frequency: 'Personalizado',
+            days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+            values: [],
+            subprocesses: []
         }
     ],
     '2': []
@@ -73,6 +36,12 @@ const groupsByCompany = {
     '1': [
         { id: 1, name: 'Administrators' },
         { id: 2, name: 'Operators' }
+    ]
+};
+const departmentsByCompany = {
+    '1': [
+        { id: 1, name: 'Human Resources' },
+        { id: 2, name: 'IT' }
     ]
 };
 const registrationsByCompany = {};
@@ -140,39 +109,7 @@ app.get('/api/processes', (req, res) => {
         return res.status(400).json({ error: 'companyId is required' });
     }
     const processes = processesByCompany[companyId] || [];
-    const registrations = registrationsByCompany[companyId] || [];
-
-    const today = new Date().toISOString().slice(0, 10); // Get YYYY-MM-DD
-
-    const processesWithStatus = processes.map(proc => {
-        // Find the most recent registration for this process for today
-        const relevantRegistrations = registrations
-            .filter(r => r.processId === proc.id && r.timestamp.startsWith(today))
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        let status = 'POR INICIAR';
-        // Find the status field within the new internalPhases structure
-        let statusDefinitionField = null;
-        if (proc.internalPhases && proc.internalPhases.length > 0) {
-            // Temporary logic: just check the first phase's fields.
-            // The full logic will be implemented in Phase 3.
-            const firstPhase = proc.internalPhases[0];
-            if (firstPhase.fields) {
-                statusDefinitionField = firstPhase.fields.find(def => def.type === 'status');
-            }
-        }
-
-        if (statusDefinitionField && relevantRegistrations.length > 0) {
-            const statusValueField = relevantRegistrations[0].values.find(v => v.name === statusDefinitionField.name);
-            if (statusValueField && statusValueField.value) {
-                status = statusValueField.value;
-            }
-        }
-
-        return { ...proc, status };
-    });
-
-    res.json(processesWithStatus);
+    res.json(processes); // Client will handle status calculation
 });
 
 app.post('/api/processes', (req, res) => {
@@ -183,18 +120,16 @@ app.post('/api/processes', (req, res) => {
     if (!processesByCompany[companyId]) {
         processesByCompany[companyId] = [];
     }
-
+    // Standardize the process object
     const newProcess = {
         ...processData,
-        days: processData.days || [],
+        criticidad: processData.criticidad || 'Baja',
         mode: processData.mode || 'Individual',
-        internalPhases: processData.internalPhases || [],
+        internalPhases: processData.internalPhases && processData.internalPhases.length > 0 ? processData.internalPhases : [{ name: 'default', fields: processData.values || [] }],
         childProcesses: processData.childProcesses || [],
         exclusiveDependency: processData.exclusiveDependency || false,
     };
-    // Clean up obsolete fields
-    delete newProcess.values;
-    delete newProcess.subprocesses;
+    delete newProcess.values; // Clean up old field
 
     processesByCompany[companyId].push(newProcess);
     res.status(201).json(newProcess);
@@ -211,15 +146,16 @@ app.put('/api/processes/:id', (req, res) => {
     if (processIndex === -1) {
         return res.status(404).json({ error: 'Process not found' });
     }
-
+    // Standardize the updated process object
     const updatedProcess = {
-        ...processes[processIndex],
-        ...processData
+        ...processData,
+        criticidad: processData.criticidad || 'Baja',
+        mode: processData.mode || 'Individual',
+        internalPhases: processData.internalPhases && processData.internalPhases.length > 0 ? processData.internalPhases : [{ name: 'default', fields: processData.values || [] }],
+        childProcesses: processData.childProcesses || [],
+        exclusiveDependency: processData.exclusiveDependency || false,
     };
-
-    // Clean up obsolete fields during update
-    if ('values' in updatedProcess) delete updatedProcess.values;
-    if ('subprocesses' in updatedProcess) delete updatedProcess.subprocesses;
+    delete updatedProcess.values; // Clean up old field
 
     processes[processIndex] = updatedProcess;
     res.json(updatedProcess);
@@ -237,8 +173,86 @@ app.delete('/api/processes/:id', (req, res) => {
         return res.status(404).json({ error: 'Process not found' });
     }
     processes.splice(processIndex, 1);
+
+    // Also delete associated child processes if they exist in other processes
+    processes.forEach(p => {
+        if (p.childProcesses) {
+            p.childProcesses = p.childProcesses.filter(childId => childId !== id);
+        }
+    });
+
     res.status(204).send();
 });
+
+// Summary for Dashboard
+app.get('/api/summary', (req, res) => {
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+
+    const processes = processesByCompany[companyId] || [];
+    const registrations = registrationsByCompany[companyId] || [];
+    const processMap = new Map(processes.map(p => [p.id, p]));
+
+    const calculatedStates = new Map();
+    const getStatus = (procId) => {
+        if (calculatedStates.has(procId)) return calculatedStates.get(procId);
+
+        const proc = processMap.get(procId);
+        if (!proc) return 'sin ejecucion';
+
+        if (proc.exclusiveDependency && proc.childProcesses && proc.childProcesses.length > 0) {
+            const childStatus = getStatus(proc.childProcesses[0]);
+            calculatedStates.set(procId, childStatus);
+            return childStatus;
+        }
+
+        const relevantRegistrations = registrations
+            .filter(r => r.processId === procId)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        if (relevantRegistrations.length === 0) {
+            calculatedStates.set(procId, 'sin ejecucion');
+            return 'sin ejecucion';
+        }
+
+        const latestRegistration = relevantRegistrations[0];
+        const statusField = latestRegistration.values.find(v => v.name.toLowerCase() === 'status');
+        const status = statusField ? statusField.value.toLowerCase() : 'sin ejecucion';
+        calculatedStates.set(procId, status);
+        return status;
+    };
+
+    processes.forEach(p => getStatus(p.id));
+
+    const summary = {
+        total: processes.length,
+        ok: 0,
+        falla: 0,
+        ambar: 0,
+        error: 0,
+        sinEjecucion: 0,
+        criticidad: { alta: 0, media: 0, baja: 0 }
+    };
+
+    processes.forEach(proc => {
+        const status = calculatedStates.get(proc.id) || 'sin ejecucion';
+        if (status === 'ok') summary.ok++;
+        else if (status === 'falla') summary.falla++;
+        else if (status === 'ambar') summary.ambar++;
+        else if (status === 'error') summary.error++;
+        else summary.sinEjecucion++;
+
+        const criticidad = proc.criticidad ? proc.criticidad.toLowerCase() : 'baja';
+        if (criticidad === 'alta') summary.criticidad.alta++;
+        else if (criticidad === 'media') summary.criticidad.media++;
+        else if (criticidad === 'baja') summary.criticidad.baja++;
+    });
+
+    res.json(summary);
+});
+
 
 // Users
 app.get('/api/users', (req, res) => {
@@ -297,6 +311,31 @@ app.post('/api/groups', (req, res) => {
     res.status(201).json(newGroup);
 });
 
+// Departments
+app.get('/api/departments', (req, res) => {
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+    const departments = departmentsByCompany[companyId] || [];
+    res.json(departments);
+});
+
+app.post('/api/departments', (req, res) => {
+    const { companyId, ...newDepartment } = req.body;
+    if (!companyId || !newDepartment.name) {
+        return res.status(400).json({ error: 'companyId and department name are required' });
+    }
+    if (!departmentsByCompany[companyId]) {
+        departmentsByCompany[companyId] = [];
+    }
+    newDepartment.id = Date.now(); // Simple unique ID
+    departmentsByCompany[companyId].push(newDepartment);
+    console.log(`Added new department to company ${companyId}:`, newDepartment);
+    res.status(201).json(newDepartment);
+});
+
+
 // Escalations
 app.get('/api/escalations', (req, res) => {
     const { companyId } = req.query;
@@ -348,7 +387,7 @@ app.get('/api/registrations', (req, res) => {
 });
 
 app.post('/api/registrations', (req, res) => {
-    const { companyId, processId, timestamp, values } = req.body;
+    const { companyId, processId, timestamp, values, phase } = req.body;
     if (!companyId || !processId || !timestamp || !values) {
         return res.status(400).json({ error: 'companyId, processId, timestamp, and values are required' });
     }
@@ -361,72 +400,13 @@ app.post('/api/registrations', (req, res) => {
         id: Date.now(), // Add a unique ID for the registration itself
         processId,
         timestamp,
-        values
+        values,
+        phase: phase || 'default' // Capture the phase, default if not provided
     };
 
     registrationsByCompany[companyId].push(newRegistration);
     console.log(`Added new registration to company ${companyId}:`, newRegistration);
     res.status(201).json(newRegistration);
-});
-
-
-// Summary
-app.get('/api/summary', (req, res) => {
-    const { companyId, date } = req.query;
-    if (!companyId || !date) {
-        return res.status(400).json({ error: 'companyId and date are required' });
-    }
-
-    const processes = processesByCompany[companyId] || [];
-    const registrations = registrationsByCompany[companyId] || [];
-
-    const summary = {
-        ok: { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-        falla: { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-        error: { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-        ambar: { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-        'sin ejecucion': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } }
-    };
-
-    const relevantRegistrationsForDate = registrations.filter(r => r.timestamp.startsWith(date));
-
-    processes.forEach(proc => {
-        // 1. Determine status
-        let status = 'sin ejecucion'; // Default status
-        const statusDefinitionField = (proc.values || []).find(def => def.type === 'status');
-
-        const relevantRegistrationsForProc = relevantRegistrationsForDate
-            .filter(r => r.processId === proc.id)
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        if (statusDefinitionField && relevantRegistrationsForProc.length > 0) {
-            const latestRegistration = relevantRegistrationsForProc[0];
-            const statusValueField = latestRegistration.values.find(v => v.name === statusDefinitionField.name);
-            if (statusValueField && statusValueField.value) {
-                // Normalize status to lowercase to match keys in summary object
-                const foundStatus = statusValueField.value.toLowerCase();
-                if (summary.hasOwnProperty(foundStatus)) {
-                    status = foundStatus;
-                }
-            }
-        }
-
-        // 2. Get Criticidad
-        const criticidad = proc.criticidad || 'Baja'; // Default to 'Baja' if not defined
-
-        // 3. Update summary object
-        if (summary[status]) {
-            summary[status].total++;
-            if (summary[status][criticidad] !== undefined) {
-                summary[status][criticidad]++;
-                if (summary[status].processes[criticidad]) {
-                    summary[status].processes[criticidad].push(proc.name);
-                }
-            }
-        }
-    });
-
-    res.json({ summary });
 });
 
 
