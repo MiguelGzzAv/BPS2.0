@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .summary-card {
+            border-left-width: 5px;
+        }
+        .border-ok { border-left-color: #198754; }
+        .border-falla { border-left-color: #dc3545; }
+        .border-error { border-left-color: #dc3545; }
+        .border-ambar { border-left-color: #ffc107; }
+        .border-sin-ejecucion { border-left-color: #6c757d; }
+        .top-processes .list-group-item {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
@@ -52,63 +67,277 @@
 
     <!-- Main Content -->
     <main class="container mt-4">
-        <h1 class="mb-4">Dashboard</h1>
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Dashboard</h1>
+            <div>
+                <div class="btn-group" role="group" aria-label="View Toggles">
+                    <input type="radio" class="btn-check" name="view-toggle" id="view-cards" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="view-cards">Cards</label>
 
-        <div class="p-5 mb-4 bg-light rounded-3">
-            <div class="container-fluid py-5">
-                <h1 class="display-5 fw-bold" id="company-name-display">Welcome!</h1>
-                <p class="col-md-8 fs-4">This is your company dashboard. Use the menu to navigate through the different sections.</p>
+                    <input type="radio" class="btn-check" name="view-toggle" id="view-gauges" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="view-gauges">Gauges</label>
+
+                    <input type="radio" class="btn-check" name="view-toggle" id="view-donuts" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="view-donuts">Donuts</label>
+                </div>
+                <div class="form-check form-switch d-inline-block ms-3">
+                    <input class="form-check-input" type="checkbox" id="pin-view-toggle">
+                    <label class="form-check-label" for="pin-view-toggle">Pin View</label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <input type="date" id="date-filter" class="form-control">
+            </div>
+        </header>
+
+        <div id="loading-spinner" class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
             </div>
         </div>
+
+        <div id="summary-container" class="row g-4" style="display: none;">
+            <!-- Summary cards will be injected here by JavaScript -->
+        </div>
     </main>
+
+    <!-- Process List Modal -->
+    <div class="modal fade" id="processListModal" tabindex="-1" aria-labelledby="processListModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="processListModalLabel">Process List</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="processListModalBody">
+                    <!-- Process list will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const companyNameDisplay = document.getElementById('company-name-display');
+            const summaryContainer = document.getElementById('summary-container');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const dateFilter = document.getElementById('date-filter');
+            const menu = document.getElementById('offcanvasMenu');
             const urlParams = new URLSearchParams(window.location.search);
             const companyId = urlParams.get('companyId');
-            const menu = document.getElementById('offcanvasMenu');
+            let currentView = 'cards';
+            let currentSummaryData = {};
+            const viewToggles = document.querySelectorAll('input[name="view-toggle"]');
+            const pinViewToggle = document.getElementById('pin-view-toggle');
+            const processListModal = new bootstrap.Modal(document.getElementById('processListModal'));
+            const processListModalLabel = document.getElementById('processListModalLabel');
+            const processListModalBody = document.getElementById('processListModalBody');
 
+
+            // --- Menu Logic ---
             const updateMenuLinks = (id) => {
-                // Update links that need company context
-                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
-                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
-                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
-                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+                if (!id) return;
+                menu.querySelector('#menu-dashboard').href = `dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `processes.html?companyId=${id}`;
                 menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
                 menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
 
-                // Set active class
                 const currentPage = window.location.pathname;
                 if (currentPage.includes('dashboard.html')) {
                     menu.querySelector('#menu-dashboard').classList.add('active');
                 }
             };
 
-            if (companyId) {
-                // Fetch company name for welcome message
-                fetch(`/api/companies/${companyId}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Company not found');
-                        }
-                        return response.json();
-                    })
-                    .then(company => {
-                        companyNameDisplay.textContent = `Welcome, ${company.name}!`;
+            // --- Render Logic ---
+            const render = () => {
+                summaryContainer.innerHTML = '';
+                const statuses = ['ok', 'falla', 'error', 'ambar', 'sin ejecucion'];
+
+                statuses.forEach(status => {
+                    const data = currentSummaryData[status] || { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } };
+                    const container = document.createElement('div');
+                    container.className = 'col-lg-4 col-md-6 mb-4';
+
+                    const topProcesses = [...data.processes.Alta, ...data.processes.Media, ...data.processes.Baja].slice(0, 5);
+                    const footerHtml = `
+                        <div class="card-footer clickable-footer" data-status="${status}" style="cursor: pointer;">
+                            <h6 class="text-muted">Top Procesos</h6>
+                            <ul class="list-group list-group-flush">
+                                ${topProcesses.map(p => `<li class="list-group-item">${p}</li>`).join('')}
+                            </ul>
+                            ${data.total > 5 ? '<small class="text-primary">Ver más...</small>' : ''}
+                        </div>`;
+
+                    let cardBodyHtml = '';
+                    if (currentView === 'cards') {
+                        cardBodyHtml = `
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-uppercase">${status}</h5>
+                                <p class="card-text display-4 fw-bold">${data.total}</p>
+                                <table class="table table-sm mt-3">
+                                    <tbody>
+                                        <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
+                                        <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
+                                        <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            ${footerHtml}`;
+                    } else {
+                        cardBodyHtml = `
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-uppercase">${status}</h5>
+                                <canvas id="chart-${status}" style="margin-top: -20px; max-height: 150px;"></canvas>
+                                <table class="table table-sm mt-3">
+                                <div style="height: 120px; position: relative; margin-bottom: 1rem;">
+                                    <canvas id="chart-${status}"></canvas>
+                                </div>
+                                <table class="table table-sm">
+                                    <tbody>
+                                        <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
+                                        <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
+                                        <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            ${footerHtml}`;
+                    }
+
+                    container.innerHTML = `<div class="card summary-card border-${status.replace(/\s+/g, '-')} h-100">${cardBodyHtml}</div>`;
+                    summaryContainer.appendChild(container);
+
+                    if (currentView !== 'cards') {
+                        const ctx = document.getElementById(`chart-${status}`).getContext('2d');
+                        const chartData = {
+                            labels: ['Alta', 'Media', 'Baja'],
+                            datasets: [{
+                                data: [data.Alta, data.Media, data.Baja],
+                                backgroundColor: ['#dc3545', '#ffc107', '#198754']
+                            }]
+                        };
+                        const options = {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                title: { display: false }
+                            },
+                            circumference: currentView === 'gauges' ? 180 : 360,
+                            rotation: currentView === 'gauges' ? -90 : 0
+                        };
+
+                        const chart = new Chart(ctx, {
+                            type: 'doughnut',
+                            data: chartData,
+                            options: options
+                        });
+
+                        ctx.canvas.onclick = (e) => {
+                            const activePoints = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+                            if (activePoints.length > 0) {
+                                const clickedIndex = activePoints[0].index;
+                                const criticality = chartData.labels[clickedIndex];
+                                showProcessListModal(status, criticality);
+                            }
+                        };
+                    }
+                });
+            };
+
+            const fetchSummary = (date) => {
+                if (!companyId) return;
+
+                loadingSpinner.style.display = 'block';
+                summaryContainer.style.display = 'none';
+
+                fetch(`/api/summary?companyId=${companyId}&date=${date}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        currentSummaryData = data.summary;
+                        render();
                     })
                     .catch(error => {
-                        console.error('Error fetching company:', error);
-                        companyNameDisplay.textContent = 'Company not found';
+                        console.error('Error fetching summary:', error);
+                        summaryContainer.innerHTML = '<div class="alert alert-danger">Could not load summary data.</div>';
+                    })
+                    .finally(() => {
+                        loadingSpinner.style.display = 'none';
+                        summaryContainer.style.display = 'flex';
                     });
+            };
 
-                // Update navigation
-                updateMenuLinks(companyId);
+            // --- Event Listeners ---
+            viewToggles.forEach(toggle => {
+                toggle.addEventListener('change', (e) => {
+                    currentView = e.target.id.split('-')[1];
+                    render();
+                    if (pinViewToggle.checked) {
+                        localStorage.setItem('dashboardView', currentView);
+                    }
+                });
+            });
 
-            } else {
-                companyNameDisplay.textContent = 'No Company Selected';
+            pinViewToggle.addEventListener('change', () => {
+                if (pinViewToggle.checked) {
+                    localStorage.setItem('dashboardView', currentView);
+                } else {
+                    localStorage.removeItem('dashboardView');
+                }
+            });
+
+            dateFilter.addEventListener('change', (e) => {
+                fetchSummary(e.target.value);
+            });
+
+            const showProcessListModal = (status, criticality = null) => {
+                const processData = currentSummaryData[status].processes;
+                let listHtml = '';
+                let title = '';
+
+                if (criticality) {
+                    title = `Procesos: ${status.toUpperCase()} - ${criticality}`;
+                    const processes = processData[criticality] || [];
+                    listHtml = processes.length > 0
+                        ? processes.map(p => `<li class="list-group-item">${p}</li>`).join('')
+                        : '<li class="list-group-item">No hay procesos en esta categoría.</li>';
+                } else {
+                    title = `Lista Completa: ${status.toUpperCase()}`;
+                    listHtml += '<li class="list-group-item list-group-item-danger"><strong>Alta</strong></li>';
+                    processData.Alta.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
+                    listHtml += '<li class="list-group-item list-group-item-warning mt-2"><strong>Media</strong></li>';
+                    processData.Media.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
+                    listHtml += '<li class="list-group-item list-group-item-success mt-2"><strong>Baja</strong></li>';
+                    processData.Baja.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
+                }
+
+                processListModalLabel.textContent = title;
+                processListModalBody.innerHTML = `<ul class="list-group">${listHtml}</ul>`;
+                processListModal.show();
+            };
+
+            summaryContainer.addEventListener('click', (e) => {
+                const clickableFooter = e.target.closest('.clickable-footer');
+                if (clickableFooter) {
+                    const status = clickableFooter.dataset.status;
+                    showProcessListModal(status, null); // Pass null for criticality
+                }
+            });
+
+            // --- Initial Load ---
+            const savedView = localStorage.getItem('dashboardView');
+            if (savedView) {
+                currentView = savedView;
+                document.getElementById(`view-${savedView}`).checked = true;
+                pinViewToggle.checked = true;
             }
+
+            const today = new Date().toISOString().slice(0, 10);
+            dateFilter.value = today;
+            updateMenuLinks(companyId);
+            fetchSummary(today);
         });
     </script>
 </body>
