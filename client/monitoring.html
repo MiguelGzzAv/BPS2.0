@@ -205,13 +205,33 @@
                     const row = document.createElement('tr');
                     row.setAttribute('data-process-id', proc.id); // For the timer
                     const status = proc.status || 'POR INICIAR';
-                    const statusClass = `status-${status.toLowerCase().replace(/\s+/g, '-')}`;
-                    const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
 
+                    // Define row color based on status
+                    let rowClass = '';
+                    switch (status.toLowerCase()) {
+                        case 'ok':
+                            rowClass = 'table-success';
+                            break;
+                        case 'falla':
+                        case 'error':
+                            rowClass = 'table-danger';
+                            break;
+                        case 'ambar':
+                            rowClass = 'table-warning';
+                            break;
+                        case 'sin ejecucion':
+                            rowClass = 'table-secondary';
+                            break;
+                    }
+                    if (rowClass) {
+                        row.className = rowClass; // Use className to set the class for the whole row
+                    }
+
+                    const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
                     const fieldsData = JSON.stringify(proc.values || []);
 
                     row.innerHTML = `
-                        <td class="${statusClass}">${proc.name}</td>
+                        <td>${proc.name}</td>
                         <td>${proc.startTime}</td>
                         <td>${proc.endTime}</td>
                         <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
