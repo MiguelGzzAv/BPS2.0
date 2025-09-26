@@ -240,7 +240,7 @@
                     <td>${proc.endTime}</td>
                     <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
                     <td class="spinner-cell"><div class="spinner-grow spinner-grow-sm text-secondary" role="status"></div></td>
-                    <td><button class="btn btn-primary btn-sm register-btn" ${proc.mode === 'Individual' ? '' : 'disabled'}>Registrar</button></td>
+                    <td><button class="btn btn-primary btn-sm register-btn" ${isExpandable ? 'disabled' : ''}>Registrar</button></td>
                 `;
                 monitoringList.appendChild(mainRow);
                 if (isExpandable) {
@@ -281,55 +281,59 @@
             const updateTimedElements = () => {
                 const now = new Date();
                 const currentTime = now.getHours() * 60 + now.getMinutes();
+                const processMap = new Map(masterProcessList.map(p => [p.id, p]));
 
-                // Update main process rows
-                document.querySelectorAll('tr[data-process-id]').forEach(row => {
-                    const procId = row.dataset.processId;
-                    const proc = masterProcessList.find(p => p.id === procId);
-                    if (!proc) return;
-
-                    const registerBtn = row.querySelector('.register-btn');
-                    const spinner = row.querySelector('.spinner-grow');
-
+                const isInTimeWindow = (proc) => {
+                    if (!proc || !proc.startTime || !proc.endTime) return false;
                     const startTime = parseInt(proc.startTime.replace(':', ''), 10);
                     const endTime = parseInt(proc.endTime.replace(':', ''), 10);
                     const startMinutes = Math.floor(startTime / 100) * 60 + (startTime % 100);
                     const endMinutes = Math.floor(endTime / 100) * 60 + (endTime % 100);
-                    const isInTimeWindow = currentTime >= startMinutes && currentTime < endMinutes;
+                    return currentTime >= startMinutes && currentTime < endMinutes;
+                };
+
+                document.querySelectorAll('tr[data-process-id]').forEach(row => {
+                    const procId = row.dataset.processId;
+                    const proc = processMap.get(procId);
+                    if (!proc) return;
+
+                    const registerBtn = row.querySelector('.register-btn');
+                    const spinner = row.querySelector('.spinner-grow');
+                    const inTime = isInTimeWindow(proc);
 
                     if (registerBtn) {
-                        registerBtn.disabled = !isInTimeWindow;
+                        registerBtn.disabled = !inTime;
                     }
 
                     if (spinner) {
+                        const startTime = parseInt(proc.startTime.replace(':', ''), 10);
+                        const endTime = parseInt(proc.endTime.replace(':', ''), 10);
+                        const startMinutes = Math.floor(startTime / 100) * 60 + (startTime % 100);
+                        const endMinutes = Math.floor(endTime / 100) * 60 + (endTime % 100);
                         const totalDuration = endMinutes - startMinutes;
                         const elapsedTime = currentTime - startMinutes;
                         const percentage = totalDuration > 0 ? (elapsedTime / totalDuration) * 100 : 0;
                         spinner.className = 'spinner-grow spinner-grow-sm';
-                        if (!isInTimeWindow) spinner.classList.add('text-secondary');
+                        if (!inTime) spinner.classList.add('text-secondary');
                         else if (percentage < 50) spinner.classList.add('text-success');
                         else if (percentage < 67) spinner.classList.add('text-warning');
                         else spinner.classList.add('text-danger');
                     }
                 });
 
-                // Update elements within visible accordions
                 document.querySelectorAll('.collapse.show').forEach(detailView => {
                     const parentProcId = detailView.id.replace('collapse-', '');
-                    const parentProc = masterProcessList.find(p => p.id === parentProcId);
+                    const parentProc = processMap.get(parentProcId);
                     if (!parentProc) return;
 
-                    // Logic for internal phases
+                    const isParentInTime = isInTimeWindow(parentProc);
+
                     let lastPhaseStatusOk = true;
                     if (parentProc.mode === 'Multiple') {
-                        const parentRow = document.querySelector(`tr[data-process-id="${parentProcId}"]`);
-                        const isParentInTime = parentRow && !parentRow.querySelector('.register-btn')?.disabled;
-
                         parentProc.internalPhases.forEach(phase => {
                             const phaseBtn = detailView.querySelector(`[data-phase-name="${phase.name}"]`);
                             if (phaseBtn) {
                                 phaseBtn.disabled = !lastPhaseStatusOk || !isParentInTime;
-
                                 const phaseRegistrations = allRegistrations.filter(r => r.processId === parentProcId && r.phase === phase.name);
                                 if (phaseRegistrations.length > 0) {
                                     const latestStatus = phaseRegistrations.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))[0].values.find(v=>v.name==='Status')?.value || '';
@@ -341,17 +345,12 @@
                         });
                     }
 
-                    // Logic for child processes
                     if (parentProc.childProcesses && parentProc.childProcesses.length > 0) {
                         parentProc.childProcesses.forEach(childId => {
-                            const childProc = masterProcessList.find(p => p.id === childId);
+                            const childProc = processMap.get(childId);
                             const childBtn = detailView.querySelector(`button.register-child-btn[data-process-id="${childId}"]`);
                             if (childProc && childBtn) {
-                                const childStartTime = parseInt(childProc.startTime.replace(':', ''), 10);
-                                const childEndTime = parseInt(childProc.endTime.replace(':', ''), 10);
-                                const childStartMinutes = Math.floor(childStartTime / 100) * 60 + (childStartTime % 100);
-                                const childEndMinutes = Math.floor(childEndTime / 100) * 60 + (childEndTime % 100);
-                                childBtn.disabled = !(currentTime >= childStartMinutes && currentTime < childEndMinutes);
+                                childBtn.disabled = !(isInTimeWindow(childProc) && isParentInTime);
                             }
                         });
                     }

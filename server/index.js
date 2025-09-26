@@ -41,6 +41,22 @@ const processesByCompany = {
             internalPhases: [
                 { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
             ],
+            childProcesses: ['PRO7034'],
+            exclusiveDependency: false
+        },
+        {
+            id: 'PRO7034',
+            name: 'GENERACION DE ARCHIVO',
+            processType: 'Nieto',
+            criticidad: 'Baja',
+            startTime: '22:15',
+            endTime: '22:25',
+            frequency: 'Diario',
+            days: [],
+            mode: 'Individual',
+            internalPhases: [
+                { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
+            ],
             childProcesses: [],
             exclusiveDependency: false
         }
