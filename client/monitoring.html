@@ -222,7 +222,6 @@
                 calculatedProcessStates.clear();
 
                 const getOwnStatus = (proc) => {
-                    // Find the most recent registration for this specific process
                     const relevantRegistrations = registrations
                         .filter(r => r.processId === proc.id)
                         .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -242,16 +241,15 @@
                     if (!proc) return 'POR INICIAR';
 
                     let finalStatus;
-                    // Check for exclusive dependency on child failure
-                    if (proc.exclusiveDependency && proc.childProcesses && proc.childProcesses.length > 0) {
+                    if (proc.mode === 'Padre' && proc.exclusiveDependency && proc.childProcesses && proc.childProcesses.length > 0) {
                         const childStatus = getStatus(proc.childProcesses[0]);
                         if (childStatus === 'falla' || childStatus === 'error') {
-                            finalStatus = childStatus; // Dependency is triggered by child failure
+                            finalStatus = childStatus; // Dependency triggered by child failure
                         } else {
-                            finalStatus = getOwnStatus(proc); // Child is ok, so parent runs on its own status
+                            finalStatus = getOwnStatus(proc); // Child is OK, so parent uses its own status
                         }
                     } else {
-                        finalStatus = getOwnStatus(proc); // No dependency, calculate own status
+                        finalStatus = getOwnStatus(proc); // Not a dependent parent, calculate own status
                     }
 
                     calculatedProcessStates.set(procId, finalStatus);
@@ -308,7 +306,7 @@
             const renderProcessRow = (proc) => {
                 const status = calculatedProcessStates.get(proc.id) || 'POR INICIAR';
                 const rowClass = getRowClass(status);
-                const isExpandable = proc.childProcesses && proc.childProcesses.length > 0;
+                const isExpandable = proc.mode === 'Padre' && proc.childProcesses && proc.childProcesses.length > 0;
                 const collapseId = `collapse-${proc.id}`;
                 const mainRow = document.createElement('tr');
                 mainRow.className = rowClass;
@@ -345,13 +343,49 @@
                 return '';
             };
 
+            const renderChildProcessesDetails = (proc) => {
+                 const processMap = new Map(masterProcessList.map(p => [p.id, p]));
+                 let html = '<ul class="list-group list-group-flush">';
+                 proc.childProcesses.forEach(childId => {
+                    const childProc = processMap.get(childId);
+                    if(childProc){
+                        const status = calculatedProcessStates.get(childId) || 'POR INICIAR';
+                        const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
+                        html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>${childProc.name}</span>
+                            <div>
+                                <span class="badge ${badgeClass} me-2">${status.toUpperCase()}</span>
+                                <button class="btn btn-outline-primary btn-sm register-child-btn" data-process-id="${childId}">Registrar</button>
+                            </div>
+                        </li>`;
+                    }
+                 });
+                 return html + '</ul>';
+            };
+
             // --- Timed Updates ---
             const updateTimedElements = () => { /* ... Logic from previous implementation ... */ };
 
             // --- Event Listeners & Modal Logic ---
+             monitoringList.addEventListener('show.bs.collapse', event => {
+                const detailDiv = event.target.querySelector('.p-3');
+                const processId = event.target.id.replace('collapse-', '');
+                const proc = masterProcessList.find(p => p.id === processId);
+                if (!proc) { detailDiv.innerHTML = 'Error.'; return; }
+
+                let detailHtml = '';
+                if (proc.mode === 'Padre' && proc.childProcesses && proc.childProcesses.length > 0) {
+                    detailHtml += '<h6>Linked Children</h6>';
+                    detailHtml += renderChildProcessesDetails(proc);
+                }
+
+                detailDiv.innerHTML = detailHtml || 'No further details for this process.';
+                updateTimedElements();
+            });
+
             monitoringList.addEventListener('click', (e) => {
                 const target = e.target;
-                const row = target.closest('tr');
+                const row = target.closest('tr[data-process-id]');
                 if (!row) return;
 
                 const procId = row.dataset.processId;
@@ -361,15 +395,19 @@
                 if (target.classList.contains('register-btn')) {
                     if (proc.mode === 'Multiple') {
                         openMultiPhaseModal(proc);
-                    } else {
-                        openRegistrationModal(proc); // For Individual or Parent
+                    } else { // Individual or Parent
+                        openRegistrationModal(proc);
                     }
+                } else if (target.classList.contains('register-child-btn')) {
+                    const childId = target.dataset.processId;
+                    const childProc = masterProcessList.find(p => p.id === childId);
+                    if(childProc) openRegistrationModal(childProc);
                 }
             });
 
             const openRegistrationModal = (proc, phaseName = null) => {
                 currentProcessId = proc.id;
-                currentPhaseName = phaseName || (proc.mode === 'Individual' ? proc.internalPhases[0]?.name : null);
+                currentPhaseName = phaseName || proc.internalPhases[0]?.name;
                 modalProcessName.textContent = phaseName ? `${proc.name} - ${phaseName}` : proc.name;
                 modalStartTime.textContent = proc.startTime;
                 modalEndTime.textContent = proc.endTime;
@@ -379,14 +417,14 @@
                 if (phase.fields.length > 0) {
                     phase.fields.forEach(field => modalRegistrationForm.insertAdjacentHTML('beforeend', getFormFieldHtml(field)));
                 } else {
-                    modalRegistrationForm.innerHTML = '<p>No fields defined.</p>';
+                    modalRegistrationForm.innerHTML = '<p>No fields defined for this registration.</p>';
                 }
                 registrationModal.show();
             };
 
             const openMultiPhaseModal = (proc) => {
                 multiPhaseModalLabel.textContent = `Registrar Fases: ${proc.name}`;
-                multiPhaseTableBody.innerHTML = ''; // Clear previous content
+                multiPhaseTableBody.innerHTML = '';
 
                 proc.internalPhases.forEach(phase => {
                     const latestPhaseReg = allRegistrations
@@ -400,26 +438,14 @@
                     row.dataset.processId = proc.id;
                     row.dataset.phaseName = phase.name;
 
-                    // 1. Phase Name
-                    const nameCell = document.createElement('td');
-                    nameCell.textContent = phase.name;
-
-                    // 2. Current Status
-                    const statusCell = document.createElement('td');
-                    statusCell.innerHTML = `<span class="badge ${badgeClass}">${currentStatus.toUpperCase()}</span>`;
-
-                    // 3. Form Fields
-                    const formCell = document.createElement('td');
-                    formCell.className = 'phase-form-fields';
-                    (phase.fields || []).forEach(field => {
-                        formCell.insertAdjacentHTML('beforeend', `<div class="mb-2">${getFormFieldHtml(field, true)}</div>`);
-                    });
-
-                    // 4. Actions
-                    const actionCell = document.createElement('td');
-                    actionCell.innerHTML = `<button class="btn btn-success btn-sm save-phase-btn">Guardar</button>`;
-
-                    row.append(nameCell, statusCell, formCell, actionCell);
+                    row.innerHTML = `
+                        <td>${phase.name}</td>
+                        <td><span class="badge ${badgeClass}">${currentStatus.toUpperCase()}</span></td>
+                        <td class="phase-form-fields">
+                            ${(phase.fields || []).map(field => `<div class="mb-2">${getFormFieldHtml(field, true)}</div>`).join('')}
+                        </td>
+                        <td><button class="btn btn-success btn-sm save-phase-btn">Guardar</button></td>
+                    `;
                     multiPhaseTableBody.appendChild(row);
                 });
 
@@ -444,6 +470,18 @@
                  return isInline ? inputHtml : `<div class="row mb-3"><label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label><div class="col-sm-8">${inputHtml}</div></div>`;
             };
 
+            const saveRegistration = (companyId, processId, phase, values) => {
+                const registrationData = { companyId, processId, phase, values, timestamp: new Date().toISOString() };
+                fetch('/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registrationData) })
+                .then(res => res.ok ? res.json() : Promise.reject('Failed to save'))
+                .then(() => {
+                    registrationModal.hide();
+                    multiPhaseRegistrationModal.hide();
+                    fetchAndRenderAll();
+                })
+                .catch(err => { console.error(err); alert('Error saving.'); });
+            };
+
             saveSingleRegistrationBtn.addEventListener('click', () => {
                 const values = Array.from(modalRegistrationForm.querySelectorAll('[data-field-name]')).map(input => ({ name: input.dataset.fieldName, value: input.value }));
                 saveRegistration(companyId, currentProcessId, currentPhaseName, values);
@@ -459,18 +497,6 @@
                     saveRegistration(companyId, procId, phaseName, values);
                 }
             });
-
-            const saveRegistration = (companyId, processId, phase, values) => {
-                const registrationData = { companyId, processId, phase, values, timestamp: new Date().toISOString() };
-                fetch('/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registrationData) })
-                .then(res => res.ok ? res.json() : Promise.reject('Failed to save'))
-                .then(() => {
-                    registrationModal.hide();
-                    multiPhaseRegistrationModal.hide();
-                    fetchAndRenderAll();
-                })
-                .catch(err => { console.error(err); alert('Error saving.'); });
-            };
 
             // --- Initial Load & Intervals ---
             updateMenuLinks(companyId);
