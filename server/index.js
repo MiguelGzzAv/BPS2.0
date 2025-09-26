@@ -15,13 +15,34 @@ const processesByCompany = {
             id: 'PRO7032',
             name: 'PROCESO NOCTURNO BANORTE',
             processType: 'Padre',
-            fillType: 'Valores',
+            criticidad: 'Alta',
             startTime: '21:00',
             endTime: '23:00',
-            frequency: 'Personalizado',
-            days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-            values: [],
-            subprocesses: []
+            frequency: 'Diario',
+            days: [],
+            mode: 'Multiple',
+            internalPhases: [
+                { name: 'Backup', fields: [{ name: 'Status', type: 'status' }, { name: 'Backup Size', type: 'text' }] },
+                { name: 'Cierre', fields: [{ name: 'Status', type: 'status' }, { name: 'Transacciones', type: 'number' }] }
+            ],
+            childProcesses: ['PRO7033'],
+            exclusiveDependency: true
+        },
+        {
+            id: 'PRO7033',
+            name: 'REPORTE DIARIO',
+            processType: 'Hijo',
+            criticidad: 'Media',
+            startTime: '22:00',
+            endTime: '22:30',
+            frequency: 'Diario',
+            days: [],
+            mode: 'Individual',
+            internalPhases: [
+                { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
+            ],
+            childProcesses: [],
+            exclusiveDependency: false
         }
     ],
     '2': []
@@ -114,22 +135,25 @@ app.get('/api/processes', (req, res) => {
             .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         let status = 'POR INICIAR';
-        // Find the field in the process definition that is designated as the status field
-        const statusDefinitionField = proc.values.find(def => def.type === 'status');
+        // Find the status field within the new internalPhases structure
+        let statusDefinitionField = null;
+        if (proc.internalPhases && proc.internalPhases.length > 0) {
+            // Temporary logic: just check the first phase's fields.
+            // The full logic will be implemented in Phase 3.
+            const firstPhase = proc.internalPhases[0];
+            if (firstPhase.fields) {
+                statusDefinitionField = firstPhase.fields.find(def => def.type === 'status');
+            }
+        }
 
         if (statusDefinitionField && relevantRegistrations.length > 0) {
-            // Now find the value for that specific field name in the latest registration
             const statusValueField = relevantRegistrations[0].values.find(v => v.name === statusDefinitionField.name);
             if (statusValueField && statusValueField.value) {
                 status = statusValueField.value;
             }
         }
 
-        const safeProc = { ...proc };
-        if (!Array.isArray(safeProc.values)) {
-            safeProc.values = [];
-        }
-        return { ...safeProc, status };
+        return { ...proc, status };
     });
 
     res.json(processesWithStatus);
@@ -147,9 +171,14 @@ app.post('/api/processes', (req, res) => {
     const newProcess = {
         ...processData,
         days: processData.days || [],
-        values: processData.values || [],
-        subprocesses: processData.subprocesses || []
+        mode: processData.mode || 'Individual',
+        internalPhases: processData.internalPhases || [],
+        childProcesses: processData.childProcesses || [],
+        exclusiveDependency: processData.exclusiveDependency || false,
     };
+    // Clean up obsolete fields
+    delete newProcess.values;
+    delete newProcess.subprocesses;
 
     processesByCompany[companyId].push(newProcess);
     res.status(201).json(newProcess);
@@ -171,6 +200,10 @@ app.put('/api/processes/:id', (req, res) => {
         ...processes[processIndex],
         ...processData
     };
+
+    // Clean up obsolete fields during update
+    if ('values' in updatedProcess) delete updatedProcess.values;
+    if ('subprocesses' in updatedProcess) delete updatedProcess.subprocesses;
 
     processes[processIndex] = updatedProcess;
     res.json(updatedProcess);
