@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escalation Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+        <div class="container-fluid">
+            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                Menu
+            </button>
+            <a class="navbar-brand" href="#">
+                <img src="logo.png" alt="Avatar Logo" style="width:40px;" class="rounded-pill">
+            </a>
+        </div>
+    </nav>
+    <!-- Offcanvas Menu -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <a href="/dashboard.html" class="nav-link text-dark" id="menu-dashboard">Dashboard</a>
+                </li>
+                <li>
+                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
+                </li>
+                <li>
+                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
+                </li>
+                <li>
+                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
+                </li>
+                <li>
+                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
+                </li>
+                <li>
+                    <a href="/monitoring.html" class="nav-link text-dark" id="menu-monitoring">Monitoring</a>
+                </li>
+                <li>
+                    <a href="/escalation.html" class="nav-link" id="menu-escalation">Escalation</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Escalation Rules</h1>
+            <button id="add-rule-btn" class="btn btn-primary">
+                Add New Rule
+            </button>
+        </header>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Process</th>
+                    <th>User to Notify</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="escalation-rules-list">
+                <!-- Rules will be injected here -->
+            </tbody>
+        </table>
+    </main>
+
+    <!-- Add Rule Modal -->
+    <div class="modal fade" id="addRuleModal" tabindex="-1" aria-labelledby="addRuleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addRuleModalLabel">Add New Escalation Rule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-rule-form">
+                        <div class="mb-3">
+                            <label for="process-select" class="form-label">Process</label>
+                            <select id="process-select" class="form-select" required>
+                                <!-- Process options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="user-select" class="form-label">User to Notify</label>
+                            <select id="user-select" class="form-select" required>
+                                <!-- User options will be populated by JS -->
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="add-rule-form" class="btn btn-primary">Save Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const menu = document.getElementById('offcanvasMenu');
+            const urlParams = new URLSearchParams(window.location.search);
+            const companyId = urlParams.get('companyId');
+            const addRuleModal = new bootstrap.Modal(document.getElementById('addRuleModal'));
+            const addRuleBtn = document.getElementById('add-rule-btn');
+            const addRuleForm = document.getElementById('add-rule-form');
+            const rulesList = document.getElementById('escalation-rules-list');
+            const processSelect = document.getElementById('process-select');
+            const userSelect = document.getElementById('user-select');
+
+            let allProcesses = [];
+            let allUsers = [];
+
+            const updateMenuLinks = (id) => {
+                if (!id) return;
+                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
+                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
+                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
+                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
+                menu.querySelector('#menu-monitoring').href = `/monitoring.html?companyId=${id}`;
+                menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
+                const currentPage = window.location.pathname;
+                if (currentPage.includes('escalation.html')) {
+                    menu.querySelector('#menu-escalation').classList.add('active');
+                }
+            };
+
+            const fetchProcesses = () => {
+                return fetch(`/api/processes?companyId=${companyId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        allProcesses = data;
+                        processSelect.innerHTML = '<option selected>Choose a process...</option>';
+                        data.forEach(proc => {
+                            const option = new Option(proc.name, proc.id);
+                            processSelect.add(option);
+                        });
+                    });
+            };
+
+            const fetchUsers = () => {
+                return fetch(`/api/users?companyId=${companyId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        allUsers = data;
+                        userSelect.innerHTML = '<option selected>Choose a user...</option>';
+                        data.forEach(user => {
+                            const option = new Option(`${user.name} (${user.email})`, user.id);
+                            userSelect.add(option);
+                        });
+                    });
+            };
+
+            const fetchAndRenderRules = () => {
+                fetch(`/api/escalations?companyId=${companyId}`)
+                    .then(res => res.json())
+                    .then(rules => {
+                        rulesList.innerHTML = '';
+                        rules.forEach(rule => {
+                            const process = allProcesses.find(p => p.id === rule.processId);
+                            const user = allUsers.find(u => u.id === rule.userId);
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${process ? process.name : 'Unknown Process'}</td>
+                                <td>${user ? user.name : 'Unknown User'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger delete-rule-btn" data-id="${rule.id}">Delete</button>
+                                </td>
+                            `;
+                            rulesList.appendChild(row);
+                        });
+                    });
+            };
+
+            addRuleBtn.addEventListener('click', () => {
+                addRuleForm.reset();
+                addRuleModal.show();
+            });
+
+            addRuleForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newRule = {
+                    companyId: companyId,
+                    processId: processSelect.value,
+                    userId: parseInt(userSelect.value, 10),
+                };
+
+                fetch('/api/escalations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newRule)
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('Failed to create rule');
+                    addRuleModal.hide();
+                    fetchAndRenderRules();
+                })
+                .catch(err => console.error('Error creating rule:', err));
+            });
+
+            rulesList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-rule-btn')) {
+                    const ruleId = e.target.dataset.id;
+                    if (confirm('Are you sure you want to delete this rule?')) {
+                        fetch(`/api/escalations/${ruleId}?companyId=${companyId}`, { method: 'DELETE' })
+                            .then(res => {
+                                if (!res.ok) throw new Error('Failed to delete rule');
+                                fetchAndRenderRules();
+                            })
+                            .catch(err => console.error('Error deleting rule:', err));
+                    }
+                }
+            });
+
+            // Initial Load
+            updateMenuLinks(companyId);
+            Promise.all([fetchProcesses(), fetchUsers()])
+                .then(fetchAndRenderRules)
+                .catch(error => console.error("Error during initial data fetch:", error));
+        });
+    </script>
+</body>
+</html>

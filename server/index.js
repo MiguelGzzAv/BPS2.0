@@ -45,6 +45,7 @@ const departmentsByCompany = {
     ]
 };
 const registrationsByCompany = {};
+const escalationsByCompany = {};
 
 // --- Middleware ---
 app.use(express.urlencoded({ extended: true }));
@@ -204,10 +205,19 @@ app.post('/api/users', (req, res) => {
     if (!usersByCompany[companyId]) {
         usersByCompany[companyId] = [];
     }
-    // In a real app, hash the password here. For now, storing plain text.
-    usersByCompany[companyId].push(newUser);
-    console.log(`Added new user to company ${companyId}:`, newUser);
-    res.status(201).json(newUser);
+    const userToSave = {
+        id: Date.now(),
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        username: newUser.username,
+        password: newUser.password, // In a real app, hash this
+        groupId: newUser.groupId
+    };
+
+    usersByCompany[companyId].push(userToSave);
+    console.log(`Added new user to company ${companyId}:`, userToSave);
+    res.status(201).json(userToSave);
 });
 
 // Groups
@@ -256,6 +266,46 @@ app.post('/api/departments', (req, res) => {
     departmentsByCompany[companyId].push(newDepartment);
     console.log(`Added new department to company ${companyId}:`, newDepartment);
     res.status(201).json(newDepartment);
+});
+
+
+// Escalations
+app.get('/api/escalations', (req, res) => {
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+    const escalations = escalationsByCompany[companyId] || [];
+    res.json(escalations);
+});
+
+app.post('/api/escalations', (req, res) => {
+    const { companyId, ...newRule } = req.body;
+    if (!companyId || !newRule.processId || !newRule.userId) {
+        return res.status(400).json({ error: 'companyId, processId, and userId are required' });
+    }
+    if (!escalationsByCompany[companyId]) {
+        escalationsByCompany[companyId] = [];
+    }
+    newRule.id = Date.now(); // Simple unique ID
+    escalationsByCompany[companyId].push(newRule);
+    console.log(`Added new escalation rule to company ${companyId}:`, newRule);
+    res.status(201).json(newRule);
+});
+
+app.delete('/api/escalations/:id', (req, res) => {
+    const { id } = req.params;
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+    const escalations = escalationsByCompany[companyId] || [];
+    const ruleIndex = escalations.findIndex(r => r.id === parseInt(id));
+    if (ruleIndex === -1) {
+        return res.status(404).json({ error: 'Escalation rule not found' });
+    }
+    escalations.splice(ruleIndex, 1);
+    res.status(204).send();
 });
 
 
