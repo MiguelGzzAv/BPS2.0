@@ -386,7 +386,15 @@
             monitoringList.addEventListener('click', (e) => {
                 const target = e.target;
                 const row = target.closest('tr[data-process-id]');
-                if (!row) return;
+                if (!row) {
+                    const childBtn = target.closest('.register-child-btn');
+                    if (childBtn) {
+                        const childId = childBtn.dataset.processId;
+                        const childProc = masterProcessList.find(p => p.id === childId);
+                        if (childProc) openRegistrationModal(childProc);
+                    }
+                    return;
+                }
 
                 const procId = row.dataset.processId;
                 const proc = masterProcessList.find(p => p.id === procId);
@@ -398,10 +406,6 @@
                     } else { // Individual or Parent
                         openRegistrationModal(proc);
                     }
-                } else if (target.classList.contains('register-child-btn')) {
-                    const childId = target.dataset.processId;
-                    const childProc = masterProcessList.find(p => p.id === childId);
-                    if(childProc) openRegistrationModal(childProc);
                 }
             });
 
