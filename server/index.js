@@ -149,12 +149,16 @@ app.post('/api/processes', (req, res) => {
     if (!processesByCompany[companyId]) {
         processesByCompany[companyId] = [];
     }
-    // Ensure the values property is always an array
-    if (!Array.isArray(processData.values)) {
-        processData.values = [];
-    }
-    processesByCompany[companyId].push(processData);
-    res.status(201).json(processData);
+
+    const newProcess = {
+        ...processData,
+        days: processData.days || [],
+        values: processData.values || [],
+        subprocesses: processData.subprocesses || []
+    };
+
+    processesByCompany[companyId].push(newProcess);
+    res.status(201).json(newProcess);
 });
 
 app.put('/api/processes/:id', (req, res) => {
@@ -168,8 +172,14 @@ app.put('/api/processes/:id', (req, res) => {
     if (processIndex === -1) {
         return res.status(404).json({ error: 'Process not found' });
     }
-    processes[processIndex] = processData;
-    res.json(processData);
+
+    const updatedProcess = {
+        ...processes[processIndex],
+        ...processData
+    };
+
+    processes[processIndex] = updatedProcess;
+    res.json(updatedProcess);
 });
 
 app.delete('/api/processes/:id', (req, res) => {
@@ -330,6 +340,66 @@ app.post('/api/registrations', (req, res) => {
     registrationsByCompany[companyId].push(newRegistration);
     console.log(`Added new registration to company ${companyId}:`, newRegistration);
     res.status(201).json(newRegistration);
+});
+
+
+// Summary
+app.get('/api/summary', (req, res) => {
+    const { companyId, date } = req.query;
+    if (!companyId || !date) {
+        return res.status(400).json({ error: 'companyId and date are required' });
+    }
+
+    const processes = processesByCompany[companyId] || [];
+    const registrations = registrationsByCompany[companyId] || [];
+
+    const summary = {
+        ok: { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        falla: { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        error: { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        ambar: { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'sin ejecucion': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } }
+    };
+
+    const relevantRegistrationsForDate = registrations.filter(r => r.timestamp.startsWith(date));
+
+    processes.forEach(proc => {
+        // 1. Determine status
+        let status = 'sin ejecucion'; // Default status
+        const statusDefinitionField = (proc.values || []).find(def => def.type === 'status');
+
+        const relevantRegistrationsForProc = relevantRegistrationsForDate
+            .filter(r => r.processId === proc.id)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        if (statusDefinitionField && relevantRegistrationsForProc.length > 0) {
+            const latestRegistration = relevantRegistrationsForProc[0];
+            const statusValueField = latestRegistration.values.find(v => v.name === statusDefinitionField.name);
+            if (statusValueField && statusValueField.value) {
+                // Normalize status to lowercase to match keys in summary object
+                const foundStatus = statusValueField.value.toLowerCase();
+                if (summary.hasOwnProperty(foundStatus)) {
+                    status = foundStatus;
+                }
+            }
+        }
+
+        // 2. Get Criticidad
+        const criticidad = proc.criticidad || 'Baja'; // Default to 'Baja' if not defined
+
+        // 3. Update summary object
+        if (summary[status]) {
+            summary[status].total++;
+            if (summary[status][criticidad] !== undefined) {
+                summary[status][criticidad]++;
+                if (summary[status].processes[criticidad]) {
+                    summary[status].processes[criticidad].push(proc.name);
+                }
+            }
+        }
+    });
+
+    res.json({ summary });
 });
 
 

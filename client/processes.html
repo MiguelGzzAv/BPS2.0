@@ -69,6 +69,7 @@
                     <th>Start Time</th>
                     <th>End Time</th>
                     <th>Fill Type</th>
+                    <th>Criticidad</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -133,6 +134,17 @@
                                     <option selected>Choose...</option>
                                     <option value="Archivos">Archivos</option>
                                     <option value="Valores">Valores</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="process-criticidad" class="form-label">Criticidad</label>
+                                <select class="form-select" id="process-criticidad">
+                                    <option selected>Choose...</option>
+                                    <option value="Alta">Alta</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Baja">Baja</option>
                                 </select>
                             </div>
                         </div>
@@ -232,6 +244,7 @@
                         <td>${proc.startTime}</td>
                         <td>${proc.endTime}</td>
                         <td>${proc.fillType}</td>
+                        <td>${proc.criticidad || 'N/A'}</td>
                         <td>
                             <button class="btn btn-sm btn-warning edit-btn" data-id="${proc.id}">Edit</button>
                             <button class="btn btn-sm btn-danger delete-btn" data-id="${proc.id}">Delete</button>
@@ -291,6 +304,7 @@
                     name: document.getElementById('process-name').value,
                     processType: document.getElementById('process-processType').value,
                     fillType: document.getElementById('process-fillType').value,
+                    criticidad: document.getElementById('process-criticidad').value,
                     startTime: document.getElementById('process-startTime').value,
                     endTime: document.getElementById('process-endTime').value,
                     frequency: frequencySelect.value,
@@ -372,6 +386,7 @@
                         document.getElementById('process-name').value = processToEdit.name;
                         document.getElementById('process-processType').value = processToEdit.processType;
                         document.getElementById('process-fillType').value = processToEdit.fillType;
+                        document.getElementById('process-criticidad').value = processToEdit.criticidad;
                         document.getElementById('process-startTime').value = processToEdit.startTime;
                         document.getElementById('process-endTime').value = processToEdit.endTime;
                         document.getElementById('process-frequency').value = processToEdit.frequency;
