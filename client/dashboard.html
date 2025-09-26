@@ -50,9 +50,6 @@
                     <a href="/selection.html" class="nav-link text-dark">Companies</a>
                 </li>
                 <li>
-                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
-                </li>
-                <li>
                     <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
                 </li>
                 <li>
@@ -140,7 +137,6 @@
                 if (!id) return;
                 menu.querySelector('#menu-dashboard').href = `dashboard.html?companyId=${id}`;
                 menu.querySelector('#menu-users').href = `users.html?companyId=${id}`;
-                menu.querySelector('#menu-departments').href = `departments.html?companyId=${id}`;
                 menu.querySelector('#menu-processes').href = `processes.html?companyId=${id}`;
                 menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
                 menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
