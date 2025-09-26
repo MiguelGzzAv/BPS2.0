@@ -151,6 +151,7 @@
             let currentProcessId = null;
             let currentPhaseName = null;
             let masterProcessList = [];
+            let allRegistrations = [];
             let calculatedProcessStates = new Map();
 
             const updateMenuLinks = (id) => {
@@ -160,8 +161,7 @@
                 menu.querySelector('#menu-processes').href = `processes.html?companyId=${id}`;
                 menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
                 menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
-                const currentPage = window.location.pathname;
-                if (currentPage.includes('monitoring.html')) {
+                if (window.location.pathname.includes('monitoring.html')) {
                     menu.querySelector('#menu-monitoring').classList.add('active');
                 }
             };
@@ -169,24 +169,18 @@
             const calculateProcessStates = (processes, registrations) => {
                 const processMap = new Map(processes.map(p => [p.id, p]));
                 calculatedProcessStates.clear();
-
                 const getStatus = (procId) => {
                     if (calculatedProcessStates.has(procId)) return calculatedProcessStates.get(procId);
-
                     const proc = processMap.get(procId);
                     if (!proc) return 'POR INICIAR';
 
                     if (proc.exclusiveDependency && proc.childProcesses && proc.childProcesses.length > 0) {
-                        const childId = proc.childProcesses[0]; // Assuming one child for exclusive dependency
-                        const childStatus = getStatus(childId);
+                        const childStatus = getStatus(proc.childProcesses[0]);
                         calculatedProcessStates.set(procId, childStatus);
                         return childStatus;
                     }
 
-                    const relevantRegistrations = registrations
-                        .filter(r => r.processId === proc.id)
-                        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
+                    const relevantRegistrations = registrations.filter(r => r.processId === proc.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                     if (relevantRegistrations.length === 0) {
                         calculatedProcessStates.set(procId, 'POR INICIAR');
                         return 'POR INICIAR';
@@ -194,11 +188,10 @@
 
                     const latestRegistration = relevantRegistrations[0];
                     const statusField = latestRegistration.values.find(v => v.name === 'Status');
-                    const status = statusField ? statusField.value : 'POR INICIAR';
+                    const status = statusField ? statusField.value.toLowerCase() : 'por iniciar';
                     calculatedProcessStates.set(procId, status);
                     return status;
                 };
-
                 processes.forEach(p => getStatus(p.id));
             };
 
@@ -206,16 +199,10 @@
                 const nameFilter = document.getElementById('filter-name').value.toLowerCase();
                 const statusFilter = document.getElementById('filter-status').value;
                 let processesToDisplay = [...masterProcessList];
-                const processMap = new Map(processesToDisplay.map(p => [p.id, p]));
                 const childProcessIds = new Set(processesToDisplay.flatMap(p => p.childProcesses || []));
 
-                if (nameFilter) {
-                    processesToDisplay = processesToDisplay.filter(p => p.name.toLowerCase().includes(nameFilter));
-                }
-                if (statusFilter) {
-                    processesToDisplay = processesToDisplay.filter(p => (calculatedProcessStates.get(p.id) || 'POR INICIAR') === statusFilter);
-                }
-
+                if (nameFilter) processesToDisplay = processesToDisplay.filter(p => p.name.toLowerCase().includes(nameFilter));
+                if (statusFilter) processesToDisplay = processesToDisplay.filter(p => (calculatedProcessStates.get(p.id) || 'POR INICIAR') === statusFilter);
                 if (sortTimeButton.dataset.sortOrder) {
                     processesToDisplay.sort((a, b) => {
                         const timeA = parseInt(a.startTime.replace(':', ''), 10);
@@ -229,53 +216,50 @@
                     monitoringList.innerHTML = '<tr><td colspan="6" class="text-center">No matching processes found.</td></tr>';
                     return;
                 }
-
-                const renderedIds = new Set();
                 processesToDisplay.forEach(proc => {
-                    if (renderedIds.has(proc.id) || childProcessIds.has(proc.id)) return;
-                    renderProcessRow(proc, 0);
-                    renderedIds.add(proc.id);
-
-                    if (proc.childProcesses && proc.childProcesses.length > 0) {
-                        proc.childProcesses.forEach(childId => {
-                            const childProc = processMap.get(childId);
-                            if (childProc) {
-                                renderProcessRow(childProc, 1, proc.id);
-                                renderedIds.add(childId);
-                            }
-                        });
-                    }
+                    if (!childProcessIds.has(proc.id)) renderProcessRow(proc);
                 });
                 updateTimedElements();
             };
 
-            const renderProcessRow = (proc, level, parentId) => {
-                const row = document.createElement('tr');
-                row.setAttribute('data-process-id', proc.id);
-                if (parentId) row.setAttribute('data-parent-id', parentId);
-
+            const renderProcessRow = (proc) => {
                 const status = calculatedProcessStates.get(proc.id) || 'POR INICIAR';
-                let rowClass = '';
-                switch (status.toLowerCase()) {
-                    case 'ok': rowClass = 'table-success'; break;
-                    case 'falla': case 'error': rowClass = 'table-danger'; break;
-                    case 'ambar': rowClass = 'table-warning'; break;
-                    case 'sin ejecucion': rowClass = 'table-secondary'; break;
-                }
-                if (rowClass) row.className = rowClass;
-
+                const rowClass = getRowClass(status);
+                const isExpandable = (proc.mode === 'Multiple' && proc.internalPhases.length > 1) || (proc.childProcesses && proc.childProcesses.length > 0);
+                const collapseId = `collapse-${proc.id}`;
+                const mainRow = document.createElement('tr');
+                mainRow.className = rowClass;
+                mainRow.setAttribute('data-process-id', proc.id);
                 const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
-                const processName = `<span style="padding-left: ${level * 2.5}rem;">${level > 0 ? '↳' : ''} ${proc.name}</span>`;
-
-                row.innerHTML = `
-                    <td>${processName}</td>
+                mainRow.innerHTML = `
+                    <td>
+                        <button class="btn btn-sm btn-light me-2 expand-btn" data-bs-toggle="collapse" href="#${collapseId}" role="button" style="visibility: ${isExpandable ? 'visible' : 'hidden'};">▶</button>
+                        ${proc.name}
+                    </td>
                     <td>${proc.startTime}</td>
                     <td>${proc.endTime}</td>
                     <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
                     <td class="spinner-cell"><div class="spinner-grow spinner-grow-sm text-secondary" role="status"></div></td>
-                    <td><button class="btn btn-primary btn-sm register-btn">Registrar</button></td>
+                    <td><button class="btn btn-primary btn-sm register-btn" ${proc.mode === 'Individual' ? '' : 'disabled'}>Registrar</button></td>
                 `;
-                monitoringList.appendChild(row);
+                monitoringList.appendChild(mainRow);
+                if (isExpandable) {
+                    const detailRow = document.createElement('tr');
+                    const detailCell = document.createElement('td');
+                    detailCell.colSpan = 6;
+                    detailCell.innerHTML = `<div class="collapse" id="${collapseId}"><div class="p-3">Loading details...</div></div>`;
+                    detailRow.appendChild(detailCell);
+                    monitoringList.appendChild(detailRow);
+                }
+            };
+
+            const getRowClass = (status) => {
+                const s = status.toLowerCase();
+                if (s === 'ok') return 'table-success';
+                if (s === 'falla' || s === 'error') return 'table-danger';
+                if (s === 'ambar') return 'table-warning';
+                if (s === 'sin ejecucion') return 'table-secondary';
+                return '';
             };
 
             const fetchAndRenderAll = () => {
@@ -286,118 +270,148 @@
                     fetchUsers()
                 ]).then(([processes, registrations]) => {
                     masterProcessList = processes;
+                    allRegistrations = registrations;
                     calculateProcessStates(processes, registrations);
                     displayProcesses();
-                }).catch(error => {
-                    console.error('Error fetching initial data:', error);
-                    monitoringList.innerHTML = '<tr><td colspan="6" class="text-center">Error loading data.</td></tr>';
+                }).catch(error => console.error('Error fetching data:', error));
+            };
+
+            const fetchUsers = () => fetch(`/api/users?companyId=${companyId}`).then(res => res.ok ? res.json() : []).then(data => { userList = data; }).catch(() => { userList = []; });
+
+            const updateTimedElements = () => {
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes();
+                document.querySelectorAll('tr[data-process-id]').forEach(row => {
+                    const procId = row.dataset.processId;
+                    const proc = masterProcessList.find(p => p.id === procId);
+                    if (!proc) return;
+
+                    const registerBtn = row.querySelector('.register-btn');
+                    if (registerBtn) { // Main row button
+                        const startTime = parseInt(proc.startTime.replace(':', ''), 10);
+                        const endTime = parseInt(proc.endTime.replace(':', ''), 10);
+                        registerBtn.disabled = !(currentTime >= (startTime/100*60 + startTime%100) && currentTime < (endTime/100*60 + endTime%100));
+                    }
+                });
+
+                document.querySelectorAll('.collapse.show').forEach(detailView => {
+                    const procId = detailView.id.replace('collapse-', '');
+                    const proc = masterProcessList.find(p => p.id === procId);
+                    if (!proc) return;
+                    let lastPhaseStatusOk = true;
+                    if (proc.mode === 'Multiple') {
+                        proc.internalPhases.forEach(phase => {
+                            const phaseBtn = detailView.querySelector(`[data-phase-name="${phase.name}"]`);
+                            if (phaseBtn) {
+                                phaseBtn.disabled = !lastPhaseStatusOk;
+                                const phaseRegistrations = allRegistrations.filter(r => r.processId === procId && r.phase === phase.name);
+                                if (phaseRegistrations.length > 0) {
+                                    const latestStatus = phaseRegistrations.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))[0].values.find(v=>v.name==='Status')?.value || '';
+                                    lastPhaseStatusOk = latestStatus.toLowerCase() === 'ok';
+                                } else {
+                                    lastPhaseStatusOk = false;
+                                }
+                            }
+                        });
+                    }
                 });
             };
 
-            const fetchUsers = () => {
-                return fetch(`/api/users?companyId=${companyId}`)
-                    .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch users'))
-                    .then(data => { userList = data; })
-                    .catch(error => { console.error(error); userList = []; });
+            monitoringList.addEventListener('show.bs.collapse', event => {
+                const detailDiv = event.target.querySelector('.p-3');
+                const processId = event.target.id.replace('collapse-', '');
+                const proc = masterProcessList.find(p => p.id === processId);
+                if (!proc) { detailDiv.innerHTML = 'Error.'; return; }
+                if (proc.mode === 'Multiple' && proc.internalPhases.length > 1) {
+                    detailDiv.innerHTML = renderInternalPhasesDetails(proc);
+                } else if (proc.childProcesses && proc.childProcesses.length > 0) {
+                    detailDiv.innerHTML = renderChildProcessesDetails(proc);
+                } else {
+                    detailDiv.innerHTML = 'No further details.';
+                }
+            });
+
+            const renderInternalPhasesDetails = (proc) => {
+                let html = '<ul class="list-group list-group-flush">';
+                proc.internalPhases.forEach(phase => {
+                    const phaseRegistrations = allRegistrations.filter(r => r.processId === proc.id && r.phase === phase.name).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+                    const lastStatus = phaseRegistrations.length > 0 ? (phaseRegistrations[0].values.find(v=>v.name==='Status')?.value || 'N/A') : 'N/A';
+                    const badgeClass = `badge-${lastStatus.toLowerCase().replace(/\s+/g, '-')}`;
+                    html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>${phase.name} <span class="badge ${badgeClass} ms-2">${lastStatus.toUpperCase()}</span></span>
+                        <button class="btn btn-outline-primary btn-sm register-phase-btn" data-process-id="${proc.id}" data-phase-name="${phase.name}">Registrar</button>
+                    </li>`;
+                });
+                return html + '</ul>';
             };
 
-            const updateTimedElements = () => { /* ... simplified ... */ };
+            const renderChildProcessesDetails = (proc) => {
+                const processMap = new Map(masterProcessList.map(p => [p.id, p]));
+                let html = '<ul class="list-group list-group-flush">';
+                proc.childProcesses.forEach(childId => {
+                    const childProc = processMap.get(childId);
+                    if (childProc) {
+                        const status = calculatedProcessStates.get(childId) || 'POR INICIAR';
+                        const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
+                        html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>${childProc.name}</span> <span class="badge ${badgeClass}">${status.toUpperCase()}</span>
+                        </li>`;
+                    }
+                });
+                return html + '</ul>';
+            };
+
+            const openRegistrationModal = (proc, phaseName = null) => {
+                currentProcessId = proc.id;
+                currentPhaseName = phaseName || (proc.mode === 'Individual' ? proc.internalPhases[0]?.name : null);
+                modalProcessName.textContent = phaseName ? `${proc.name} - ${phaseName}` : proc.name;
+                modalStartTime.textContent = proc.startTime;
+                modalEndTime.textContent = proc.endTime;
+                modalRegistrationForm.innerHTML = '';
+                const phase = proc.internalPhases.find(p => p.name === currentPhaseName) || { fields: [] };
+                if (phase.fields.length > 0) {
+                    phase.fields.forEach(field => {
+                        const fieldId = `field-${field.name.replace(/\s+/g, '-')}`;
+                        let inputHtml = `<input type="text" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
+                        modalRegistrationForm.innerHTML += `<div class="row mb-3"><label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label><div class="col-sm-8">${inputHtml}</div></div>`;
+                    });
+                } else {
+                    modalRegistrationForm.innerHTML = '<p>No fields defined.</p>';
+                }
+                registrationModal.show();
+            };
+
+            monitoringList.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target.classList.contains('register-btn')) {
+                    const proc = masterProcessList.find(p => p.id === target.closest('tr').dataset.processId);
+                    if (proc) openRegistrationModal(proc);
+                } else if (target.classList.contains('register-phase-btn')) {
+                    const proc = masterProcessList.find(p => p.id === target.dataset.processId);
+                    if (proc) openRegistrationModal(proc, target.dataset.phaseName);
+                }
+            });
+
+            saveRegistrationBtn.addEventListener('click', () => {
+                const values = [];
+                modalRegistrationForm.querySelectorAll('[data-field-name]').forEach(input => {
+                    values.push({ name: input.dataset.fieldName, value: input.value });
+                });
+                const registrationData = { companyId, processId: currentProcessId, timestamp: new Date().toISOString(), phase: currentPhaseName, values };
+                fetch('/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registrationData) })
+                .then(res => res.ok ? res.json() : Promise.reject('Failed to save'))
+                .then(() => { registrationModal.hide(); fetchAndRenderAll(); })
+                .catch(err => { console.error(err); alert('Error saving.'); });
+            });
 
             updateMenuLinks(companyId);
             fetchAndRenderAll();
             setInterval(fetchAndRenderAll, 30000);
-
             document.getElementById('filter-name').addEventListener('input', displayProcesses);
             document.getElementById('filter-status').addEventListener('change', displayProcesses);
             sortTimeButton.addEventListener('click', () => {
                 sortTimeButton.dataset.sortOrder = sortTimeButton.dataset.sortOrder === 'asc' ? 'desc' : 'asc';
                 displayProcesses();
-            });
-
-            monitoringList.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('register-btn')) return;
-                const row = e.target.closest('tr');
-                currentProcessId = row.dataset.processId;
-                const proc = masterProcessList.find(p => p.id === currentProcessId);
-                if (!proc) return;
-
-                modalProcessName.textContent = proc.name;
-                modalStartTime.textContent = proc.startTime;
-                modalEndTime.textContent = proc.endTime;
-                modalRegistrationForm.innerHTML = '';
-
-                if (proc.mode === 'Multiple') {
-                    const phaseSelectorId = `phase-selector-${proc.id}`;
-                    modalRegistrationForm.innerHTML = `<div class="mb-3"><label for="${phaseSelectorId}" class="form-label">Select Phase</label><select id="${phaseSelectorId}" class="form-select"></select></div>`;
-                    const phaseSelector = document.getElementById(phaseSelectorId);
-                    proc.internalPhases.forEach(phase => {
-                        phaseSelector.innerHTML += `<option value="${phase.name}">${phase.name}</option>`;
-                    });
-
-                    const renderFieldsForPhase = (phaseName) => {
-                        const phase = proc.internalPhases.find(p => p.name === phaseName);
-                        let fieldsHtml = '';
-                        if (phase && phase.fields) {
-                            phase.fields.forEach(field => {
-                                const fieldId = `field-${field.name.replace(/\s+/g, '-')}`;
-                                let inputHtml = `<input type="text" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
-                                // Simplified: expand with other types as needed
-                                fieldsHtml += `<div class="row mb-3 align-items-center"><label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label><div class="col-sm-8">${inputHtml}</div></div>`;
-                            });
-                        }
-                        // Remove old fields and append new ones
-                        const oldFields = modalRegistrationForm.querySelectorAll('.dynamic-field-container');
-                        oldFields.forEach(f => f.remove());
-                        const container = document.createElement('div');
-                        container.className = 'dynamic-field-container';
-                        container.innerHTML = fieldsHtml;
-                        modalRegistrationForm.appendChild(container);
-                    };
-
-                    phaseSelector.addEventListener('change', (event) => renderFieldsForPhase(event.target.value));
-                    renderFieldsForPhase(phaseSelector.value);
-
-                } else {
-                    const phase = proc.internalPhases[0];
-                    if (phase && phase.fields) {
-                        phase.fields.forEach(field => {
-                            const fieldId = `field-${field.name.replace(/\s+/g, '-')}`;
-                            let inputHtml = `<input type="text" id="${fieldId}" class="form-control" data-field-name="${field.name}">`;
-                            modalRegistrationForm.innerHTML += `<div class="row mb-3 align-items-center"><label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label><div class="col-sm-8">${inputHtml}</div></div>`;
-                        });
-                    }
-                }
-                registrationModal.show();
-            });
-
-            saveRegistrationBtn.addEventListener('click', () => {
-                const values = [];
-                modalRegistrationForm.querySelectorAll('input, select').forEach(input => {
-                    if(input.id.startsWith('phase-selector-')) return;
-                    values.push({ name: input.dataset.fieldName, value: input.value });
-                });
-                const phaseSelector = modalRegistrationForm.querySelector('[id^="phase-selector-"]');
-                currentPhaseName = phaseSelector ? phaseSelector.value : (masterProcessList.find(p=>p.id === currentProcessId).internalPhases[0] || {}).name || 'default';
-
-                const registrationData = {
-                    companyId,
-                    processId: currentProcessId,
-                    timestamp: new Date().toISOString(),
-                    phase: currentPhaseName,
-                    values
-                };
-
-                fetch('/api/registrations', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(registrationData)
-                })
-                .then(res => res.ok ? res.json() : Promise.reject('Failed to save'))
-                .then(() => {
-                    registrationModal.hide();
-                    fetchAndRenderAll();
-                })
-                .catch(err => { console.error(err); alert('Error saving registration.'); });
             });
         });
     </script>
