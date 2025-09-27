@@ -181,14 +181,12 @@
             const registrationModal = new bootstrap.Modal(document.getElementById('registrationModal'));
             const multiPhaseRegistrationModal = new bootstrap.Modal(document.getElementById('multiPhaseRegistrationModal'));
 
-            // Single Registration Modal Elements
+            // Modal Elements
             const modalProcessName = document.getElementById('modal-process-name');
             const modalStartTime = document.getElementById('modal-start-time');
             const modalEndTime = document.getElementById('modal-end-time');
             const modalRegistrationForm = document.getElementById('modal-registration-form');
             const saveSingleRegistrationBtn = document.getElementById('save-single-registration-btn');
-
-            // Multi-Phase Registration Modal Elements
             const multiPhaseModalLabel = document.getElementById('multiPhaseRegistrationModalLabel');
             const multiPhaseTableBody = document.getElementById('multi-phase-table-body');
 
@@ -222,13 +220,8 @@
                 calculatedProcessStates.clear();
 
                 const getOwnStatus = (proc) => {
-                    const relevantRegistrations = registrations
-                        .filter(r => r.processId === proc.id)
-                        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-                    if (relevantRegistrations.length === 0) {
-                        return 'POR INICIAR';
-                    }
+                    const relevantRegistrations = registrations.filter(r => r.processId === proc.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    if (relevantRegistrations.length === 0) return 'POR INICIAR';
                     const latestRegistration = relevantRegistrations[0];
                     const statusField = latestRegistration.values.find(v => v.name.toLowerCase() === 'status');
                     return statusField ? statusField.value.toLowerCase() : 'por iniciar';
@@ -236,22 +229,20 @@
 
                 const getStatus = (procId) => {
                     if (calculatedProcessStates.has(procId)) return calculatedProcessStates.get(procId);
-
                     const proc = processMap.get(procId);
                     if (!proc) return 'POR INICIAR';
 
                     let finalStatus;
                     if (proc.mode === 'Padre' && proc.exclusiveDependency && proc.childProcesses && proc.childProcesses.length > 0) {
-                        const childStatus = getStatus(proc.childProcesses[0]);
+                        const childStatus = getStatus(proc.childProcesses[0]); // Assuming dependency on the first child
                         if (childStatus === 'falla' || childStatus === 'error') {
-                            finalStatus = childStatus; // Dependency triggered by child failure
+                            finalStatus = childStatus;
                         } else {
-                            finalStatus = getOwnStatus(proc); // Child is OK, so parent uses its own status
+                            finalStatus = getOwnStatus(proc);
                         }
                     } else {
-                        finalStatus = getOwnStatus(proc); // Not a dependent parent, calculate own status
+                        finalStatus = getOwnStatus(proc);
                     }
-
                     calculatedProcessStates.set(procId, finalStatus);
                     return finalStatus;
                 };
@@ -264,26 +255,25 @@
                 Promise.all([
                     fetch(`/api/processes?companyId=${companyId}`).then(res => res.json()),
                     fetch(`/api/registrations?companyId=${companyId}`).then(res => res.json()),
-                    fetchUsers()
-                ]).then(([processes, registrations]) => {
+                    fetch(`/api/users?companyId=${companyId}`).then(res => res.ok ? res.json() : [])
+                ]).then(([processes, registrations, users]) => {
                     masterProcessList = processes;
                     allRegistrations = registrations;
+                    userList = users;
                     calculateProcessStates(processes, registrations);
                     displayProcesses();
                 }).catch(error => console.error('Error fetching data:', error));
             };
-
-            const fetchUsers = () => fetch(`/api/users?companyId=${companyId}`).then(res => res.ok ? res.json() : []).then(data => { userList = data; }).catch(() => { userList = []; });
 
             // --- Rendering ---
             const displayProcesses = () => {
                 const nameFilter = document.getElementById('filter-name').value.toLowerCase();
                 const statusFilter = document.getElementById('filter-status').value;
                 let processesToDisplay = [...masterProcessList];
-                const childProcessIds = new Set(processesToDisplay.flatMap(p => p.childProcesses || []));
 
                 if (nameFilter) processesToDisplay = processesToDisplay.filter(p => p.name.toLowerCase().includes(nameFilter));
                 if (statusFilter) processesToDisplay = processesToDisplay.filter(p => (calculatedProcessStates.get(p.id) || 'POR INICIAR') === statusFilter);
+
                 if (sortTimeButton.dataset.sortOrder) {
                     processesToDisplay.sort((a, b) => {
                         const timeA = parseInt(a.startTime.replace(':', ''), 10);
@@ -297,40 +287,47 @@
                     monitoringList.innerHTML = '<tr><td colspan="6" class="text-center">No matching processes found.</td></tr>';
                     return;
                 }
+
+                const processMap = new Map(masterProcessList.map(p => [p.id, p]));
+                const childProcessIds = new Set(masterProcessList.flatMap(p => p.childProcesses || []));
+
                 processesToDisplay.forEach(proc => {
-                    if (!childProcessIds.has(proc.id)) renderProcessRow(proc);
+                    if (!childProcessIds.has(proc.id)) { // Render only top-level processes
+                        renderProcessRow(proc, 0, processMap, '');
+                    }
                 });
-                updateTimedElements();
+                // updateTimedElements(); // This function needs to be defined or removed
             };
 
-            const renderProcessRow = (proc) => {
+            const renderProcessRow = (proc, level, processMap, parentClass) => {
                 const status = calculatedProcessStates.get(proc.id) || 'POR INICIAR';
                 const rowClass = getRowClass(status);
-                const isExpandable = proc.mode === 'Padre' && proc.childProcesses && proc.childProcesses.length > 0;
-                const collapseId = `collapse-${proc.id}`;
-                const mainRow = document.createElement('tr');
-                mainRow.className = rowClass;
-                mainRow.setAttribute('data-process-id', proc.id);
+                const hasChildren = proc.childProcesses && proc.childProcesses.length > 0;
+                const row = document.createElement('tr');
+                row.className = `${rowClass} ${parentClass}` + (level > 0 ? ' collapse' : '');
+                row.setAttribute('data-process-id', proc.id);
+
                 const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
-                mainRow.innerHTML = `
-                    <td>
-                        <button class="btn btn-sm btn-light me-2 expand-btn" data-bs-toggle="collapse" href="#${collapseId}" role="button" style="visibility: ${isExpandable ? 'visible' : 'hidden'};">▶</button>
+                row.innerHTML = `
+                    <td style="padding-left: ${level * 25}px;">
+                        ${hasChildren ? `<button class="btn btn-sm btn-light me-2 expand-btn" data-bs-toggle="collapse" data-bs-target=".child-of-${proc.id}">▶</button>` : `<span style="display: inline-block; width: 38px;"></span>`}
                         ${proc.name}
                     </td>
                     <td>${proc.startTime}</td>
                     <td>${proc.endTime}</td>
                     <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
-                    <td class="spinner-cell"><div class="spinner-grow spinner-grow-sm text-secondary" role="status"></div></td>
+                    <td class="spinner-cell"><div class="spinner-grow spinner-grow-sm text-secondary" role="status" style="visibility: hidden;"></div></td>
                     <td><button class="btn btn-primary btn-sm register-btn">Registrar</button></td>
                 `;
-                monitoringList.appendChild(mainRow);
-                if (isExpandable) {
-                    const detailRow = document.createElement('tr');
-                    const detailCell = document.createElement('td');
-                    detailCell.colSpan = 6;
-                    detailCell.innerHTML = `<div class="collapse" id="${collapseId}"><div class="p-3">Loading details...</div></div>`;
-                    detailRow.appendChild(detailCell);
-                    monitoringList.appendChild(detailRow);
+                monitoringList.appendChild(row);
+
+                if (hasChildren) {
+                    proc.childProcesses.forEach(childId => {
+                        const childProc = processMap.get(childId);
+                        if (childProc) {
+                            renderProcessRow(childProc, level + 1, processMap, `child-of-${proc.id}`);
+                        }
+                    });
                 }
             };
 
@@ -343,68 +340,20 @@
                 return '';
             };
 
-            const renderChildProcessesDetails = (proc) => {
-                 const processMap = new Map(masterProcessList.map(p => [p.id, p]));
-                 let html = '<ul class="list-group list-group-flush">';
-                 proc.childProcesses.forEach(childId => {
-                    const childProc = processMap.get(childId);
-                    if(childProc){
-                        const status = calculatedProcessStates.get(childId) || 'POR INICIAR';
-                        const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
-                        html += `<li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>${childProc.name}</span>
-                            <div>
-                                <span class="badge ${badgeClass} me-2">${status.toUpperCase()}</span>
-                                <button class="btn btn-outline-primary btn-sm register-child-btn" data-process-id="${childId}">Registrar</button>
-                            </div>
-                        </li>`;
-                    }
-                 });
-                 return html + '</ul>';
-            };
-
-            // --- Timed Updates ---
-            const updateTimedElements = () => { /* ... Logic from previous implementation ... */ };
-
             // --- Event Listeners & Modal Logic ---
-             monitoringList.addEventListener('show.bs.collapse', event => {
-                const detailDiv = event.target.querySelector('.p-3');
-                const processId = event.target.id.replace('collapse-', '');
-                const proc = masterProcessList.find(p => p.id === processId);
-                if (!proc) { detailDiv.innerHTML = 'Error.'; return; }
-
-                let detailHtml = '';
-                if (proc.mode === 'Padre' && proc.childProcesses && proc.childProcesses.length > 0) {
-                    detailHtml += '<h6>Linked Children</h6>';
-                    detailHtml += renderChildProcessesDetails(proc);
-                }
-
-                detailDiv.innerHTML = detailHtml || 'No further details for this process.';
-                updateTimedElements();
-            });
-
             monitoringList.addEventListener('click', (e) => {
-                const target = e.target;
-                let procId = null;
-                let proc = null;
-
-                const parentRow = target.closest('tr[data-process-id]');
-                const childButton = target.closest('.register-child-btn');
-
-                if (childButton) {
-                    procId = childButton.dataset.processId;
-                    proc = masterProcessList.find(p => p.id === procId);
-                } else if (parentRow && target.classList.contains('register-btn')) {
-                    procId = parentRow.dataset.processId;
-                    proc = masterProcessList.find(p => p.id === procId);
-                }
-
-                if (!proc) return;
-
-                if (proc.mode === 'Multiple') {
-                    openMultiPhaseModal(proc);
-                } else { // Individual, Parent, or Child
-                    openRegistrationModal(proc);
+                const registerBtn = e.target.closest('.register-btn');
+                if (registerBtn) {
+                    const row = e.target.closest('tr');
+                    const procId = row.dataset.processId;
+                    const proc = masterProcessList.find(p => p.id === procId);
+                    if (proc) {
+                        if (proc.mode === 'Multiple') {
+                            openMultiPhaseModal(proc);
+                        } else {
+                            openRegistrationModal(proc);
+                        }
+                    }
                 }
             });
 
@@ -416,7 +365,6 @@
                 modalEndTime.textContent = proc.endTime;
                 modalRegistrationForm.innerHTML = '';
                 const phase = proc.internalPhases.find(p => p.name === currentPhaseName) || { fields: [] };
-
                 if (phase.fields.length > 0) {
                     phase.fields.forEach(field => modalRegistrationForm.insertAdjacentHTML('beforeend', getFormFieldHtml(field)));
                 } else {
@@ -428,49 +376,38 @@
             const openMultiPhaseModal = (proc) => {
                 multiPhaseModalLabel.textContent = `Registrar Fases: ${proc.name}`;
                 multiPhaseTableBody.innerHTML = '';
-
                 proc.internalPhases.forEach(phase => {
-                    const latestPhaseReg = allRegistrations
-                        .filter(r => r.processId === proc.id && r.phase === phase.name)
-                        .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-
+                    const latestPhaseReg = allRegistrations.filter(r => r.processId === proc.id && r.phase === phase.name).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
                     const currentStatus = latestPhaseReg?.values.find(v => v.name === 'Status')?.value || 'N/A';
                     const badgeClass = `badge-${currentStatus.toLowerCase().replace(/\s+/g, '-')}`;
-
                     const row = document.createElement('tr');
                     row.dataset.processId = proc.id;
                     row.dataset.phaseName = phase.name;
-
                     row.innerHTML = `
                         <td>${phase.name}</td>
                         <td><span class="badge ${badgeClass}">${currentStatus.toUpperCase()}</span></td>
-                        <td class="phase-form-fields">
-                            ${(phase.fields || []).map(field => `<div class="mb-2">${getFormFieldHtml(field, true)}</div>`).join('')}
-                        </td>
+                        <td class="phase-form-fields">${(phase.fields || []).map(field => `<div class="mb-2">${getFormFieldHtml(field, true)}</div>`).join('')}</td>
                         <td><button class="btn btn-success btn-sm save-phase-btn">Guardar</button></td>
                     `;
                     multiPhaseTableBody.appendChild(row);
                 });
-
                 multiPhaseRegistrationModal.show();
             };
 
             const getFormFieldHtml = (field, isInline = false) => {
-                 const fieldId = `field-${field.name.replace(/\s+/g, '-')}-${Date.now()}`;
-                 let inputHtml = '';
-                 switch (field.type) {
-                     case 'status':
-                         const statusOptions = ['ok', 'falla', 'ambar', 'error', 'sin ejecucion'];
-                         inputHtml = `<select id="${fieldId}" class="form-select form-select-sm" data-field-name="${field.name}">${statusOptions.map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('')}</select>`;
-                         break;
-                     case 'responsable':
-                         const userOptions = userList.map(user => `<option value="${user.name}">${user.name}</option>`).join('');
-                         inputHtml = `<select id="${fieldId}" class="form-select form-select-sm" data-field-name="${field.name}"><option selected>Choose...</option>${userOptions}</select>`;
-                         break;
-                     default:
-                         inputHtml = `<input type="text" id="${fieldId}" class="form-control form-control-sm" data-field-name="${field.name}" placeholder="${field.name}">`;
-                 }
-                 return isInline ? inputHtml : `<div class="row mb-3"><label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label><div class="col-sm-8">${inputHtml}</div></div>`;
+                const fieldId = `field-${field.name.replace(/\s+/g, '-')}-${Date.now()}`;
+                let inputHtml = '';
+                switch (field.type) {
+                    case 'status':
+                        inputHtml = `<select id="${fieldId}" class="form-select form-select-sm" data-field-name="${field.name}">${['ok', 'falla', 'ambar', 'error', 'sin ejecucion'].map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('')}</select>`;
+                        break;
+                    case 'responsable':
+                        inputHtml = `<select id="${fieldId}" class="form-select form-select-sm" data-field-name="${field.name}"><option selected>Choose...</option>${userList.map(user => `<option value="${user.name}">${user.name}</option>`).join('')}</select>`;
+                        break;
+                    default:
+                        inputHtml = `<input type="text" id="${fieldId}" class="form-control form-control-sm" data-field-name="${field.name}" placeholder="${field.name}">`;
+                }
+                return isInline ? inputHtml : `<div class="row mb-3"><label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label><div class="col-sm-8">${inputHtml}</div></div>`;
             };
 
             const saveRegistration = (companyId, processId, phase, values) => {
@@ -495,8 +432,7 @@
                     const row = e.target.closest('tr');
                     const procId = row.dataset.processId;
                     const phaseName = row.dataset.phaseName;
-                    const formFields = row.querySelector('.phase-form-fields');
-                    const values = Array.from(formFields.querySelectorAll('[data-field-name]')).map(input => ({ name: input.dataset.fieldName, value: input.value }));
+                    const values = Array.from(row.querySelectorAll('[data-field-name]')).map(input => ({ name: input.dataset.fieldName, value: input.value }));
                     saveRegistration(companyId, procId, phaseName, values);
                 }
             });

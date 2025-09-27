@@ -162,14 +162,19 @@
                         <div id="parent-fields" style="display: none;">
                             <div class="mb-3">
                                 <label for="child-processes" class="form-label">Link Child Processes</label>
-                                <select id="child-processes" class="form-select" multiple>
-                                    <!-- Options will be populated by JS -->
-                                </select>
+                                <div class="input-group">
+                                    <select id="child-processes" class="form-select" multiple>
+                                        <!-- Options will be populated by JS -->
+                                    </select>
+                                    <button class="btn btn-outline-primary" type="button" id="add-child-process-btn">
+                                        ➕ Agregar proceso hijo
+                                    </button>
+                                </div>
                             </div>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" id="exclusive-dependency">
                                 <label class="form-check-label" for="exclusive-dependency">
-                                    Exclusive Dependency (Parent status depends on child status)
+                                    Activar si el estado del proceso padre debe depender del estado del hijo vinculado.
                                 </label>
                             </div>
                         </div>
@@ -192,6 +197,41 @@
         </div>
     </div>
 
+    <!-- Add Child Process Modal -->
+    <div class="modal fade" id="addChildProcessModal" tabindex="-1" aria-labelledby="addChildProcessModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addChildProcessModalLabel">Add New Child Process</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-child-process-form">
+                        <div class="mb-3">
+                            <label for="child-process-id" class="form-label">Process ID</label>
+                            <input type="text" class="form-control" id="child-process-id" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="child-process-name" class="form-label">Process Name</label>
+                            <input type="text" class="form-control" id="child-process-name" required>
+                        </div>
+                         <div class="mb-3">
+                            <label for="child-process-mode" class="form-label">Process Mode</label>
+                            <select class="form-select" id="child-process-mode">
+                                <option value="Individual" selected>Individual</option>
+                                <option value="Multiple">Multiple Internal Phases</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" id="save-child-process-btn" class="btn btn-primary">Save Child Process</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -200,6 +240,8 @@
             const addProcessModalEl = document.getElementById('addProcessModal');
             const addProcessModal = new bootstrap.Modal(addProcessModalEl);
             const deleteProcessModal = new bootstrap.Modal(document.getElementById('deleteProcessModal'));
+            const addChildProcessModalEl = document.getElementById('addChildProcessModal');
+            const addChildProcessModal = new bootstrap.Modal(addChildProcessModalEl);
             const addProcessForm = document.getElementById('add-process-form');
             const menu = document.getElementById('offcanvasMenu');
             const frequencySelect = document.getElementById('process-frequency');
@@ -483,6 +525,51 @@
 
             document.getElementById('add-process-btn').addEventListener('click', () => {
                 resetAndPrepareModal(null);
+            });
+
+            document.getElementById('add-child-process-btn').addEventListener('click', () => {
+                document.getElementById('add-child-process-form').reset();
+                addChildProcessModal.show();
+            });
+
+            document.getElementById('save-child-process-btn').addEventListener('click', () => {
+                const childId = document.getElementById('child-process-id').value;
+                const childName = document.getElementById('child-process-name').value;
+                const childMode = document.getElementById('child-process-mode').value;
+                if (!childId || !childName) {
+                    alert('Child Process ID and Name are required.');
+                    return;
+                }
+
+                const processData = {
+                    id: childId,
+                    name: childName,
+                    mode: childMode,
+                    internalPhases: [{ name: 'default', fields: [{ name: 'Status', type: 'status' }] }] // Add a default status field
+                };
+
+                fetch('/api/processes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ companyId: companyId, processData: processData })
+                })
+                .then(res => {
+                    if (!res.ok) {
+                         return res.json().then(err => { throw new Error(err.error || 'Failed to save child process'); });
+                    }
+                    return res.json();
+                })
+                .then(newChildProcess => {
+                    masterProcessList.push(newChildProcess); // Add to local cache
+                    const option = new Option(`${newChildProcess.name} (${newChildProcess.id})`, newChildProcess.id, false, true); // Create and select the new option
+                    childProcessesSelect.add(option);
+                    addChildProcessModal.hide();
+                    fetchAndRenderProcesses(); // Refresh the main list in the background
+                })
+                .catch(err => {
+                    console.error('Error saving child process:', err);
+                    alert(`Error: ${err.message}`);
+                });
             });
 
             // --- Initial Load ---
