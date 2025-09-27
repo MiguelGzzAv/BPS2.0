@@ -19,12 +19,11 @@ const processesByCompany = {
             endTime: '23:00',
             frequency: 'Diario',
             days: [],
-            mode: 'Padre',
+            mode: 'Individual', // Changed from Padre
             internalPhases: [
                 { name: 'default', fields: [{ name: 'Status', type: 'status' }, {name: 'Comentarios', type: 'text'}] }
             ],
-            childProcesses: ['PRO7033'],
-            exclusiveDependency: true
+            childProcesses: [{ id: 'PRO7033', dependency: true }] // New structure
         },
         {
             id: 'PRO7033',
@@ -38,8 +37,7 @@ const processesByCompany = {
             internalPhases: [
                 { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
             ],
-            childProcesses: [],
-            exclusiveDependency: false
+            childProcesses: []
         },
         {
             id: 'PRO7034',
@@ -55,8 +53,7 @@ const processesByCompany = {
                 { name: 'Enviar a Clientes', fields: [{ name: 'Status', type: 'status' }, { name: 'Correos Enviados', type: 'number' }] },
                 { name: 'Confirmar Recepcion', fields: [{ name: 'Status', type: 'status' }] }
             ],
-            childProcesses: [],
-            exclusiveDependency: false
+            childProcesses: []
         }
     ],
     '2': []
@@ -137,34 +134,87 @@ app.put('/api/companies/:id', (req, res) => {
     res.json(company);
 });
 
-// Processes
+// --- Status Calculation Logic ---
+const calculateAllProcessStates = (processes, registrations) => {
+    const processMap = new Map(processes.map(p => [p.id, p]));
+    const calculatedStates = new Map();
+
+    const getOwnStatus = (procId) => {
+        const relevantRegistrations = registrations
+            .filter(r => r.processId === procId)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        if (relevantRegistrations.length === 0) return 'sin ejecucion';
+        const latestRegistration = relevantRegistrations[0];
+        const statusField = latestRegistration.values.find(v => v.name.toLowerCase() === 'status');
+        return statusField ? statusField.value.toLowerCase() : 'sin ejecucion';
+    };
+
+    const getStatus = (procId) => {
+        if (calculatedStates.has(procId)) return calculatedStates.get(procId);
+
+        const proc = processMap.get(procId);
+        if (!proc) return 'sin ejecucion';
+
+        // Check dependent children first
+        if (proc.childProcesses && proc.childProcesses.length > 0) {
+            for (const child of proc.childProcesses) {
+                if (child.dependency) {
+                    const childStatus = getStatus(child.id);
+                    if (childStatus === 'falla' || childStatus === 'error') {
+                        calculatedStates.set(procId, childStatus); // Parent inherits failure status
+                        return childStatus;
+                    }
+                }
+            }
+        }
+
+        // If no dependent children failed, calculate its own status
+        const finalStatus = getOwnStatus(proc.id);
+        calculatedStates.set(procId, finalStatus);
+        return finalStatus;
+    };
+
+    processes.forEach(p => getStatus(p.id));
+    return calculatedStates;
+};
+
+
+// --- Process API Routes ---
 app.get('/api/processes', (req, res) => {
     const { companyId } = req.query;
     if (!companyId) {
         return res.status(400).json({ error: 'companyId is required' });
     }
     const processes = processesByCompany[companyId] || [];
-    res.json(processes); // Client will handle status calculation
+    const registrations = registrationsByCompany[companyId] || [];
+    const states = calculateAllProcessStates(processes, registrations);
+
+    const processesWithStatus = processes.map(p => ({
+        ...p,
+        status: states.get(p.id) || 'sin ejecucion'
+    }));
+
+    res.json(processesWithStatus);
 });
 
 app.post('/api/processes', (req, res) => {
     const { companyId, processData } = req.body;
     if (!companyId || !processData || !processData.id || !processData.name) {
-        return res.status(400).json({ error: 'companyId and process data (including id and name) are required' });
+        return res.status(400).json({ error: 'companyId and process data are required' });
     }
     if (!processesByCompany[companyId]) {
         processesByCompany[companyId] = [];
     }
-    // Standardize the process object
+    // Remove obsolete field and set defaults
+    delete processData.exclusiveDependency;
     const newProcess = {
         ...processData,
         criticidad: processData.criticidad || 'Baja',
         mode: processData.mode || 'Individual',
-        internalPhases: processData.internalPhases && processData.internalPhases.length > 0 ? processData.internalPhases : [{ name: 'default', fields: processData.values || [] }],
+        internalPhases: processData.internalPhases && processData.internalPhases.length > 0 ? processData.internalPhases : [{ name: 'default', fields: [] }],
         childProcesses: processData.childProcesses || [],
-        exclusiveDependency: processData.exclusiveDependency || false,
     };
-    delete newProcess.values; // Clean up old field
 
     processesByCompany[companyId].push(newProcess);
     res.status(201).json(newProcess);
@@ -181,16 +231,9 @@ app.put('/api/processes/:id', (req, res) => {
     if (processIndex === -1) {
         return res.status(404).json({ error: 'Process not found' });
     }
-    // Standardize the updated process object
-    const updatedProcess = {
-        ...processData,
-        criticidad: processData.criticidad || 'Baja',
-        mode: processData.mode || 'Individual',
-        internalPhases: processData.internalPhases && processData.internalPhases.length > 0 ? processData.internalPhases : [{ name: 'default', fields: processData.values || [] }],
-        childProcesses: processData.childProcesses || [],
-        exclusiveDependency: processData.exclusiveDependency || false,
-    };
-    delete updatedProcess.values; // Clean up old field
+    // Remove obsolete field
+    delete processData.exclusiveDependency;
+    const updatedProcess = { ...processes[processIndex], ...processData };
 
     processes[processIndex] = updatedProcess;
     res.json(updatedProcess);
@@ -198,7 +241,7 @@ app.put('/api/processes/:id', (req, res) => {
 
 app.delete('/api/processes/:id', (req, res) => {
     const { id } = req.params;
-    const { companyId } = req.query; // companyId from query string
+    const { companyId } = req.query;
     if (!companyId) {
         return res.status(400).json({ error: 'companyId is required' });
     }
@@ -209,10 +252,10 @@ app.delete('/api/processes/:id', (req, res) => {
     }
     processes.splice(processIndex, 1);
 
-    // Also delete associated child processes if they exist in other processes
+    // Also remove the deleted process from any parent's child list
     processes.forEach(p => {
         if (p.childProcesses) {
-            p.childProcesses = p.childProcesses.filter(childId => childId !== id);
+            p.childProcesses = p.childProcesses.filter(child => child.id !== id);
         }
     });
 
@@ -228,46 +271,7 @@ app.get('/api/summary', (req, res) => {
 
     const processes = processesByCompany[companyId] || [];
     const registrations = registrationsByCompany[companyId] || [];
-    const processMap = new Map(processes.map(p => [p.id, p]));
-
-    const calculatedStates = new Map();
-
-    const getOwnStatus = (procId) => {
-        const relevantRegistrations = registrations
-            .filter(r => r.processId === procId)
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        if (relevantRegistrations.length === 0) {
-            return 'sin ejecucion';
-        }
-        const latestRegistration = relevantRegistrations[0];
-        const statusField = latestRegistration.values.find(v => v.name.toLowerCase() === 'status');
-        return statusField ? statusField.value.toLowerCase() : 'sin ejecucion';
-    };
-
-    const getStatus = (procId) => {
-        if (calculatedStates.has(procId)) return calculatedStates.get(procId);
-
-        const proc = processMap.get(procId);
-        if (!proc) return 'sin ejecucion';
-
-        let finalStatus;
-        if (proc.exclusiveDependency && proc.childProcesses && proc.childProcesses.length > 0) {
-            const childStatus = getStatus(proc.childProcesses[0]);
-            if (childStatus === 'falla' || childStatus === 'error') {
-                finalStatus = childStatus; // Dependency triggered by child failure
-            } else {
-                finalStatus = getOwnStatus(proc.id); // Child is OK, so parent uses its own status
-            }
-        } else {
-            finalStatus = getOwnStatus(proc.id); // Not a dependent parent, calculate own status
-        }
-
-        calculatedStates.set(procId, finalStatus);
-        return finalStatus;
-    };
-
-    processes.forEach(p => getStatus(p.id));
+    const calculatedStates = calculateAllProcessStates(processes, registrations);
 
     const summary = {
         total: processes.length,
