@@ -14,14 +14,49 @@ const processesByCompany = {
         {
             id: 'PRO7032',
             name: 'PROCESO NOCTURNO BANORTE',
-            processType: 'Padre',
-            fillType: 'Valores',
+            criticidad: 'Alta',
             startTime: '21:00',
             endTime: '23:00',
-            frequency: 'Personalizado',
-            days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-            values: [],
-            subprocesses: []
+            frequency: 'Diario',
+            days: [],
+            mode: 'Padre',
+            internalPhases: [
+                { name: 'default', fields: [{ name: 'Status', type: 'status' }, {name: 'Comentarios', type: 'text'}] }
+            ],
+            childProcesses: ['PRO7033'],
+            exclusiveDependency: true
+        },
+        {
+            id: 'PRO7033',
+            name: 'REPORTE DIARIO',
+            criticidad: 'Media',
+            startTime: '22:00',
+            endTime: '22:30',
+            frequency: 'Diario',
+            days: [],
+            mode: 'Individual',
+            internalPhases: [
+                { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
+            ],
+            childProcesses: [],
+            exclusiveDependency: false
+        },
+        {
+            id: 'PRO7034',
+            name: 'PROCESO DE FACTURACION',
+            criticidad: 'Baja',
+            startTime: '10:00',
+            endTime: '12:00',
+            frequency: 'Diario',
+            days: [],
+            mode: 'Multiple',
+            internalPhases: [
+                { name: 'Generar Facturas', fields: [{ name: 'Status', type: 'status' }, { name: 'Facturas Generadas', type: 'number' }] },
+                { name: 'Enviar a Clientes', fields: [{ name: 'Status', type: 'status' }, { name: 'Correos Enviados', type: 'number' }] },
+                { name: 'Confirmar Recepcion', fields: [{ name: 'Status', type: 'status' }] }
+            ],
+            childProcesses: [],
+            exclusiveDependency: false
         }
     ],
     '2': []

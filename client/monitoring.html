@@ -385,33 +385,32 @@
 
             monitoringList.addEventListener('click', (e) => {
                 const target = e.target;
-                const row = target.closest('tr[data-process-id]');
-                if (!row) {
-                    const childBtn = target.closest('.register-child-btn');
-                    if (childBtn) {
-                        const childId = childBtn.dataset.processId;
-                        const childProc = masterProcessList.find(p => p.id === childId);
-                        if (childProc) openRegistrationModal(childProc);
-                    }
-                    return;
+                let procId = null;
+                let proc = null;
+
+                const parentRow = target.closest('tr[data-process-id]');
+                const childButton = target.closest('.register-child-btn');
+
+                if (childButton) {
+                    procId = childButton.dataset.processId;
+                    proc = masterProcessList.find(p => p.id === procId);
+                } else if (parentRow && target.classList.contains('register-btn')) {
+                    procId = parentRow.dataset.processId;
+                    proc = masterProcessList.find(p => p.id === procId);
                 }
 
-                const procId = row.dataset.processId;
-                const proc = masterProcessList.find(p => p.id === procId);
                 if (!proc) return;
 
-                if (target.classList.contains('register-btn')) {
-                    if (proc.mode === 'Multiple') {
-                        openMultiPhaseModal(proc);
-                    } else { // Individual or Parent
-                        openRegistrationModal(proc);
-                    }
+                if (proc.mode === 'Multiple') {
+                    openMultiPhaseModal(proc);
+                } else { // Individual, Parent, or Child
+                    openRegistrationModal(proc);
                 }
             });
 
             const openRegistrationModal = (proc, phaseName = null) => {
                 currentProcessId = proc.id;
-                currentPhaseName = phaseName || proc.internalPhases[0]?.name;
+                currentPhaseName = phaseName || (proc.internalPhases && proc.internalPhases.length > 0 ? proc.internalPhases[0].name : 'default');
                 modalProcessName.textContent = phaseName ? `${proc.name} - ${phaseName}` : proc.name;
                 modalStartTime.textContent = proc.startTime;
                 modalEndTime.textContent = proc.endTime;
