@@ -231,32 +231,40 @@ app.get('/api/summary', (req, res) => {
     const processMap = new Map(processes.map(p => [p.id, p]));
 
     const calculatedStates = new Map();
+
+    const getOwnStatus = (procId) => {
+        const relevantRegistrations = registrations
+            .filter(r => r.processId === procId)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        if (relevantRegistrations.length === 0) {
+            return 'sin ejecucion';
+        }
+        const latestRegistration = relevantRegistrations[0];
+        const statusField = latestRegistration.values.find(v => v.name.toLowerCase() === 'status');
+        return statusField ? statusField.value.toLowerCase() : 'sin ejecucion';
+    };
+
     const getStatus = (procId) => {
         if (calculatedStates.has(procId)) return calculatedStates.get(procId);
 
         const proc = processMap.get(procId);
         if (!proc) return 'sin ejecucion';
 
+        let finalStatus;
         if (proc.exclusiveDependency && proc.childProcesses && proc.childProcesses.length > 0) {
             const childStatus = getStatus(proc.childProcesses[0]);
-            calculatedStates.set(procId, childStatus);
-            return childStatus;
+            if (childStatus === 'falla' || childStatus === 'error') {
+                finalStatus = childStatus; // Dependency triggered by child failure
+            } else {
+                finalStatus = getOwnStatus(proc.id); // Child is OK, so parent uses its own status
+            }
+        } else {
+            finalStatus = getOwnStatus(proc.id); // Not a dependent parent, calculate own status
         }
 
-        const relevantRegistrations = registrations
-            .filter(r => r.processId === procId)
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        if (relevantRegistrations.length === 0) {
-            calculatedStates.set(procId, 'sin ejecucion');
-            return 'sin ejecucion';
-        }
-
-        const latestRegistration = relevantRegistrations[0];
-        const statusField = latestRegistration.values.find(v => v.name.toLowerCase() === 'status');
-        const status = statusField ? statusField.value.toLowerCase() : 'sin ejecucion';
-        calculatedStates.set(procId, status);
-        return status;
+        calculatedStates.set(procId, finalStatus);
+        return finalStatus;
     };
 
     processes.forEach(p => getStatus(p.id));
