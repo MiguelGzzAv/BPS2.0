@@ -156,7 +156,6 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>Fase</th>
-                                    <th>Estatus Actual</th>
                                     <th>Campos de Registro</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -230,7 +229,7 @@
                 }).catch(error => console.error('Error fetching data:', error));
             };
 
-            // --- NEW: Timeliness and Status Logic ---
+            // --- Timeliness and Status Logic ---
             const getTimelinessStatus = (proc) => {
                 const now = new Date();
                 const startTime = new Date();
@@ -249,18 +248,16 @@
                 const elapsedTime = now - startTime;
                 const percentage = (elapsedTime / totalDuration) * 100;
 
-                if (percentage < 50) return 'ok'; // 0-49.99% -> Verde
-                if (percentage < 84) return 'ambar'; // 50-83.99% -> Amarillo
-                return 'falla'; // 84-100% -> Rojo
+                if (percentage < 50) return 'ok';
+                if (percentage < 84) return 'ambar';
+                return 'falla';
             };
 
             const updateParentSpinners = (processMap) => {
                 const statusPriority = { 'falla': 3, 'ambar': 2, 'ok': 1, 'sin-ejecucion': 0 };
-
                 masterProcessList.forEach(proc => {
                     if (proc.childProcesses && proc.childProcesses.length > 0) {
                         let mostCriticalStatus = 'sin-ejecucion';
-
                         proc.childProcesses.forEach(childLink => {
                             const childProc = processMap.get(childLink.id);
                             if (childProc) {
@@ -270,7 +267,6 @@
                                 }
                             }
                         });
-
                         const parentRow = monitoringList.querySelector(`tr[data-process-id="${proc.id}"]`);
                         if (parentRow) {
                             const spinnerCell = parentRow.querySelector('.spinner-cell');
@@ -288,7 +284,6 @@
                 const statusFilter = document.getElementById('filter-status').value;
                 let processesToDisplay = [...masterProcessList];
 
-                // Apply filters...
                 if (nameFilter) {
                     processesToDisplay = processesToDisplay.filter(p => p.name.toLowerCase().includes(nameFilter));
                 }
@@ -296,7 +291,6 @@
                     processesToDisplay = processesToDisplay.filter(p => p.status === statusFilter);
                 }
 
-                // Apply sorting...
                 if (sortTimeButton.dataset.sortOrder) {
                     processesToDisplay.sort((a, b) => {
                         const timeA = parseInt(a.startTime.replace(':', ''), 10);
@@ -315,12 +309,11 @@
                 const childProcessIds = new Set(masterProcessList.flatMap(p => (p.childProcesses || []).map(child => child.id)));
 
                 processesToDisplay.forEach(proc => {
-                    if (!childProcessIds.has(proc.id)) { // Start rendering from top-level parents
+                    if (!childProcessIds.has(proc.id)) {
                         renderProcessRow(proc, 0, processMap);
                     }
                 });
 
-                // NEW: After all rows are in the DOM, update parent spinners
                 updateParentSpinners(processMap);
             };
 
@@ -336,10 +329,12 @@
                 const timelinessStatus = getTimelinessStatus(proc);
                 const isButtonDisabled = timelinessStatus === 'sin-ejecucion';
 
+                const hasActiveDependency = hasChildren && proc.childProcesses.some(c => c.dependency);
+                const hasOwnFieldsToRegister = proc.internalPhases && proc.internalPhases.some(phase => phase.fields && phase.fields.length > 0);
+                const showRegisterButton = !(hasActiveDependency && !hasOwnFieldsToRegister);
+
                 const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
                 const spinnerClass = `spinner-grow-${timelinessStatus}`;
-
-                // For parents, the spinner will be updated later. For children, it's calculated now.
                 const spinnerHtml = hasChildren ? '' : `<div class="spinner-grow spinner-grow-sm ${spinnerClass}" role="status"></div>`;
 
                 row.innerHTML = `
@@ -351,7 +346,7 @@
                     <td>${proc.endTime}</td>
                     <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
                     <td class="spinner-cell">${spinnerHtml}</td>
-                    <td><button class="btn btn-primary btn-sm register-btn" ${isButtonDisabled ? 'disabled' : ''}>Registrar</button></td>
+                    <td>${showRegisterButton ? `<button class="btn btn-primary btn-sm register-btn" ${isButtonDisabled ? 'disabled' : ''}>Registrar</button>` : ''}</td>
                 `;
                 monitoringList.appendChild(row);
 
@@ -371,7 +366,7 @@
                 if (s === 'ok') return 'table-success';
                 if (s === 'falla' || s === 'error') return 'table-danger';
                 if (s === 'ambar') return 'table-warning';
-                if (s === 'sin ejecucion') return 'table-secondary';
+                if (s === 'sin ejecucion' || s === 'por iniciar') return ''; // White background
                 return '';
             };
 
@@ -409,13 +404,9 @@
                 multiPhaseModalLabel.textContent = `Registrar Fases: ${proc.name}`;
                 multiPhaseTableBody.innerHTML = '';
                 proc.internalPhases.forEach(phase => {
-                    const latestPhaseReg = allRegistrations.filter(r => r.processId === proc.id && r.phase === phase.name).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-                    const currentStatus = latestPhaseReg?.values.find(v => v.name === 'Status')?.value || 'N/A';
-                    const badgeClass = `badge-${currentStatus.toLowerCase().replace(/\s+/g, '-')}`;
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${phase.name}</td>
-                        <td><span class="badge ${badgeClass}">${currentStatus.toUpperCase()}</span></td>
                         <td class="phase-form-fields">${(phase.fields || []).map(field => `<div class="mb-2">${getFormFieldHtml(field, true)}</div>`).join('')}</td>
                         <td><button class="btn btn-success btn-sm save-phase-btn" data-process-id="${proc.id}" data-phase-name="${phase.name}">Guardar</button></td>
                     `;
@@ -443,13 +434,21 @@
             const saveRegistration = (companyId, processId, phase, values) => {
                 const registrationData = { companyId, processId, phase, values, timestamp: new Date().toISOString() };
                 fetch('/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registrationData) })
-                .then(res => res.ok ? res.json() : Promise.reject('Failed to save'))
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(err => Promise.reject(err));
+                    }
+                    return res.json();
+                })
                 .then(() => {
                     registrationModal.hide();
                     multiPhaseRegistrationModal.hide();
-                    fetchAndRenderAll();
+                    fetchAndRenderAll(); // Refresh data to show new status
                 })
-                .catch(err => { console.error(err); alert('Error saving.'); });
+                .catch(err => {
+                    console.error('Error saving registration:', err);
+                    alert(`Error saving: ${err.error || 'Unknown server error'}`);
+                });
             };
 
             saveSingleRegistrationBtn.addEventListener('click', () => {
@@ -467,11 +466,10 @@
                 }
             });
 
-
             // --- Initial Load & Intervals ---
             updateMenuLinks(companyId);
             fetchAndRenderAll();
-            setInterval(fetchAndRenderAll, 30000); // Refresh more frequently for timeliness
+            setInterval(fetchAndRenderAll, 30000);
 
             // --- Filters ---
             document.getElementById('filter-name').addEventListener('input', displayProcesses);
