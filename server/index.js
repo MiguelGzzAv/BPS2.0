@@ -145,9 +145,30 @@ const calculateAllProcessStates = (processes, registrations) => {
             .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         if (relevantRegistrations.length === 0) return 'sin ejecucion';
-        const latestRegistration = relevantRegistrations[0];
-        const statusField = latestRegistration.values.find(v => v.name.toLowerCase() === 'status');
-        return statusField ? statusField.value.toLowerCase() : 'sin ejecucion';
+
+        const proc = processMap.get(procId);
+        if (!proc || !proc.internalPhases) return 'sin ejecucion';
+
+        // Iterate through registrations from newest to oldest
+        for (const reg of relevantRegistrations) {
+            const phaseName = reg.phase || 'default';
+            const phaseDef = proc.internalPhases.find(p => p.name === phaseName);
+
+            if (phaseDef && phaseDef.fields) {
+                // Find the field defined with type 'status' in the process definition
+                const statusFieldDef = phaseDef.fields.find(f => f.type === 'status');
+                if (statusFieldDef) {
+                    const statusFieldName = statusFieldDef.name;
+                    // Look for a value for that field in the current registration
+                    const statusValue = reg.values.find(v => v.name === statusFieldName);
+                    if (statusValue && statusValue.value) {
+                        return statusValue.value.toLowerCase(); // Found the latest status, return it.
+                    }
+                }
+            }
+        }
+
+        return 'sin ejecucion'; // No registration with a status field found
     };
 
     const getStatus = (procId) => {
