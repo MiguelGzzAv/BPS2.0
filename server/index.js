@@ -177,21 +177,31 @@ const calculateAllProcessStates = (processes, registrations) => {
         const proc = processMap.get(procId);
         if (!proc) return 'sin ejecucion';
 
-        // Check dependent children first
+        const statusPriority = { 'error': 4, 'falla': 3, 'ambar': 2, 'ok': 1, 'sin ejecucion': 0, 'por iniciar': 0 };
+        let mostCriticalChildStatus = 'sin ejecucion';
+        let hasDependentChildren = false;
+
         if (proc.childProcesses && proc.childProcesses.length > 0) {
-            for (const child of proc.childProcesses) {
+            proc.childProcesses.forEach(child => {
                 if (child.dependency) {
+                    hasDependentChildren = true;
                     const childStatus = getStatus(child.id);
-                    if (childStatus === 'falla' || childStatus === 'error') {
-                        calculatedStates.set(procId, childStatus); // Parent inherits failure status
-                        return childStatus;
+                    if (statusPriority[childStatus] > statusPriority[mostCriticalChildStatus]) {
+                        mostCriticalChildStatus = childStatus;
                     }
                 }
-            }
+            });
         }
 
-        // If no dependent children failed, calculate its own status
-        const finalStatus = getOwnStatus(proc.id);
+        let finalStatus;
+        // If there are dependent children AND at least one has a real status, the parent's status is the most critical child status.
+        if (hasDependentChildren && mostCriticalChildStatus !== 'sin ejecucion') {
+            finalStatus = mostCriticalChildStatus;
+        } else {
+            // Otherwise, the parent calculates its own status from its registrations.
+            finalStatus = getOwnStatus(proc.id);
+        }
+
         calculatedStates.set(procId, finalStatus);
         return finalStatus;
     };
