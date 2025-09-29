@@ -273,31 +273,77 @@ app.get('/api/summary', (req, res) => {
     const registrations = registrationsByCompany[companyId] || [];
     const calculatedStates = calculateAllProcessStates(processes, registrations);
 
+    // Initialize the summary object in the structure the frontend expects
     const summary = {
-        total: processes.length,
-        ok: 0,
-        falla: 0,
-        ambar: 0,
-        error: 0,
-        sinEjecucion: 0,
-        criticidad: { alta: 0, media: 0, baja: 0 }
+        'ok': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'falla': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'error': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'ambar': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'sin ejecucion': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
     };
 
     processes.forEach(proc => {
         const status = calculatedStates.get(proc.id) || 'sin ejecucion';
-        if (status === 'ok') summary.ok++;
-        else if (status === 'falla') summary.falla++;
-        else if (status === 'ambar') summary.ambar++;
-        else if (status === 'error') summary.error++;
-        else summary.sinEjecucion++;
+        const criticality = proc.criticidad || 'Baja'; // Default to Baja if not specified
 
-        const criticidad = proc.criticidad ? proc.criticidad.toLowerCase() : 'baja';
-        if (criticidad === 'alta') summary.criticidad.alta++;
-        else if (criticidad === 'media') summary.criticidad.media++;
-        else if (criticidad === 'baja') summary.criticidad.baja++;
+        if (summary[status]) {
+            summary[status].total++;
+            if (summary[status][criticality] !== undefined) {
+                summary[status][criticality]++;
+                if (summary[status].processes[criticality]) {
+                    summary[status].processes[criticality].push(proc.name);
+                }
+            }
+        }
     });
 
-    res.json(summary);
+    // The frontend expects the data to be in a 'summary' property
+    res.json({ summary });
+});
+
+// Affected Processes for Dashboard
+app.get('/api/affected-processes', (req, res) => {
+    const { companyId } = req.query;
+    if (!companyId) {
+        return res.status(400).json({ error: 'companyId is required' });
+    }
+
+    const processes = processesByCompany[companyId] || [];
+    if (processes.length === 0) {
+        return res.json([]);
+    }
+
+    const registrations = registrationsByCompany[companyId] || [];
+    const calculatedStates = calculateAllProcessStates(processes, registrations);
+    const processMap = new Map(processes.map(p => [p.id, p]));
+
+    const affectedParents = [];
+
+    processes.forEach(parent => {
+        if (parent.childProcesses && parent.childProcesses.length > 0) {
+            for (const childRef of parent.childProcesses) {
+                // Check if the child has a dependency and is in a failed state
+                if (childRef.dependency) {
+                    const childStatus = calculatedStates.get(childRef.id);
+                    if (childStatus === 'falla' || childStatus === 'error') {
+                        const childProcess = processMap.get(childRef.id);
+                        affectedParents.push({
+                            parentProcessId: parent.id,
+                            parentProcessName: parent.name,
+                            failingChildId: childRef.id,
+                            failingChildName: childProcess ? childProcess.name : 'Unknown',
+                            childStatus: childStatus
+                        });
+                        // A parent is listed once, even if multiple children fail.
+                        // We break to avoid duplicate entries for the same parent from different children.
+                        break;
+                    }
+                }
+            }
+        }
+    });
+
+    res.json(affectedParents);
 });
 
 
