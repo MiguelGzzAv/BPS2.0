@@ -19,12 +19,6 @@
         .badge-por-iniciar { background-color: #adb5bd; }
 
         .badge { font-size: 0.9em; }
-
-        /* Spinner color overrides */
-        .spinner-grow-ok { color: #198754; }
-        .spinner-grow-falla { color: #dc3545; }
-        .spinner-grow-ambar { color: #ffc107; }
-        .spinner-grow-sin-ejecucion { color: #6c757d; }
     </style>
 </head>
 <body>
@@ -102,7 +96,7 @@
                     <th>INICIO</th>
                     <th>FIN</th>
                     <th>ESTATUS</th>
-                    <th>PROGRESO</th>
+                    <th>URGENCIA</th>
                     <th>ACCIONES</th>
                 </tr>
             </thead>
@@ -156,6 +150,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>Fase</th>
+                                    <th>Estatus Actual</th>
                                     <th>Campos de Registro</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -229,55 +224,6 @@
                 }).catch(error => console.error('Error fetching data:', error));
             };
 
-            // --- Timeliness and Status Logic ---
-            const getTimelinessStatus = (proc) => {
-                const now = new Date();
-                const startTime = new Date();
-                const endTime = new Date();
-                const [startHour, startMinute] = proc.startTime.split(':').map(Number);
-                const [endHour, endMinute] = proc.endTime.split(':').map(Number);
-
-                startTime.setHours(startHour, startMinute, 0, 0);
-                endTime.setHours(endHour, endMinute, 0, 0);
-
-                if (now < startTime || now > endTime) {
-                    return 'sin-ejecucion';
-                }
-
-                const totalDuration = endTime - startTime;
-                const elapsedTime = now - startTime;
-                const percentage = (elapsedTime / totalDuration) * 100;
-
-                if (percentage < 50) return 'ok';
-                if (percentage < 84) return 'ambar';
-                return 'falla';
-            };
-
-            const updateParentSpinners = (processMap) => {
-                const statusPriority = { 'falla': 3, 'ambar': 2, 'ok': 1, 'sin-ejecucion': 0 };
-                masterProcessList.forEach(proc => {
-                    if (proc.childProcesses && proc.childProcesses.length > 0) {
-                        let mostCriticalStatus = 'sin-ejecucion';
-                        proc.childProcesses.forEach(childLink => {
-                            const childProc = processMap.get(childLink.id);
-                            if (childProc) {
-                                const childStatus = getTimelinessStatus(childProc);
-                                if (statusPriority[childStatus] > statusPriority[mostCriticalStatus]) {
-                                    mostCriticalStatus = childStatus;
-                                }
-                            }
-                        });
-                        const parentRow = monitoringList.querySelector(`tr[data-process-id="${proc.id}"]`);
-                        if (parentRow) {
-                            const spinnerCell = parentRow.querySelector('.spinner-cell');
-                            if (spinnerCell) {
-                                spinnerCell.innerHTML = `<div class="spinner-grow spinner-grow-sm spinner-grow-${mostCriticalStatus}" role="status"></div>`;
-                            }
-                        }
-                    }
-                });
-            };
-
             // --- Rendering ---
             const displayProcesses = () => {
                 const nameFilter = document.getElementById('filter-name').value.toLowerCase();
@@ -313,8 +259,6 @@
                         renderProcessRow(proc, 0, processMap);
                     }
                 });
-
-                updateParentSpinners(processMap);
             };
 
             const renderProcessRow = (proc, level, processMap) => {
@@ -326,17 +270,11 @@
                 row.className = `${rowClass} ${parentClass}`.trim() + (level > 0 ? ' collapse' : '');
                 row.setAttribute('data-process-id', proc.id);
 
-                const timelinessStatus = getTimelinessStatus(proc);
-                const isButtonDisabled = timelinessStatus === 'sin-ejecucion';
-
                 const hasActiveDependency = hasChildren && proc.childProcesses.some(c => c.dependency);
                 const hasOwnFieldsToRegister = proc.internalPhases && proc.internalPhases.some(phase => phase.fields && phase.fields.length > 0);
                 const showRegisterButton = !(hasActiveDependency && !hasOwnFieldsToRegister);
 
                 const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
-                const spinnerClass = `spinner-grow-${timelinessStatus}`;
-                const spinnerHtml = hasChildren ? '' : `<div class="spinner-grow spinner-grow-sm ${spinnerClass}" role="status"></div>`;
-
                 row.innerHTML = `
                     <td style="padding-left: ${level * 25}px;">
                         ${hasChildren ? `<button class="btn btn-sm btn-light me-2 expand-btn" data-bs-toggle="collapse" data-bs-target=".child-of-${proc.id}">▶</button>` : `<span style="display: inline-block; width: 38px;"></span>`}
@@ -345,8 +283,8 @@
                     <td>${proc.startTime}</td>
                     <td>${proc.endTime}</td>
                     <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
-                    <td class="spinner-cell">${spinnerHtml}</td>
-                    <td>${showRegisterButton ? `<button class="btn btn-primary btn-sm register-btn" ${isButtonDisabled ? 'disabled' : ''}>Registrar</button>` : ''}</td>
+                    <td><span class="badge bg-secondary">${proc.criticidad || 'Baja'}</span></td>
+                    <td>${showRegisterButton ? `<button class="btn btn-primary btn-sm register-btn">Registrar</button>` : ''}</td>
                 `;
                 monitoringList.appendChild(row);
 
@@ -354,7 +292,7 @@
                     proc.childProcesses.forEach(childLink => {
                         const childProc = processMap.get(childLink.id);
                         if (childProc) {
-                            childProc.parentId = proc.id;
+                            childProc.parentId = proc.id; // Pass parent id for class linking
                             renderProcessRow(childProc, level + 1, processMap);
                         }
                     });
@@ -366,14 +304,14 @@
                 if (s === 'ok') return 'table-success';
                 if (s === 'falla' || s === 'error') return 'table-danger';
                 if (s === 'ambar') return 'table-warning';
-                if (s === 'sin ejecucion' || s === 'por iniciar') return ''; // White background
+                if (s === 'sin ejecucion') return 'table-secondary';
                 return '';
             };
 
             // --- Event Listeners & Modal Logic ---
             monitoringList.addEventListener('click', (e) => {
                 const registerBtn = e.target.closest('.register-btn');
-                if (registerBtn && !registerBtn.disabled) {
+                if (registerBtn) {
                     const row = e.target.closest('tr');
                     const procId = row.dataset.processId;
                     const proc = masterProcessList.find(p => p.id === procId);
@@ -404,9 +342,13 @@
                 multiPhaseModalLabel.textContent = `Registrar Fases: ${proc.name}`;
                 multiPhaseTableBody.innerHTML = '';
                 proc.internalPhases.forEach(phase => {
+                    const latestPhaseReg = allRegistrations.filter(r => r.processId === proc.id && r.phase === phase.name).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+                    const currentStatus = latestPhaseReg?.values.find(v => v.name === 'Status')?.value || 'N/A';
+                    const badgeClass = `badge-${currentStatus.toLowerCase().replace(/\s+/g, '-')}`;
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${phase.name}</td>
+                        <td><span class="badge ${badgeClass}">${currentStatus.toUpperCase()}</span></td>
                         <td class="phase-form-fields">${(phase.fields || []).map(field => `<div class="mb-2">${getFormFieldHtml(field, true)}</div>`).join('')}</td>
                         <td><button class="btn btn-success btn-sm save-phase-btn" data-process-id="${proc.id}" data-phase-name="${phase.name}">Guardar</button></td>
                     `;
@@ -434,21 +376,13 @@
             const saveRegistration = (companyId, processId, phase, values) => {
                 const registrationData = { companyId, processId, phase, values, timestamp: new Date().toISOString() };
                 fetch('/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registrationData) })
-                .then(res => {
-                    if (!res.ok) {
-                        return res.json().then(err => Promise.reject(err));
-                    }
-                    return res.json();
-                })
+                .then(res => res.ok ? res.json() : Promise.reject('Failed to save'))
                 .then(() => {
                     registrationModal.hide();
                     multiPhaseRegistrationModal.hide();
-                    fetchAndRenderAll(); // Refresh data to show new status
+                    fetchAndRenderAll();
                 })
-                .catch(err => {
-                    console.error('Error saving registration:', err);
-                    alert(`Error saving: ${err.error || 'Unknown server error'}`);
-                });
+                .catch(err => { console.error(err); alert('Error saving.'); });
             };
 
             saveSingleRegistrationBtn.addEventListener('click', () => {
@@ -469,7 +403,7 @@
             // --- Initial Load & Intervals ---
             updateMenuLinks(companyId);
             fetchAndRenderAll();
-            setInterval(fetchAndRenderAll, 30000);
+            setInterval(fetchAndRenderAll, 60000); // Refresh every 60 seconds
 
             // --- Filters ---
             document.getElementById('filter-name').addEventListener('input', displayProcesses);

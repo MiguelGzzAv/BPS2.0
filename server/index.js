@@ -471,17 +471,34 @@ app.get('/api/escalations', (req, res) => {
 });
 
 app.post('/api/escalations', (req, res) => {
-    const { companyId, ...newRule } = req.body;
-    if (!companyId || !newRule.processId || !newRule.userId) {
-        return res.status(400).json({ error: 'companyId, processId, and userId are required' });
+    const { companyId, ...ruleData } = req.body;
+    if (!companyId || !ruleData.processId) {
+        return res.status(400).json({ error: 'companyId and processId are required' });
     }
+
     if (!escalationsByCompany[companyId]) {
         escalationsByCompany[companyId] = [];
     }
-    newRule.id = Date.now(); // Simple unique ID
-    escalationsByCompany[companyId].push(newRule);
-    console.log(`Added new escalation rule to company ${companyId}:`, newRule);
-    res.status(201).json(newRule);
+    const escalations = escalationsByCompany[companyId];
+
+    // Check if it's an update or a new rule
+    const existingRuleIndex = ruleData.id ? escalations.findIndex(r => r.id === ruleData.id) : -1;
+
+    if (existingRuleIndex > -1) {
+        // Update existing rule
+        escalations[existingRuleIndex] = { ...escalations[existingRuleIndex], ...ruleData };
+        console.log(`Updated escalation rule for company ${companyId}:`, escalations[existingRuleIndex]);
+        res.status(200).json(escalations[existingRuleIndex]);
+    } else {
+        // Create new rule
+        const newRule = {
+            ...ruleData,
+            id: Date.now() // Assign a new unique ID
+        };
+        escalations.push(newRule);
+        console.log(`Added new escalation rule to company ${companyId}:`, newRule);
+        res.status(201).json(newRule);
+    }
 });
 
 app.delete('/api/escalations/:id', (req, res) => {

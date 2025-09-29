@@ -337,7 +337,7 @@
                     <div class="fields-container-for-phase">
                         ${(phase.fields || []).map(getFieldRowHtml).join('')}
                     </div>
-                    <button type="button" class="btn btn-outline-primary btn-sm mt-2 add-field-btn">+ Add Field</button>
+                    ${isMultiple ? '<button type="button" class="btn btn-outline-primary btn-sm mt-2 add-field-btn">+ Add Field</button>' : ''}
                 </div>`;
             };
 
@@ -345,11 +345,15 @@
                 const isMultiple = mode === 'Multiple';
                 addPhaseBtn.style.display = isMultiple ? 'block' : 'none';
                 phasesEditorTitle.textContent = isMultiple ? 'Define Internal Phases' : 'Define Registration Fields';
-                phasesContainer.innerHTML = '';
 
+                phasesContainer.innerHTML = ''; // Clear previous
                 if (isMultiple) {
-                    phasesContainer.insertAdjacentHTML('beforeend', getPhaseBlockHtml({ name: 'Phase 1', fields: [] }, true));
+                    // Start with one empty phase for multi-mode, or render existing ones
+                    if (phasesContainer.children.length === 0) {
+                         phasesContainer.insertAdjacentHTML('beforeend', getPhaseBlockHtml({ name: 'Phase 1', fields: [] }, true));
+                    }
                 } else {
+                    // Always one phase for Individual mode
                     phasesContainer.innerHTML = getPhaseBlockHtml({ name: 'default', fields: [] }, false);
                 }
             };
@@ -382,28 +386,13 @@
 
                     linkedChildren = [...(processToEdit.childProcesses || [])];
 
-                    // **FIXED LOGIC**: Populate phases and set mode-specific UI without erasing data
+                    // Populate phases
                     const isMultiple = processToEdit.mode === 'Multiple';
-                    addPhaseBtn.style.display = isMultiple ? 'block' : 'none';
-                    phasesEditorTitle.textContent = isMultiple ? 'Define Internal Phases' : 'Define Registration Fields';
-
-                    const phases = processToEdit.internalPhases && processToEdit.internalPhases.length > 0
-                        ? processToEdit.internalPhases
-                        : [];
-
-                    if (isMultiple) {
-                        if (phases.length > 0) {
-                            phasesContainer.innerHTML = phases.map(p => getPhaseBlockHtml(p, true)).join('');
-                        } else {
-                            phasesContainer.innerHTML = getPhaseBlockHtml({ name: 'Phase 1', fields: [] }, true);
-                        }
-                    } else {
-                        const singlePhase = phases.find(p => p.name === 'default') || { name: 'default', fields: [] };
-                        phasesContainer.innerHTML = getPhaseBlockHtml(singlePhase, false);
-                    }
+                    const phases = processToEdit.internalPhases || [{ name: 'default', fields: [] }];
+                    phasesContainer.innerHTML = phases.map(p => getPhaseBlockHtml(p, isMultiple)).join('');
+                    updateFormForMode(processToEdit.mode);
 
                 } else {
-                    // This is for 'Add New' mode, it should work as before.
                     updateFormForMode('Individual');
                 }
                 renderLinkedChildren();
