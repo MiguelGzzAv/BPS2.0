@@ -18,13 +18,13 @@
         <div class="offcanvas-header"><h5 class="offcanvas-title">Menu</h5><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column mb-auto">
-                <li><a href="#" class="nav-link text-dark" id="menu-dashboard">Dashboard</a></li>
-                <li><a href="#" class="nav-link text-dark" id="menu-users">Users</a></li>
-                <li><a href="/selection.html" class="nav-link text-dark">Companies</a></li>
-                <li><a href="#" class="nav-link text-dark" id="menu-departments">Departments</a></li>
-                <li><a href="#" class="nav-link" id="menu-processes">Processes</a></li>
-                <li><a href="#" class="nav-link text-dark" id="menu-monitoring">Monitoring</a></li>
-                <li><a href="#" class="nav-link text-dark" id="menu-escalation">Escalation</a></li>
+                <li><a href="dashboard.html" class="nav-link text-dark" id="menu-dashboard">Dashboard</a></li>
+                <li><a href="users.html" class="nav-link text-dark" id="menu-users">Users</a></li>
+                <li><a href="selection.html" class="nav-link text-dark">Companies</a></li>
+                <li><a href="departments.html" class="nav-link text-dark" id="menu-departments">Departments</a></li>
+                <li><a href="processes.html" class="nav-link" id="menu-processes">Processes</a></li>
+                <li><a href="monitoring.html" class="nav-link text-dark" id="menu-monitoring">Monitoring</a></li>
+                <li><a href="escalation.html" class="nav-link text-dark" id="menu-escalation">Escalation</a></li>
             </ul>
         </div>
     </div>
@@ -36,235 +36,277 @@
         </header>
         <table class="table table-striped">
             <thead>
-                <tr><th>ID</th><th>Name</th><th>Mode</th><th>Criticidad</th><th>Frequency</th><th>Actions</th></tr>
+                <tr><th>ID</th><th>Name</th><th>Mode</th><th>Criticidad</th><th>Frequency</th><th>Start Time</th><th>End Time</th><th>Actions</th></tr>
             </thead>
             <tbody id="process-list"></tbody>
         </table>
     </main>
 
-    <div class="modal fade" id="processModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title" id="processModalLabel">Process</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body">
-                    <form id="process-form">
-                        <div class="row">
-                            <div class="col-md-6 mb-3"><label for="process-id" class="form-label">Process ID</label><input type="text" class="form-control" id="process-id" required></div>
-                            <div class="col-md-6 mb-3"><label for="process-name" class="form-label">Process Name</label><input type="text" class="form-control" id="process-name" required></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3"><label for="process-criticidad" class="form-label">Criticidad</label><select class="form-select" id="process-criticidad"><option value="Baja">Baja</option><option value="Media">Media</option><option value="Alta">Alta</option></select></div>
-                            <div class="col-md-6 mb-3"><label for="process-mode" class="form-label">Process Mode</label><select class="form-select" id="process-mode"><option value="Individual">Individual</option><option value="Multiple">Multiple Internal Phases</option></select></div>
-                        </div>
-                        <hr>
-                        <h5>Child Processes</h5>
-                        <div id="linked-children-container" class="mb-3"></div>
-                        <button type="button" class="btn btn-outline-success btn-sm" id="link-child-btn">+ Link Child</button>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" form="process-form" class="btn btn-primary">Save Process</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="linkChildProcessModal" tabindex="-1"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Link Child Processes</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="link-child-modal-body"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="save-linked-children-btn" class="btn btn-primary">Save Links</button></div></div></div></div>
     <div class="modal fade" id="deleteProcessModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Confirm Deletion</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">Are you sure?</div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="confirm-delete-btn" class="btn btn-danger">Delete</button></div></div></div></div>
+    <div class="modal fade" id="addProcessModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="addProcessModalLabel">Add New Process</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="add-process-form"><div class="row"><div class="col-md-6 mb-3"><label for="process-id" class="form-label">Process ID</label><input type="text" class="form-control" id="process-id" required></div><div class="col-md-6 mb-3"><label for="process-name" class="form-label">Process Name</label><input type="text" class="form-control" id="process-name" required></div></div><div class="row"><div class="col-md-6 mb-3"><label for="process-startTime" class="form-label">Start Time</label><input type="time" class="form-control" id="process-startTime"></div><div class="col-md-6 mb-3"><label for="process-endTime" class="form-label">End Time</label><input type="time" class="form-control" id="process-endTime"></div></div><div class="row"><div class="col-md-6 mb-3"><label for="process-criticidad" class="form-label">Criticidad</label><select class="form-select" id="process-criticidad"><option value="Baja" selected>Baja</option><option value="Media">Media</option><option value="Alta">Alta</option></select></div><div class="col-md-6 mb-3"><label for="process-frequency" class="form-label">Frequency</label><select class="form-select" id="process-frequency"><option selected>Choose...</option><option value="Diario">Diario</option><option value="Personalizado">Personalizado</option></select></div></div><div id="custom-frequency-days" class="mb-3" style="display: none;"><label class="form-label">Select Days</label><div><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="Mon"><label class="form-check-label">Mon</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="Tue"><label class="form-check-label">Tue</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="Wed"><label class="form-check-label">Wed</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="Thu"><label class="form-check-label">Thu</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="Fri"><label class="form-check-label">Fri</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="Sat"><label class="form-check-label">Sat</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="Sun"><label class="form-check-label">Sun</label></div></div></div><hr><div class="row"><div class="col-md-6 mb-3"><label for="process-mode" class="form-label">Process Mode</label><select class="form-select" id="process-mode"><option value="Individual" selected>Individual</option><option value="Multiple">Multiple Internal Phases</option></select></div></div><hr><h5>Child Processes</h5><div id="linked-children-container" class="mb-3"></div><button type="button" class="btn btn-outline-success btn-sm" id="link-child-btn">+ Vincular Hijo</button><div id="phases-editor"><hr><h5 id="phases-editor-title">Define Internal Phases</h5><div id="phases-container"></div><button type="button" id="add-phase-btn" class="btn btn-outline-secondary btn-sm mt-2" style="display: none;">+ Add Phase</button></div></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button><button type="submit" form="add-process-form" class="btn btn-primary">Save Process</button></div></div></div></div>
+    <div class="modal fade" id="linkChildProcessModal" tabindex="-1"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="linkChildProcessModalLabel">Link Child Processes</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="link-child-modal-body"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="save-linked-children-btn" class="btn btn-primary">Save Links</button></div></div></div></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="auth.js"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        protectPage();
-        const user = getLoggedInUser();
-        const companyId = sessionStorage.getItem('selectedCompanyId');
-        const companyName = sessionStorage.getItem('selectedCompanyName');
+        document.addEventListener('DOMContentLoaded', () => {
+            protectPage();
+            const user = getLoggedInUser();
+            const companyId = sessionStorage.getItem('selectedCompanyId');
+            const companyName = sessionStorage.getItem('selectedCompanyName');
 
-        if (!companyId) {
-            alert('No company selected. Redirecting...');
-            window.location.href = '/selection.html';
-            return;
-        }
-
-        const canEdit = user.role === 'admin' || user.role === 'superadmin';
-
-        // --- Elements ---
-        const processList = document.getElementById('process-list');
-        const processModal = new bootstrap.Modal(document.getElementById('processModal'));
-        const deleteModal = new bootstrap.Modal(document.getElementById('deleteProcessModal'));
-        const linkChildModal = new bootstrap.Modal(document.getElementById('linkChildProcessModal'));
-        const processForm = document.getElementById('process-form');
-        const logoutBtn = document.getElementById('logout-btn');
-        const addProcessBtn = document.getElementById('add-process-btn');
-        const linkedChildrenContainer = document.getElementById('linked-children-container');
-
-        let currentProcessId = null;
-        let isEditMode = false;
-        let masterProcessList = [];
-        let linkedChildren = [];
-
-        // --- UI Setup ---
-        document.getElementById('header-title').textContent = `Processes - ${companyName}`;
-        logoutBtn.addEventListener('click', logout);
-        if (canEdit) addProcessBtn.style.display = 'block';
-
-        const updateMenuLinks = () => {
-            const menu = document.getElementById('offcanvasMenu');
-            menu.querySelector('#menu-dashboard').href = `dashboard.html`;
-            menu.querySelector('#menu-users').href = `users.html`;
-            menu.querySelector('#menu-departments').href = `departments.html`;
-            menu.querySelector('#menu-processes').href = `processes.html`;
-            menu.querySelector('#menu-monitoring').href = `monitoring.html`;
-            menu.querySelector('#menu-escalation').href = `escalation.html`;
-            menu.querySelector('#menu-processes').classList.add('active');
-        };
-
-        // --- Render Functions ---
-        const renderProcesses = (processes) => {
-            masterProcessList = processes;
-            processList.innerHTML = '';
-            processes.forEach(proc => {
-                const row = document.createElement('tr');
-                const criticidad = proc.criticidad || 'Baja';
-                let badgeClass = criticidad === 'Alta' ? 'bg-danger' : (criticidad === 'Media' ? 'bg-warning text-dark' : 'bg-secondary');
-                row.innerHTML = `
-                    <td>${proc.id}</td>
-                    <td>${proc.name}</td>
-                    <td>${proc.mode || 'Individual'}</td>
-                    <td><span class="badge ${badgeClass}">${criticidad}</span></td>
-                    <td>${proc.frequency || ''}</td>
-                    <td>
-                        ${canEdit ? `<button class="btn btn-sm btn-warning edit-btn" data-id="${proc.id}">Edit</button>
-                                     <button class="btn btn-sm btn-danger delete-btn" data-id="${proc.id}">Delete</button>` : 'No actions'}
-                    </td>`;
-                processList.appendChild(row);
-            });
-        };
-
-        const fetchAndRenderProcesses = async () => {
-            const url = user.role === 'superadmin' ? `/api/processes?companyId=${companyId}` : '/api/processes';
-            try {
-                const response = await fetchWithAuth(url);
-                renderProcesses(await response.json());
-            } catch (error) {
-                console.error('Error fetching processes:', error);
-                processList.innerHTML = '<tr><td colspan="6" class="text-danger">Error loading processes.</td></tr>';
+            if (!companyId) {
+                alert('No company selected. Redirecting...');
+                window.location.href = '/selection.html';
+                return;
             }
-        };
 
-        const renderLinkedChildren = () => {
-            linkedChildrenContainer.innerHTML = linkedChildren.length === 0 ? '<p class="text-muted">No child processes linked.</p>' :
-                linkedChildren.map(child => {
-                    const process = masterProcessList.find(p => p.id === child.id);
-                    return `<div class="d-flex justify-content-between align-items-center border-bottom py-2">
-                        <span>${process ? `${process.name} (${process.id})` : `Unknown (${child.id})`}</span>
-                        <div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" data-child-id="${child.id}" ${child.dependency ? 'checked' : ''}>
-                                <label class="form-check-label">Dependency</label>
-                            </div>
-                            <button type="button" class="btn btn-danger btn-sm remove-child-btn" data-child-id="${child.id}">X</button>
-                        </div>
-                    </div>`;
-                }).join('');
-        };
+            const canEdit = user.role === 'admin' || user.role === 'superadmin';
 
-        // --- Form & Modal Logic ---
-        const prepareModal = (process = null) => {
-            processForm.reset();
-            isEditMode = !!process;
-            currentProcessId = process ? process.id : null;
-            document.getElementById('process-id').disabled = isEditMode;
-            document.getElementById('processModalLabel').textContent = isEditMode ? 'Edit Process' : 'Add New Process';
+            // --- DOM Elements ---
+            const processList = document.getElementById('process-list');
+            const addProcessModal = new bootstrap.Modal(document.getElementById('addProcessModal'));
+            const deleteProcessModal = new bootstrap.Modal(document.getElementById('deleteProcessModal'));
+            const linkChildProcessModal = new bootstrap.Modal(document.getElementById('linkChildProcessModal'));
+            const addProcessForm = document.getElementById('add-process-form');
+            const frequencySelect = document.getElementById('process-frequency');
+            const customDaysDiv = document.getElementById('custom-frequency-days');
+            const modeSelect = document.getElementById('process-mode');
+            const phasesEditor = document.getElementById('phases-editor');
+            const phasesContainer = document.getElementById('phases-container');
+            const addPhaseBtn = document.getElementById('add-phase-btn');
+            const phasesEditorTitle = document.getElementById('phases-editor-title');
+            const linkedChildrenContainer = document.getElementById('linked-children-container');
+            const addProcessBtn = document.getElementById('add-process-btn');
+            const logoutBtn = document.getElementById('logout-btn');
 
-            if (process) {
-                document.getElementById('process-id').value = process.id;
-                document.getElementById('process-name').value = process.name;
-                document.getElementById('process-criticidad').value = process.criticidad || 'Baja';
-                document.getElementById('process-mode').value = process.mode || 'Individual';
-                linkedChildren = [...(process.childProcesses || [])];
-            } else {
-                linkedChildren = [];
-            }
-            renderLinkedChildren();
-            processModal.show();
-        };
+            // --- State ---
+            let currentProcessId = null;
+            let isEditMode = false;
+            let masterProcessList = [];
+            let linkedChildren = [];
 
-        processForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const processData = {
-                id: document.getElementById('process-id').value,
-                name: document.getElementById('process-name').value,
-                criticidad: document.getElementById('process-criticidad').value,
-                mode: document.getElementById('process-mode').value,
-                childProcesses: linkedChildren
+            // --- UI Setup ---
+            document.getElementById('header-title').textContent = `Processes - ${companyName}`;
+            logoutBtn.addEventListener('click', logout);
+            if (canEdit) addProcessBtn.style.display = 'block';
+
+            const updateMenuLinks = () => {
+                const menu = document.getElementById('offcanvasMenu');
+                menu.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+                menu.querySelector('#menu-processes').classList.add('active');
             };
 
-            const url = isEditMode ? `/api/processes/${currentProcessId}` : '/api/processes';
-            const method = isEditMode ? 'PUT' : 'POST';
+            // --- Render Functions ---
+            const renderProcesses = (processes) => {
+                masterProcessList = processes;
+                processList.innerHTML = '';
+                processes.forEach(proc => {
+                    const row = document.createElement('tr');
+                    const criticidad = proc.criticidad || 'Baja';
+                    let badgeClass = criticidad === 'Alta' ? 'bg-danger' : (criticidad === 'Media' ? 'bg-warning text-dark' : 'bg-secondary');
+                    row.innerHTML = `
+                        <td>${proc.id}</td>
+                        <td>${proc.name}</td>
+                        <td>${proc.mode || 'Individual'}</td>
+                        <td><span class="badge ${badgeClass}">${criticidad}</span></td>
+                        <td>${proc.frequency} ${proc.days ? proc.days.join(', ') : ''}</td>
+                        <td>${proc.startTime}</td>
+                        <td>${proc.endTime}</td>
+                        <td>
+                            ${canEdit ? `
+                            <button class="btn btn-sm btn-warning edit-btn" data-id="${proc.id}">Edit</button>
+                            <button class="btn btn-sm btn-danger delete-btn" data-id="${proc.id}">Delete</button>
+                            ` : 'No actions'}
+                        </td>
+                    `;
+                    processList.appendChild(row);
+                });
+            };
 
-            const body = { processData };
-            if (user.role === 'superadmin') {
-                body.companyId = companyId;
-            }
+            const fetchAndRenderProcesses = async () => {
+                const url = user.role === 'superadmin' ? `/api/processes?companyId=${companyId}` : '/api/processes';
+                try {
+                    const response = await fetchWithAuth(url);
+                    renderProcesses(await response.json());
+                } catch (error) {
+                    console.error('Error fetching processes:', error);
+                    processList.innerHTML = '<tr><td colspan="8" class="text-danger">Error loading processes.</td></tr>';
+                }
+            };
 
-            try {
-                await fetchWithAuth(url, { method, body: JSON.stringify(body) });
-                processModal.hide();
-                fetchAndRenderProcesses();
-            } catch (err) {
-                console.error('Error saving process:', err);
-                alert('Failed to save process.');
-            }
-        });
+            const renderLinkedChildren = () => {
+                linkedChildrenContainer.innerHTML = linkedChildren.length === 0 ? '<p class="text-muted">No child processes linked.</p>' :
+                    linkedChildren.map(child => {
+                        const process = masterProcessList.find(p => p.id === child.id);
+                        return `<div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                            <span>${process ? `${process.name} (${process.id})` : `Unknown (${child.id})`}</span>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" data-child-id="${child.id}" ${child.dependency ? 'checked' : ''}>
+                                    <label class="form-check-label">Dependencia</label>
+                                </div>
+                                <button type="button" class="btn btn-danger btn-sm remove-child-btn" data-child-id="${child.id}">X</button>
+                            </div>
+                        </div>`;
+                    }).join('');
+            };
 
-        // --- Event Delegation ---
-        document.body.addEventListener('click', (e) => {
-            const target = e.target;
-            const processId = target.dataset.id;
+            // --- Form Logic ---
+            const getFieldRowHtml = (field = {}) => `<div class="row mb-2 align-items-center dynamic-field-row"><div class="col-md-5"><input type="text" class="form-control field-name" placeholder="Field Name" value="${field.name || ''}"></div><div class="col-md-5"><select class="form-select field-type"><option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option><option value="status" ${field.type === 'status' ? 'selected' : ''}>Status</option><option value="responsable" ${field.type === 'responsable' ? 'selected' : ''}>Responsable</option></select></div><div class="col-md-2"><button type="button" class="btn btn-danger btn-sm remove-field-btn">X</button></div></div>`;
+            const getPhaseBlockHtml = (phase = { name: '', fields: [] }, isMultiple) => {
+                const isDefault = phase.name === 'default';
+                return `<div class="border p-3 mb-3 rounded phase-block">${!isMultiple || isDefault ? '' : `<div class="d-flex justify-content-between align-items-center mb-2"><input type="text" class="form-control phase-name" placeholder="Phase Name" value="${isDefault ? '' : phase.name || ''}"><button type="button" class="btn btn-danger btn-sm ms-2 remove-phase-btn">Remove Phase</button></div>`}<div class="fields-container-for-phase">${(phase.fields || []).map(getFieldRowHtml).join('')}</div>${isMultiple ? '<button type="button" class="btn btn-outline-primary btn-sm mt-2 add-field-btn">+ Add Field</button>' : ''}</div>`;
+            };
+            const updateFormForMode = (mode) => {
+                const isMultiple = mode === 'Multiple';
+                addPhaseBtn.style.display = isMultiple ? 'block' : 'none';
+                phasesEditorTitle.textContent = isMultiple ? 'Define Internal Phases' : 'Define Registration Fields';
+                phasesContainer.innerHTML = '';
+                if (isMultiple) {
+                    if (phasesContainer.children.length === 0) phasesContainer.insertAdjacentHTML('beforeend', getPhaseBlockHtml({ name: 'Phase 1', fields: [] }, true));
+                } else {
+                    phasesContainer.innerHTML = getPhaseBlockHtml({ name: 'default', fields: [] }, false);
+                }
+            };
+            const resetAndPrepareModal = (processToEdit = null) => {
+                addProcessForm.reset();
+                customDaysDiv.style.display = 'none';
+                phasesContainer.innerHTML = '';
+                linkedChildren = [];
+                isEditMode = !!processToEdit;
+                currentProcessId = processToEdit ? processToEdit.id : null;
+                document.getElementById('process-id').disabled = isEditMode;
+                document.getElementById('addProcessModalLabel').textContent = isEditMode ? 'Edit Process' : 'Add New Process';
 
-            if (target.matches('.edit-btn')) {
-                prepareModal(masterProcessList.find(p => p.id === processId));
-            } else if (target.matches('.delete-btn')) {
-                currentProcessId = processId;
-                deleteModal.show();
-            } else if (target.id === 'add-process-btn') {
-                prepareModal();
-            } else if (target.id === 'confirm-delete-btn') {
-                const url = user.role === 'superadmin' ? `/api/processes/${currentProcessId}?companyId=${companyId}` : `/api/processes/${currentProcessId}`;
-                fetchWithAuth(url, { method: 'DELETE' })
-                    .then(() => {
-                        deleteModal.hide();
-                        fetchAndRenderProcesses();
-                    })
-                    .catch(err => console.error('Error deleting process:', err));
-            } else if (target.id === 'link-child-btn') {
+                if (processToEdit) {
+                    document.getElementById('process-id').value = processToEdit.id;
+                    document.getElementById('process-name').value = processToEdit.name;
+                    document.getElementById('process-criticidad').value = processToEdit.criticidad || 'Baja';
+                    document.getElementById('process-startTime').value = processToEdit.startTime;
+                    document.getElementById('process-endTime').value = processToEdit.endTime;
+                    document.getElementById('process-frequency').value = processToEdit.frequency;
+                    document.getElementById('process-mode').value = processToEdit.mode || 'Individual';
+                    if (processToEdit.frequency === 'Personalizado') {
+                        customDaysDiv.style.display = 'block';
+                        customDaysDiv.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = (processToEdit.days || []).includes(cb.value));
+                    }
+                    linkedChildren = [...(processToEdit.childProcesses || [])];
+                    const isMultiple = processToEdit.mode === 'Multiple';
+                    const phases = processToEdit.internalPhases || [{ name: 'default', fields: [] }];
+                    phasesContainer.innerHTML = phases.map(p => getPhaseBlockHtml(p, isMultiple)).join('');
+                    addPhaseBtn.style.display = isMultiple ? 'block' : 'none';
+                } else {
+                    updateFormForMode('Individual');
+                }
+                renderLinkedChildren();
+            };
+
+            // --- Event Listeners ---
+            frequencySelect.addEventListener('change', () => { customDaysDiv.style.display = frequencySelect.value === 'Personalizado' ? 'block' : 'none'; });
+            modeSelect.addEventListener('change', () => updateFormForMode(modeSelect.value));
+
+            addProcessForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const internalPhases = Array.from(phasesContainer.querySelectorAll('.phase-block')).map(block => ({
+                    name: block.querySelector('.phase-name')?.value || 'default',
+                    fields: Array.from(block.querySelectorAll('.dynamic-field-row')).map(row => ({
+                        name: row.querySelector('.field-name').value,
+                        type: row.querySelector('.field-type').value
+                    })).filter(f => f.name)
+                }));
+                const processData = {
+                    id: document.getElementById('process-id').value,
+                    name: document.getElementById('process-name').value,
+                    criticidad: document.getElementById('process-criticidad').value,
+                    startTime: document.getElementById('process-startTime').value,
+                    endTime: document.getElementById('process-endTime').value,
+                    frequency: frequencySelect.value,
+                    days: Array.from(customDaysDiv.querySelectorAll('input:checked')).map(cb => cb.value),
+                    mode: modeSelect.value,
+                    childProcesses: linkedChildren,
+                    internalPhases: internalPhases
+                };
+                const url = isEditMode ? `/api/processes/${currentProcessId}` : '/api/processes';
+                const method = isEditMode ? 'PUT' : 'POST';
+                const body = { processData };
+                if (user.role === 'superadmin') body.companyId = companyId;
+
+                try {
+                    await fetchWithAuth(url, { method, body: JSON.stringify(body) });
+                    addProcessModal.hide();
+                    fetchAndRenderProcesses();
+                } catch (err) {
+                    console.error('Error saving process:', err);
+                    alert('Failed to save process.');
+                }
+            });
+
+            phasesEditor.addEventListener('click', (event) => {
+                if (event.target.classList.contains('add-field-btn')) event.target.closest('.phase-block').querySelector('.fields-container-for-phase').insertAdjacentHTML('beforeend', getFieldRowHtml());
+                if (event.target.classList.contains('remove-field-btn')) event.target.closest('.dynamic-field-row').remove();
+                if (event.target.classList.contains('remove-phase-btn')) event.target.closest('.phase-block').remove();
+            });
+
+            addPhaseBtn.addEventListener('click', () => { phasesContainer.insertAdjacentHTML('beforeend', getPhaseBlockHtml({ name: `Phase ${phasesContainer.children.length + 1}`, fields: [] }, true)); });
+
+            document.getElementById('link-child-btn').addEventListener('click', () => {
                 const modalBody = document.getElementById('link-child-modal-body');
-                modalBody.innerHTML = masterProcessList
-                    .filter(p => p.id !== currentProcessId)
-                    .map(p => `<div class="form-check"><input class="form-check-input" type="checkbox" value="${p.id}" id="child-link-${p.id}" ${linkedChildren.some(c => c.id === p.id) ? 'checked' : ''}><label class="form-check-label" for="child-link-${p.id}">${p.name}</label></div>`)
-                    .join('');
-                linkChildModal.show();
-            } else if (target.id === 'save-linked-children-btn') {
-                linkedChildren = Array.from(document.querySelectorAll('#link-child-modal-body input:checked'))
-                    .map(input => ({ id: input.value, dependency: linkedChildren.find(c => c.id === input.value)?.dependency || false }));
-                renderLinkedChildren();
-                linkChildModal.hide();
-            } else if (target.matches('.remove-child-btn')) {
-                linkedChildren = linkedChildren.filter(c => c.id !== target.dataset.childId);
-                renderLinkedChildren();
-            } else if (target.matches('#linked-children-container input[type="checkbox"]')) {
-                const child = linkedChildren.find(c => c.id === target.dataset.childId);
-                if (child) child.dependency = target.checked;
-            }
-        });
+                modalBody.innerHTML = masterProcessList.filter(p => p.id !== currentProcessId)
+                    .map(p => `<div class="form-check"><input class="form-check-input" type="checkbox" value="${p.id}" id="child-link-${p.id}" ${linkedChildren.some(c => c.id === p.id) ? 'checked' : ''}><label class="form-check-label" for="child-link-${p.id}">${p.name}</label></div>`).join('');
+                linkChildProcessModal.show();
+            });
 
-        // --- Initial Load ---
-        updateMenuLinks();
-        fetchAndRenderProcesses();
-    });
+            document.getElementById('save-linked-children-btn').addEventListener('click', () => {
+                linkedChildren = Array.from(document.querySelectorAll('#link-child-modal-body input:checked')).map(input => {
+                    const existing = linkedChildren.find(child => child.id === input.value);
+                    return existing || { id: input.value, dependency: false };
+                });
+                renderLinkedChildren();
+                linkChildProcessModal.hide();
+            });
+
+            linkedChildrenContainer.addEventListener('click', (event) => {
+                const childId = event.target.dataset.childId;
+                if (!childId) return;
+                if (event.target.matches('.remove-child-btn')) {
+                    linkedChildren = linkedChildren.filter(child => child.id !== childId);
+                    renderLinkedChildren();
+                } else if (event.target.matches('input[type="checkbox"]')) {
+                    const child = linkedChildren.find(c => c.id === childId);
+                    if (child) child.dependency = event.target.checked;
+                }
+            });
+
+            processList.addEventListener('click', (event) => {
+                const processId = event.target.dataset.id;
+                if (event.target.classList.contains('edit-btn')) {
+                    const processToEdit = masterProcessList.find(p => p.id === processId);
+                    if (processToEdit) resetAndPrepareModal(processToEdit);
+                } else if (event.target.classList.contains('delete-btn')) {
+                    currentProcessId = processId;
+                    deleteProcessModal.show();
+                }
+            });
+
+            document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+                if (!currentProcessId) return;
+                const url = user.role === 'superadmin' ? `/api/processes/${currentProcessId}?companyId=${companyId}` : `/api/processes/${currentProcessId}`;
+                try {
+                    await fetchWithAuth(url, { method: 'DELETE' });
+                    deleteProcessModal.hide();
+                    fetchAndRenderProcesses();
+                } catch (err) {
+                    console.error('Error deleting process:', err);
+                    alert('Failed to delete process.');
+                }
+            });
+
+            addProcessBtn.addEventListener('click', () => resetAndPrepareModal(null));
+
+            updateMenuLinks();
+            fetchAndRenderProcesses();
+        });
     </script>
 </body>
 </html>
