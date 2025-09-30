@@ -6,53 +6,33 @@
     <title>Escalation Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .user-details {
-            font-size: 0.8em;
-            color: #6c757d;
-            margin-top: 4px;
-        }
+        .user-details { font-size: 0.8em; color: #6c757d; margin-top: 4px; }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
         <div class="container-fluid">
-            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
-                Menu
-            </button>
-            <a class="navbar-brand" href="#">
+            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu">Menu</button>
+            <a class="navbar-brand ms-3" href="#">
                 <img src="logo.png" alt="Avatar Logo" style="width:40px;" class="rounded-pill">
             </a>
+            <div class="ms-auto">
+                <button id="logout-btn" class="btn btn-secondary">Logout</button>
+            </div>
         </div>
     </nav>
     <!-- Offcanvas Menu -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu">
+        <div class="offcanvas-header"><h5 class="offcanvas-title">Menu</h5><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="/dashboard.html" class="nav-link text-dark" id="menu-dashboard">Dashboard</a>
-                </li>
-                <li>
-                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
-                </li>
-                <li>
-                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
-                </li>
-                <li>
-                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
-                </li>
-                <li>
-                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
-                </li>
-                <li>
-                    <a href="/monitoring.html" class="nav-link text-dark" id="menu-monitoring">Monitoring</a>
-                </li>
-                <li>
-                    <a href="/escalation.html" class="nav-link" id="menu-escalation">Escalation</a>
-                </li>
+                <li class="nav-item"><a href="#" class="nav-link text-dark" id="menu-dashboard">Dashboard</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-users">Users</a></li>
+                <li><a href="/selection.html" class="nav-link text-dark">Companies</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-departments">Departments</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-processes">Processes</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-monitoring">Monitoring</a></li>
+                <li><a href="#" class="nav-link" id="menu-escalation">Escalation</a></li>
             </ul>
         </div>
     </div>
@@ -60,7 +40,7 @@
     <!-- Main Content -->
     <main class="container mt-4">
         <header class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Escalation Rules</h1>
+            <h1 id="header-title">Escalation Rules</h1>
         </header>
 
         <div class="table-responsive">
@@ -68,7 +48,6 @@
                 <thead class="table-light">
                     <tr>
                         <th>PROCESO</th>
-                        <th>GRUPO</th>
                         <th>NIVEL 1</th>
                         <th>NIVEL 2</th>
                         <th>NIVEL 3</th>
@@ -85,179 +64,170 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const menu = document.getElementById('offcanvasMenu');
-            const urlParams = new URLSearchParams(window.location.search);
-            const companyId = urlParams.get('companyId');
+            protectPage();
+            const user = getLoggedInUser();
+            const companyId = sessionStorage.getItem('selectedCompanyId');
+            const companyName = sessionStorage.getItem('selectedCompanyName');
+
+            if (!companyId) {
+                alert('No company selected. Redirecting...');
+                window.location.href = '/selection.html';
+                return;
+            }
+
+            // --- Elements ---
             const rulesList = document.getElementById('escalation-rules-list');
+            const logoutBtn = document.getElementById('logout-btn');
 
             let allProcesses = [];
             let allUsers = [];
-            let allGroups = [];
             let allRules = [];
 
-            const updateMenuLinks = (id) => {
-                if (!id) return;
-                menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
-                menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
-                menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
-                menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
-                menu.querySelector('#menu-monitoring').href = `/monitoring.html?companyId=${id}`;
-                menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
-                if (window.location.pathname.includes('escalation.html')) {
-                    menu.querySelector('#menu-escalation').classList.add('active');
-                }
+            // --- UI Setup ---
+            document.getElementById('header-title').textContent = `Escalation - ${companyName}`;
+            logoutBtn.addEventListener('click', logout);
+
+            const updateMenuLinks = () => {
+                const menu = document.getElementById('offcanvasMenu');
+                menu.querySelector('#menu-dashboard').href = `dashboard.html`;
+                menu.querySelector('#menu-users').href = `users.html`;
+                menu.querySelector('#menu-departments').href = `departments.html`;
+                menu.querySelector('#menu-processes').href = `processes.html`;
+                menu.querySelector('#menu-monitoring').href = `monitoring.html`;
+                menu.querySelector('#menu-escalation').href = `escalation.html`;
+                menu.querySelector('#menu-escalation').classList.add('active');
             };
 
-            const generateSelectOptions = (items) => {
-                let options = '<option selected value="">Choose...</option>';
-                items.forEach(item => {
-                    options += `<option value="${item.id}">${item.name}</option>`;
-                });
-                return options;
-            };
+            const generateSelectOptions = (items) => items.map(item => `<option value="${item.id}">${item.name}</option>`).join('');
 
             const updateUserDetails = (selectElement) => {
                 const userId = selectElement.value;
-                const level = selectElement.dataset.level;
-                const detailsDiv = selectElement.closest('td').querySelector(`.user-details[data-level="${level}"]`);
-
+                const detailsDiv = selectElement.closest('td').querySelector('.user-details');
                 if (!userId) {
                     detailsDiv.innerHTML = '';
                     return;
                 }
-
-                const user = allUsers.find(u => u.id == userId);
-                if (user) {
-                    detailsDiv.innerHTML = `
-                        <div>${user.email || ''}</div>
-                        <div>${user.phone || ''}</div>
-                    `;
+                const selectedUser = allUsers.find(u => u.id == userId);
+                if (selectedUser) {
+                    detailsDiv.innerHTML = `<div>${selectedUser.email || ''}</div><div>${selectedUser.phone || ''}</div>`;
                 }
             };
 
             const renderTable = () => {
                 rulesList.innerHTML = '';
+                const userOptions = '<option selected value="">Choose...</option>' + generateSelectOptions(allUsers);
+                const canEdit = user.role === 'admin' || user.role === 'superadmin';
+
                 allProcesses.forEach(proc => {
                     const rule = allRules.find(r => r.processId === proc.id) || {};
                     const row = document.createElement('tr');
                     row.dataset.processId = proc.id;
-                    row.dataset.ruleId = rule.id || '';
+                    if (rule.id) row.dataset.ruleId = rule.id;
 
                     row.innerHTML = `
                         <td>${proc.name}</td>
-                        <td>
-                            <select class="form-select form-select-sm group-select" disabled>
-                                ${generateSelectOptions(allGroups)}
-                            </select>
-                        </td>
                         ${[1, 2, 3, 4, 5].map(level => `
                             <td>
-                                <select class="form-select form-select-sm user-select" data-level="${level}" disabled>
-                                    ${generateSelectOptions(allUsers)}
+                                <select class="form-select form-select-sm user-select" data-level="${level}" ${!canEdit ? 'disabled' : ''}>
+                                    ${userOptions}
                                 </select>
-                                <div class="user-details" data-level="${level}"></div>
+                                <div class="user-details"></div>
                             </td>
                         `).join('')}
                         <td>
-                            <button class="btn btn-sm btn-warning edit-btn">Editar</button>
+                            ${canEdit ? `<button class="btn btn-sm btn-warning edit-btn">Editar</button>` : 'No actions'}
                         </td>
                     `;
                     rulesList.appendChild(row);
 
-                    const groupSelect = row.querySelector('.group-select');
-                    groupSelect.value = rule.groupId || '';
-
                     row.querySelectorAll('.user-select').forEach(select => {
-                        const level = select.dataset.level;
-                        const userLevel = rule.levels ? rule.levels.find(l => l.level === parseInt(level)) : null;
+                        const level = parseInt(select.dataset.level);
+                        const userLevel = rule.levels ? rule.levels.find(l => l.level === level) : null;
                         if (userLevel) {
                             select.value = userLevel.userId || '';
                             updateUserDetails(select);
                         }
+                        if (!canEdit) select.disabled = true;
                     });
                 });
             };
 
-            const fetchAllData = () => {
-                 Promise.all([
-                    fetch(`/api/processes?companyId=${companyId}`).then(res => res.json()),
-                    fetch(`/api/users?companyId=${companyId}`).then(res => res.json()),
-                    fetch(`/api/groups?companyId=${companyId}`).then(res => res.json()),
-                    fetch(`/api/escalations?companyId=${companyId}`).then(res => res.json())
-                ])
-                .then(([processes, users, groups, rules]) => {
-                    allProcesses = processes;
-                    allUsers = users;
-                    allGroups = groups;
-                    allRules = rules;
+            const fetchAllData = async () => {
+                const companyQueryParam = user.role === 'superadmin' ? `?companyId=${companyId}` : '';
+                try {
+                    const [processesRes, usersRes, rulesRes] = await Promise.all([
+                        fetchWithAuth(`/api/processes${companyQueryParam}`),
+                        fetchWithAuth(`/api/users${companyQueryParam}`),
+                        fetchWithAuth(`/api/escalations${companyQueryParam}`)
+                    ]);
+                    allProcesses = await processesRes.json();
+                    allUsers = await usersRes.json();
+                    allRules = await rulesRes.json();
                     renderTable();
-                })
-                .catch(error => console.error("Error during initial data fetch:", error));
+                } catch (error) {
+                    console.error("Error during initial data fetch:", error);
+                    rulesList.innerHTML = '<tr><td colspan="7" class="text-danger">Failed to load escalation data.</td></tr>';
+                }
             };
 
-            rulesList.addEventListener('click', (e) => {
+            // --- Event Listeners ---
+            rulesList.addEventListener('click', async (e) => {
                 const target = e.target;
                 const row = target.closest('tr');
-                if (!row) return;
+                if (!row || !target.matches('.edit-btn, .save-btn')) return;
 
                 if (target.classList.contains('edit-btn')) {
                     row.querySelectorAll('select').forEach(s => s.disabled = false);
                     target.textContent = 'Guardar';
-                    target.classList.remove('btn-warning', 'edit-btn');
-                    target.classList.add('btn-success', 'save-btn');
+                    target.classList.replace('btn-warning', 'btn-success');
+                    target.classList.replace('edit-btn', 'save-btn');
                 } else if (target.classList.contains('save-btn')) {
-                    const processId = row.dataset.processId;
-                    const ruleId = row.dataset.ruleId;
-                    const groupId = row.querySelector('.group-select').value;
-                    const levels = Array.from(row.querySelectorAll('.user-select'))
-                        .map(select => ({
-                            level: parseInt(select.dataset.level),
-                            userId: select.value ? parseInt(select.value) : null
-                        }))
-                        .filter(level => level.userId);
-
                     const ruleData = {
-                        id: ruleId ? parseInt(ruleId) : undefined,
-                        companyId: companyId,
-                        processId: processId,
-                        groupId: groupId ? parseInt(groupId) : null,
-                        levels: levels
+                        id: row.dataset.ruleId ? parseInt(row.dataset.ruleId) : undefined,
+                        processId: row.dataset.processId,
+                        levels: Array.from(row.querySelectorAll('.user-select'))
+                            .map(s => ({ level: parseInt(s.dataset.level), userId: s.value ? parseInt(s.value) : null }))
+                            .filter(l => l.userId)
                     };
 
-                    fetch('/api/escalations', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(ruleData)
-                    })
-                    .then(res => res.ok ? res.json() : Promise.reject('Failed to save rule'))
-                    .then((savedRule) => {
-                        row.dataset.ruleId = savedRule.id; // Update the row with the new ID from the server
+                    if (user.role === 'superadmin') {
+                        ruleData.companyId = companyId;
+                    }
+
+                    try {
+                        const response = await fetchWithAuth('/api/escalations', {
+                            method: 'POST',
+                            body: JSON.stringify(ruleData)
+                        });
+                        const savedRule = await response.json();
+
+                        row.dataset.ruleId = savedRule.id;
+                        const ruleIndex = allRules.findIndex(r => r.id === savedRule.id);
+                        if (ruleIndex > -1) allRules[ruleIndex] = savedRule;
+                        else allRules.push(savedRule);
+
                         row.querySelectorAll('select').forEach(s => s.disabled = true);
                         target.textContent = 'Editar';
-                        target.classList.remove('btn-success', 'save-btn');
-                        target.classList.add('btn-warning', 'edit-btn');
-                        // No full refresh needed, just update the local state
-                        const ruleIndex = allRules.findIndex(r => r.id === savedRule.id);
-                        if (ruleIndex > -1) {
-                            allRules[ruleIndex] = savedRule;
-                        } else {
-                            allRules.push(savedRule);
-                        }
-                    })
-                    .catch(err => console.error('Error saving rule:', err));
+                        target.classList.replace('btn-success', 'btn-warning');
+                        target.classList.replace('save-btn', 'edit-btn');
+                    } catch (err) {
+                        console.error('Error saving rule:', err);
+                        alert('Failed to save rule.');
+                    }
                 }
             });
 
             rulesList.addEventListener('change', (e) => {
-                if(e.target.classList.contains('user-select')) {
+                if (e.target.classList.contains('user-select')) {
                     updateUserDetails(e.target);
                 }
             });
 
-            // Initial Load
-            updateMenuLinks(companyId);
+            // --- Initial Load ---
+            updateMenuLinks();
             fetchAllData();
         });
     </script>

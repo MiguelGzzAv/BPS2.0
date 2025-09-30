@@ -7,60 +7,41 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .summary-card {
-            border-left-width: 5px;
-        }
+        .summary-card { border-left-width: 5px; }
         .border-ok { border-left-color: #198754; }
         .border-falla { border-left-color: #dc3545; }
         .border-error { border-left-color: #dc3545; }
         .border-ambar { border-left-color: #ffc107; }
         .border-sin-ejecucion { border-left-color: #6c757d; }
-        .top-processes .list-group-item {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.9rem;
-        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
         <div class="container-fluid">
-            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
-                Menu
-            </button>
-            <a class="navbar-brand" href="#">
+            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu">Menu</button>
+            <a class="navbar-brand ms-3" href="#">
                 <img src="logo.png" alt="Avatar Logo" style="width:40px;" class="rounded-pill">
             </a>
+            <div class="ms-auto">
+                <button id="logout-btn" class="btn btn-secondary">Logout</button>
+            </div>
         </div>
     </nav>
     <!-- Offcanvas Menu -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu">
         <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <h5 class="offcanvas-title">Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="/dashboard.html" class="nav-link" id="menu-dashboard">Dashboard</a>
-                </li>
-                <li>
-                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
-                </li>
-                <li>
-                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
-                </li>
-                <li>
-                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
-                </li>
-                <li>
-                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
-                </li>
-                <li>
-                    <a href="/monitoring.html" class="nav-link text-dark" id="menu-monitoring">Monitoring</a>
-                </li>
-                <li>
-                    <a href="/escalation.html" class="nav-link text-dark" id="menu-escalation">Escalation</a>
-                </li>
+                <li class="nav-item"><a href="#" class="nav-link" id="menu-dashboard">Dashboard</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-users">Users</a></li>
+                <li><a href="/selection.html" class="nav-link text-dark">Companies</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-departments">Departments</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-processes">Processes</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-monitoring">Monitoring</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-escalation">Escalation</a></li>
             </ul>
         </div>
     </div>
@@ -68,350 +49,175 @@
     <!-- Main Content -->
     <main class="container mt-4">
         <header class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Dashboard</h1>
-            <div>
-                <div class="btn-group" role="group" aria-label="View Toggles">
-                    <input type="radio" class="btn-check" name="view-toggle" id="view-cards" autocomplete="off" checked>
-                    <label class="btn btn-outline-primary" for="view-cards">Cards</label>
-
-                    <input type="radio" class="btn-check" name="view-toggle" id="view-gauges" autocomplete="off">
-                    <label class="btn btn-outline-primary" for="view-gauges">Gauges</label>
-
-                    <input type="radio" class="btn-check" name="view-toggle" id="view-donuts" autocomplete="off">
-                    <label class="btn btn-outline-primary" for="view-donuts">Donuts</label>
-                </div>
-                <div class="form-check form-switch d-inline-block ms-3">
-                    <input class="form-check-input" type="checkbox" id="pin-view-toggle">
-                    <label class="form-check-label" for="pin-view-toggle">Pin View</label>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <input type="date" id="date-filter" class="form-control">
-            </div>
+            <h1 id="dashboard-title">Dashboard</h1>
+            <input type="date" id="date-filter" class="form-control" style="width: auto;">
         </header>
 
         <!-- Tab Navigation -->
         <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="criticality-tab" data-bs-toggle="tab" data-bs-target="#criticality-content" type="button" role="tab" aria-controls="criticality-content" aria-selected="true">Criticidad</button>
+                <button class="nav-link active" id="criticality-tab" data-bs-toggle="tab" data-bs-target="#criticality-content" type="button">Criticidad</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="affected-tab" data-bs-toggle="tab" data-bs-target="#affected-content" type="button" role="tab" aria-controls="affected-content" aria-selected="false">Procesos Afectados</button>
+                <button class="nav-link" id="affected-tab" data-bs-toggle="tab" data-bs-target="#affected-content" type="button">Procesos Afectados</button>
             </li>
         </ul>
 
         <!-- Tab Content -->
         <div class="tab-content" id="dashboardTabContent">
-            <!-- Criticality Content -->
-            <div class="tab-pane fade show active" id="criticality-content" role="tabpanel" aria-labelledby="criticality-tab">
+            <div class="tab-pane fade show active" id="criticality-content" role="tabpanel">
                 <div id="loading-spinner" class="text-center mt-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
+                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
                 </div>
-                <div id="summary-container" class="row g-4 mt-1" style="display: none;">
-                    <!-- Summary cards will be injected here by JavaScript -->
-                </div>
+                <div id="summary-container" class="row g-4 mt-1" style="display: none;"></div>
             </div>
-            <!-- Affected Processes Content -->
-            <div class="tab-pane fade" id="affected-content" role="tabpanel" aria-labelledby="affected-tab">
-                <div id="affected-processes-container" class="mt-4">
-                    <!-- Affected processes will be injected here -->
-                    <p>Cargando procesos afectados...</p>
-                </div>
+            <div class="tab-pane fade" id="affected-content" role="tabpanel">
+                <div id="affected-processes-container" class="mt-4"><p>Cargando procesos afectados...</p></div>
             </div>
         </div>
     </main>
 
-    <!-- Process List Modal -->
-    <div class="modal fade" id="processListModal" tabindex="-1" aria-labelledby="processListModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="processListModalLabel">Process List</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="processListModalBody">
-                    <!-- Process list will be injected here -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            protectPage();
+            const user = getLoggedInUser();
+            const companyId = sessionStorage.getItem('selectedCompanyId');
+            const companyName = sessionStorage.getItem('selectedCompanyName');
+
+            if (!companyId) {
+                alert('No company selected. Redirecting to company selection.');
+                window.location.href = '/selection.html';
+                return;
+            }
+
+            // --- Elements ---
             const summaryContainer = document.getElementById('summary-container');
             const loadingSpinner = document.getElementById('loading-spinner');
             const dateFilter = document.getElementById('date-filter');
-            const menu = document.getElementById('offcanvasMenu');
-            const urlParams = new URLSearchParams(window.location.search);
-            const companyId = urlParams.get('companyId');
-            let currentView = 'cards';
-            let currentSummaryData = {};
-            const viewToggles = document.querySelectorAll('input[name="view-toggle"]');
-            const pinViewToggle = document.getElementById('pin-view-toggle');
-            const processListModal = new bootstrap.Modal(document.getElementById('processListModal'));
-            const processListModalLabel = document.getElementById('processListModalLabel');
-            const processListModalBody = document.getElementById('processListModalBody');
+            const logoutBtn = document.getElementById('logout-btn');
             const affectedTab = document.getElementById('affected-tab');
             const affectedContainer = document.getElementById('affected-processes-container');
+
+            let currentSummaryData = {};
             let affectedDataLoaded = false;
+            let charts = {};
 
+            // --- UI Setup ---
+            document.getElementById('dashboard-title').textContent = `Dashboard - ${companyName}`;
+            logoutBtn.addEventListener('click', logout);
 
-            // --- Menu Logic ---
-            const updateMenuLinks = (id) => {
-                if (!id) return;
-                menu.querySelector('#menu-dashboard').href = `dashboard.html?companyId=${id}`;
-                menu.querySelector('#menu-users').href = `users.html?companyId=${id}`;
-                menu.querySelector('#menu-departments').href = `departments.html?companyId=${id}`;
-                menu.querySelector('#menu-processes').href = `processes.html?companyId=${id}`;
-                menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
-                menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
-
-                const currentPage = window.location.pathname;
-                if (currentPage.includes('dashboard.html')) {
-                    menu.querySelector('#menu-dashboard').classList.add('active');
-                }
+            const updateMenuLinks = () => {
+                const menu = document.getElementById('offcanvasMenu');
+                menu.querySelector('#menu-dashboard').href = `dashboard.html`;
+                menu.querySelector('#menu-users').href = `users.html`;
+                menu.querySelector('#menu-departments').href = `departments.html`;
+                menu.querySelector('#menu-processes').href = `processes.html`;
+                menu.querySelector('#menu-monitoring').href = `monitoring.html`;
+                menu.querySelector('#menu-escalation').href = `escalation.html`;
+                menu.querySelector('#menu-dashboard').classList.add('active');
             };
 
             // --- Render Logic ---
-            const render = () => {
+            const renderSummary = () => {
                 summaryContainer.innerHTML = '';
+                Object.values(charts).forEach(chart => chart.destroy());
+                charts = {};
+
                 const statuses = ['ok', 'falla', 'error', 'ambar', 'sin ejecucion'];
-
                 statuses.forEach(status => {
-                    const data = currentSummaryData[status] || { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } };
-                    const container = document.createElement('div');
-                    container.className = 'col-lg-4 col-md-6 mb-4';
-
-                    const topProcesses = [...data.processes.Alta, ...data.processes.Media, ...data.processes.Baja].slice(0, 5);
-                    const footerHtml = `
-                        <div class="card-footer clickable-footer" data-status="${status}" style="cursor: pointer;">
-                            <h6 class="text-muted">Top Procesos</h6>
-                            <ul class="list-group list-group-flush">
-                                ${topProcesses.map(p => `<li class="list-group-item">${p}</li>`).join('')}
-                            </ul>
-                            ${data.total > 5 ? '<small class="text-primary">Ver más...</small>' : ''}
-                        </div>`;
-
-                    let cardBodyHtml = '';
-                    if (currentView === 'cards') {
-                        cardBodyHtml = `
-                            <div class="card-body text-center">
-                                <h5 class="card-title text-uppercase">${status}</h5>
-                                <p class="card-text display-4 fw-bold">${data.total}</p>
-                                <table class="table table-sm mt-3">
-                                    <tbody>
-                                        <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
-                                        <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
-                                        <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            ${footerHtml}`;
-                    } else {
-                        cardBodyHtml = `
-                            <div class="card-body text-center">
-                                <h5 class="card-title text-uppercase">${status}</h5>
-                                <div style="height: 150px; position: relative; margin-bottom: 1rem;">
-                                    <canvas id="chart-${status}"></canvas>
+                    const data = currentSummaryData[status] || { total: 0, Alta: 0, Media: 0, Baja: 0 };
+                    const cardHtml = `
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card summary-card border-${status.replace(/\s+/g, '-')} h-100">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-uppercase">${status}</h5>
+                                    <p class="card-text display-4 fw-bold">${data.total}</p>
+                                    <table class="table table-sm mt-3">
+                                        <tbody>
+                                            <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
+                                            <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
+                                            <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <table class="table table-sm">
-                                    <tbody>
-                                        <tr><td>Alta</td><td class="text-end">${data.Alta}</td></tr>
-                                        <tr><td>Media</td><td class="text-end">${data.Media}</td></tr>
-                                        <tr><td>Baja</td><td class="text-end">${data.Baja}</td></tr>
-                                    </tbody>
-                                </table>
                             </div>
-                            ${footerHtml}`;
-                    }
-
-                    container.innerHTML = `<div class="card summary-card border-${status.replace(/\s+/g, '-')} h-100">${cardBodyHtml}</div>`;
-                    summaryContainer.appendChild(container);
-
-                    if (currentView !== 'cards') {
-                        const ctx = document.getElementById(`chart-${status}`).getContext('2d');
-                        const chartData = {
-                            labels: ['Alta', 'Media', 'Baja'],
-                            datasets: [{
-                                data: [data.Alta, data.Media, data.Baja],
-                                backgroundColor: ['#dc3545', '#ffc107', '#198754']
-                            }]
-                        };
-                        const options = {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false },
-                                title: { display: false }
-                            },
-                            circumference: currentView === 'gauges' ? 180 : 360,
-                            rotation: currentView === 'gauges' ? -90 : 0
-                        };
-
-                        const chart = new Chart(ctx, {
-                            type: 'doughnut',
-                            data: chartData,
-                            options: options
-                        });
-
-                        ctx.canvas.onclick = (e) => {
-                            const activePoints = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
-                            if (activePoints.length > 0) {
-                                const clickedIndex = activePoints[0].index;
-                                const criticality = chartData.labels[clickedIndex];
-                                showProcessListModal(status, criticality);
-                            }
-                        };
-                    }
+                        </div>`;
+                    summaryContainer.insertAdjacentHTML('beforeend', cardHtml);
                 });
             };
 
-            const fetchSummary = (date) => {
-                if (!companyId) return;
-
+            const fetchSummary = async (date) => {
                 loadingSpinner.style.display = 'block';
                 summaryContainer.style.display = 'none';
 
-                fetch(`/api/summary?companyId=${companyId}&date=${date}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        currentSummaryData = data.summary;
-                        render();
-                    })
-                    .catch(error => {
-                        console.error('Error fetching summary:', error);
-                        summaryContainer.innerHTML = '<div class="alert alert-danger">Could not load summary data.</div>';
-                    })
-                    .finally(() => {
-                        loadingSpinner.style.display = 'none';
-                        summaryContainer.style.display = 'flex';
-                    });
+                let url = `/api/summary?date=${date}`;
+                // Superadmin needs to specify the company, for others it's inferred by the backend.
+                if (user.role === 'superadmin') {
+                    url += `&companyId=${companyId}`;
+                }
+
+                try {
+                    const response = await fetchWithAuth(url);
+                    const data = await response.json();
+                    currentSummaryData = data.summary;
+                    renderSummary();
+                } catch (error) {
+                    console.error('Error fetching summary:', error);
+                    summaryContainer.innerHTML = '<div class="alert alert-danger">Could not load summary data.</div>';
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                    summaryContainer.style.display = 'flex';
+                }
             };
 
             // --- Affected Processes Logic ---
             const renderAffectedProcesses = (data) => {
                 affectedContainer.innerHTML = '';
                 if (data.length === 0) {
-                    affectedContainer.innerHTML = '<div class="alert alert-info">No hay procesos afectados por fallas en sus dependencias.</div>';
+                    affectedContainer.innerHTML = '<div class="alert alert-info">No processes are affected by dependency failures.</div>';
                     return;
                 }
-
-                const list = document.createElement('div');
-                list.className = 'list-group';
-
-                data.forEach(item => {
-                    const statusBadge = `<span class="badge bg-${item.childStatus === 'falla' ? 'danger' : 'warning'}">${item.childStatus.toUpperCase()}</span>`;
-                    const listItem = document.createElement('div');
-                    listItem.className = 'list-group-item';
-                    listItem.innerHTML = `
+                const list = data.map(item => `
+                    <div class="list-group-item">
                         <div class="d-flex w-100 justify-content-between">
                             <h5 class="mb-1">${item.parentProcessName}</h5>
                             <small>ID: ${item.parentProcessId}</small>
                         </div>
-                        <p class="mb-1">
-                            Afectado por la falla del proceso hijo: <strong>${item.failingChildName}</strong> (ID: ${item.failingChildId})
-                        </p>
-                        <small>Estado del hijo: ${statusBadge}</small>
-                    `;
-                    list.appendChild(listItem);
-                });
-
-                affectedContainer.appendChild(list);
+                        <p class="mb-1">Affected by child: <strong>${item.failingChildName}</strong> (ID: ${item.failingChildId})</p>
+                        <small>Child Status: <span class="badge bg-${item.childStatus === 'falla' ? 'danger' : 'warning'}">${item.childStatus.toUpperCase()}</span></small>
+                    </div>`).join('');
+                affectedContainer.innerHTML = `<div class="list-group">${list}</div>`;
             };
 
-            const fetchAffectedProcesses = () => {
-                if (!companyId) return;
+            const fetchAffectedProcesses = async () => {
+                let url = '/api/affected-processes';
+                 if (user.role === 'superadmin') {
+                    url += `?companyId=${companyId}`;
+                }
 
-                fetch(`/api/affected-processes?companyId=${companyId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        renderAffectedProcesses(data);
-                        affectedDataLoaded = true;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching affected processes:', error);
-                        affectedContainer.innerHTML = '<div class="alert alert-danger">No se pudieron cargar los procesos afectados.</div>';
-                    });
+                try {
+                    const response = await fetchWithAuth(url);
+                    const data = await response.json();
+                    renderAffectedProcesses(data);
+                    affectedDataLoaded = true;
+                } catch (error) {
+                    console.error('Error fetching affected processes:', error);
+                    affectedContainer.innerHTML = '<div class="alert alert-danger">Could not load data.</div>';
+                }
             };
 
             // --- Event Listeners ---
-            viewToggles.forEach(toggle => {
-                toggle.addEventListener('change', (e) => {
-                    currentView = e.target.id.split('-')[1];
-                    render();
-                    if (pinViewToggle.checked) {
-                        localStorage.setItem('dashboardView', currentView);
-                    }
-                });
-            });
-
-            pinViewToggle.addEventListener('change', () => {
-                if (pinViewToggle.checked) {
-                    localStorage.setItem('dashboardView', currentView);
-                } else {
-                    localStorage.removeItem('dashboardView');
-                }
-            });
-
-            dateFilter.addEventListener('change', (e) => {
-                fetchSummary(e.target.value);
-            });
-
-            const showProcessListModal = (status, criticality = null) => {
-                const processData = currentSummaryData[status].processes;
-                let listHtml = '';
-                let title = '';
-
-                if (criticality) {
-                    title = `Procesos: ${status.toUpperCase()} - ${criticality}`;
-                    const processes = processData[criticality] || [];
-                    listHtml = processes.length > 0
-                        ? processes.map(p => `<li class="list-group-item">${p}</li>`).join('')
-                        : '<li class="list-group-item">No hay procesos en esta categoría.</li>';
-                } else {
-                    title = `Lista Completa: ${status.toUpperCase()}`;
-                    listHtml += '<li class="list-group-item list-group-item-danger"><strong>Alta</strong></li>';
-                    processData.Alta.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
-                    listHtml += '<li class="list-group-item list-group-item-warning mt-2"><strong>Media</strong></li>';
-                    processData.Media.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
-                    listHtml += '<li class="list-group-item list-group-item-success mt-2"><strong>Baja</strong></li>';
-                    processData.Baja.forEach(p => listHtml += `<li class="list-group-item">${p}</li>`);
-                }
-
-                processListModalLabel.textContent = title;
-                processListModalBody.innerHTML = `<ul class="list-group">${listHtml}</ul>`;
-                processListModal.show();
-            };
-
-            summaryContainer.addEventListener('click', (e) => {
-                const clickableFooter = e.target.closest('.clickable-footer');
-                if (clickableFooter) {
-                    const status = clickableFooter.dataset.status;
-                    showProcessListModal(status, null); // Pass null for criticality
-                }
-            });
-
+            dateFilter.addEventListener('change', (e) => fetchSummary(e.target.value));
             affectedTab.addEventListener('shown.bs.tab', () => {
-                if (!affectedDataLoaded) {
-                    fetchAffectedProcesses();
-                }
+                if (!affectedDataLoaded) fetchAffectedProcesses();
             });
 
             // --- Initial Load ---
-            const savedView = localStorage.getItem('dashboardView');
-            if (savedView) {
-                currentView = savedView;
-                document.getElementById(`view-${savedView}`).checked = true;
-                pinViewToggle.checked = true;
-            }
-
             const today = new Date().toISOString().slice(0, 10);
             dateFilter.value = today;
-            updateMenuLinks(companyId);
+            updateMenuLinks();
             fetchSummary(today);
         });
     </script>

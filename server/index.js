@@ -58,12 +58,21 @@ const processesByCompany = {
     ],
     '2': []
 };
-const usersByCompany = {
-    '1': [
-        { id: 1, name: 'John Doe', email: 'john@example.com', phone: '123-456-7890', username: 'johndoe', password: 'password123', groupId: 1 },
-        { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321', username: 'janesmith', password: 'password123', groupId: 2 }
-    ]
-};
+// --- Unified User Data with Roles ---
+const users = [
+    // Super Admin
+    { id: 1, name: 'Super Admin', username: 'superadmin', password: 'password123', role: 'superadmin' },
+
+    // Company 1 (Banorte)
+    { id: 2, name: 'Admin Banorte', username: 'admin_banorte', password: 'password123', role: 'admin', companyId: 1 },
+    { id: 3, name: 'Operator Banorte', username: 'operator_banorte', password: 'password123', role: 'operator', companyId: 1 },
+    { id: 4, name: 'Reader Banorte', username: 'reader_banorte', password: 'password123', role: 'reader', companyId: 1 },
+
+    // Company 2 (Banamex)
+    { id: 5, name: 'Admin Banamex', username: 'admin_banamex', password: 'password123', role: 'admin', companyId: 2 },
+    { id: 6, name: 'Operator Banamex', username: 'operator_banamex', password: 'password123', role: 'operator', companyId: 2 },
+    { id: 7, name: 'Reader Banamex', username: 'reader_banamex', password: 'password123', role: 'reader', companyId: 2 },
+];
 const groupsByCompany = {
     '1': [
         { id: 1, name: 'Administrators' },
@@ -83,14 +92,91 @@ const escalationsByCompany = {};
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // Middleware to parse JSON bodies
 
+// --- Authorization Middleware ---
+const authAndAuthzMiddleware = (req, res, next) => {
+    // 1. AUTHENTICATION: Find the user from the header
+    // In a real app, you'd parse a JWT. Here, we simulate with a header.
+    const userId = req.headers['x-user-id'];
+    if (!userId) {
+        return res.status(401).json({ error: 'Authentication required. Please provide x-user-id header.' });
+    }
+    const user = users.find(u => u.id === parseInt(userId));
+    if (!user) {
+        return res.status(401).json({ error: 'Invalid user.' });
+    }
+    req.user = user; // Attach user to the request for use in subsequent handlers
+
+    // 2. AUTHORIZATION: Check permissions based on role
+    const { role, companyId } = user;
+    const { method, path } = req;
+
+    // Superadmin can do anything, so we let them pass immediately.
+    if (role === 'superadmin') {
+        return next();
+    }
+
+    // --- Company Data Integrity Check ---
+    // For any request that includes a companyId in the query or body, it must match the user's companyId.
+    // This prevents a user from trying to write data into another company's records.
+    const requestedCompanyId = req.query.companyId || req.body.companyId;
+    if (requestedCompanyId && parseInt(requestedCompanyId) !== companyId) {
+        return res.status(403).json({ error: "Forbidden: You cannot specify a different company's ID." });
+    }
+
+    // --- Role-based Action Permissions ---
+    if (role === 'reader') {
+        // Readers can only perform GET requests.
+        if (method !== 'GET') {
+            return res.status(403).json({ error: 'Forbidden: Readers can only view data.' });
+        }
+    }
+
+    if (role === 'operator') {
+        // Operators can view data (GET) and submit specific operational data (POST).
+        const allowedPostPaths = ['/api/registrations', '/api/escalations'];
+        if (method !== 'GET' && !(method === 'POST' && allowedPostPaths.includes(path))) {
+            return res.status(403).json({ error: 'Forbidden: Operators can only view data and create operational records.' });
+        }
+    }
+
+    // Admins can perform all actions (GET, POST, PUT, DELETE) within their company.
+    // The company ID check above and the data filtering in each route will enforce this.
+    // No specific action block is needed here as they are allowed all methods.
+
+    next();
+};
+app.use('/api', authAndAuthzMiddleware); // Apply middleware to all API routes
+
 // --- API Routes ---
-// Companies
+// All routes below are protected by the authAndAuthzMiddleware
+
+// Helper to get companyId based on user role
+const getCompanyId = (req) => {
+    if (req.user.role === 'superadmin') {
+        // For superadmin, companyId must be provided in the request query or body
+        return req.query.companyId || req.body.companyId;
+    }
+    // For other roles, companyId is taken from their user profile
+    return req.user.companyId;
+};
+
+// Companies - Mostly Superadmin territory
 app.get('/api/companies', (req, res) => {
-    res.json(companies);
+    if (req.user.role === 'superadmin') {
+        res.json(companies);
+    } else {
+        // Non-superadmins only see their own company
+        const userCompany = companies.find(c => c.id === req.user.companyId);
+        res.json(userCompany ? [userCompany] : []);
+    }
 });
 
 app.get('/api/companies/:id', (req, res) => {
     const { id } = req.params;
+    // Allow if superadmin, or if the requested company ID matches the user's company ID
+    if (req.user.role !== 'superadmin' && req.user.companyId !== parseInt(id)) {
+        return res.status(403).json({ error: 'Forbidden: You can only view your own company.' });
+    }
     const company = companies.find(c => c.id === parseInt(id));
     if (company) {
         res.json(company);
@@ -99,7 +185,11 @@ app.get('/api/companies/:id', (req, res) => {
     }
 });
 
+// Company creation, deletion, and updating are restricted to Superadmin
 app.post('/api/companies', (req, res) => {
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Forbidden: Only superadmins can create companies.' });
+    }
     const { name } = req.body;
     if (!name) {
         return res.status(400).json({ error: 'Company name is required' });
@@ -111,6 +201,9 @@ app.post('/api/companies', (req, res) => {
 });
 
 app.delete('/api/companies/:id', (req, res) => {
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Forbidden: Only superadmins can delete companies.' });
+    }
     const { id } = req.params;
     const companyIndex = companies.findIndex(c => c.id === parseInt(id));
     if (companyIndex === -1) {
@@ -121,6 +214,9 @@ app.delete('/api/companies/:id', (req, res) => {
 });
 
 app.put('/api/companies/:id', (req, res) => {
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Forbidden: Only superadmins can update companies.' });
+    }
     const { id } = req.params;
     const { name } = req.body;
     const company = companies.find(c => c.id === parseInt(id));
@@ -213,9 +309,9 @@ const calculateAllProcessStates = (processes, registrations) => {
 
 // --- Process API Routes ---
 app.get('/api/processes', (req, res) => {
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
     const processes = processesByCompany[companyId] || [];
     const registrations = registrationsByCompany[companyId] || [];
@@ -230,9 +326,13 @@ app.get('/api/processes', (req, res) => {
 });
 
 app.post('/api/processes', (req, res) => {
-    const { companyId, processData } = req.body;
-    if (!companyId || !processData || !processData.id || !processData.name) {
-        return res.status(400).json({ error: 'companyId and process data are required' });
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+    const { processData } = req.body;
+    if (!processData || !processData.id || !processData.name) {
+        return res.status(400).json({ error: 'Process data (including id and name) is required.' });
     }
     if (!processesByCompany[companyId]) {
         processesByCompany[companyId] = [];
@@ -253,9 +353,13 @@ app.post('/api/processes', (req, res) => {
 
 app.put('/api/processes/:id', (req, res) => {
     const { id } = req.params;
-    const { companyId, processData } = req.body;
-    if (!companyId || !processData) {
-        return res.status(400).json({ error: 'companyId and processData are required' });
+    const companyId = getCompanyId(req);
+     if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+    const { processData } = req.body;
+    if (!processData) {
+        return res.status(400).json({ error: 'processData is required' });
     }
     const processes = processesByCompany[companyId] || [];
     const processIndex = processes.findIndex(p => p.id === id);
@@ -272,9 +376,9 @@ app.put('/api/processes/:id', (req, res) => {
 
 app.delete('/api/processes/:id', (req, res) => {
     const { id } = req.params;
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
     const processes = processesByCompany[companyId] || [];
     const processIndex = processes.findIndex(p => p.id === id);
@@ -295,9 +399,9 @@ app.delete('/api/processes/:id', (req, res) => {
 
 // Summary for Dashboard
 app.get('/api/summary', (req, res) => {
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
 
     const processes = processesByCompany[companyId] || [];
@@ -334,9 +438,9 @@ app.get('/api/summary', (req, res) => {
 
 // Affected Processes for Dashboard
 app.get('/api/affected-processes', (req, res) => {
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
 
     const processes = processesByCompany[companyId] || [];
@@ -378,24 +482,51 @@ app.get('/api/affected-processes', (req, res) => {
 });
 
 
-// Users
+// --- User Management API ---
 app.get('/api/users', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+    let usersToReturn = [];
+    if (req.user.role === 'superadmin') {
+        // Superadmin can see all users.
+        usersToReturn = users;
+    } else {
+        // Non-superadmins only see users from their own company.
+        usersToReturn = users.filter(u => u.companyId === req.user.companyId);
     }
-    const users = usersByCompany[companyId] || [];
-    res.json(users);
+
+    // Map users to include company name and exclude password
+    const usersWithDetails = usersToReturn.map(u => {
+        const company = companies.find(c => c.id === u.companyId);
+        const { password, ...userWithoutPassword } = u;
+        return { ...userWithoutPassword, companyName: company ? company.name : 'N/A' };
+    });
+    res.json(usersWithDetails);
 });
 
 app.post('/api/users', (req, res) => {
-    const { companyId, ...newUser } = req.body;
-    if (!companyId || !newUser.username || !newUser.name) {
-        return res.status(400).json({ error: 'companyId, username, and name are required' });
+    const newUser = req.body;
+
+    // Admins and Superadmins can create users. Middleware already blocks operators/readers.
+    // Add specific logic to prevent admins from creating users with higher privileges.
+    if (req.user.role === 'admin' && (newUser.role === 'admin' || newUser.role === 'superadmin')) {
+        return res.status(403).json({ error: 'Forbidden: Admins cannot create other admins or superadmins.' });
     }
-    if (!usersByCompany[companyId]) {
-        usersByCompany[companyId] = [];
+
+    if (!newUser.username || !newUser.name || !newUser.role) {
+         return res.status(400).json({ error: 'Username, name, and role are required' });
     }
+
+    let companyIdForNewUser;
+    if (req.user.role === 'superadmin') {
+        companyIdForNewUser = newUser.companyId;
+        // If the new user is not a superadmin, they must be assigned to a company.
+        if (newUser.role !== 'superadmin' && !companyIdForNewUser) {
+            return res.status(400).json({ error: 'Superadmin must specify a companyId for non-superadmin users' });
+        }
+    } else {
+        // Non-superadmins create users within their own company.
+        companyIdForNewUser = req.user.companyId;
+    }
+
     const userToSave = {
         id: Date.now(),
         name: newUser.name,
@@ -403,33 +534,39 @@ app.post('/api/users', (req, res) => {
         phone: newUser.phone,
         username: newUser.username,
         password: newUser.password, // In a real app, hash this
-        groupId: newUser.groupId
+        role: newUser.role,
+        companyId: companyIdForNewUser
     };
 
-    usersByCompany[companyId].push(userToSave);
-    console.log(`Added new user to company ${companyId}:`, userToSave);
-    res.status(201).json(userToSave);
+    users.push(userToSave);
+    console.log(`Added new user:`, userToSave);
+    const { password, ...userWithoutPassword } = userToSave;
+    res.status(201).json(userWithoutPassword);
 });
 
 // Groups
 app.get('/api/groups', (req, res) => {
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
     const groups = groupsByCompany[companyId] || [];
     res.json(groups);
 });
 
 app.post('/api/groups', (req, res) => {
-    const { companyId, ...newGroup } = req.body;
-    if (!companyId || !newGroup.name) {
-        return res.status(400).json({ error: 'companyId and group name are required' });
+    const companyId = getCompanyId(req);
+     if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ error: 'Group name is required' });
     }
     if (!groupsByCompany[companyId]) {
         groupsByCompany[companyId] = [];
     }
-    newGroup.id = Date.now(); // Simple unique ID
+    const newGroup = { id: Date.now(), name };
     groupsByCompany[companyId].push(newGroup);
     console.log(`Added new group to company ${companyId}:`, newGroup);
     res.status(201).json(newGroup);
@@ -437,23 +574,27 @@ app.post('/api/groups', (req, res) => {
 
 // Departments
 app.get('/api/departments', (req, res) => {
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
     const departments = departmentsByCompany[companyId] || [];
     res.json(departments);
 });
 
 app.post('/api/departments', (req, res) => {
-    const { companyId, ...newDepartment } = req.body;
-    if (!companyId || !newDepartment.name) {
-        return res.status(400).json({ error: 'companyId and department name are required' });
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+    const { name } = req.body;
+    if (!name) {
+        return res.status(400).json({ error: 'Department name is required' });
     }
     if (!departmentsByCompany[companyId]) {
         departmentsByCompany[companyId] = [];
     }
-    newDepartment.id = Date.now(); // Simple unique ID
+    const newDepartment = { id: Date.now(), name };
     departmentsByCompany[companyId].push(newDepartment);
     console.log(`Added new department to company ${companyId}:`, newDepartment);
     res.status(201).json(newDepartment);
@@ -462,18 +603,22 @@ app.post('/api/departments', (req, res) => {
 
 // Escalations
 app.get('/api/escalations', (req, res) => {
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
     const escalations = escalationsByCompany[companyId] || [];
     res.json(escalations);
 });
 
 app.post('/api/escalations', (req, res) => {
-    const { companyId, ...ruleData } = req.body;
-    if (!companyId || !ruleData.processId) {
-        return res.status(400).json({ error: 'companyId and processId are required' });
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+    const ruleData = req.body;
+    if (!ruleData.processId) {
+        return res.status(400).json({ error: 'processId is required' });
     }
 
     if (!escalationsByCompany[companyId]) {
@@ -503,9 +648,9 @@ app.post('/api/escalations', (req, res) => {
 
 app.delete('/api/escalations/:id', (req, res) => {
     const { id } = req.params;
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
     const escalations = escalationsByCompany[companyId] || [];
     const ruleIndex = escalations.findIndex(r => r.id === parseInt(id));
@@ -519,18 +664,22 @@ app.delete('/api/escalations/:id', (req, res) => {
 
 // Registrations
 app.get('/api/registrations', (req, res) => {
-    const { companyId } = req.query;
+    const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
     const registrations = registrationsByCompany[companyId] || [];
     res.json(registrations);
 });
 
 app.post('/api/registrations', (req, res) => {
-    const { companyId, processId, timestamp, values, phase } = req.body;
-    if (!companyId || !processId || !timestamp || !values) {
-        return res.status(400).json({ error: 'companyId, processId, timestamp, and values are required' });
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+    const { processId, timestamp, values, phase } = req.body;
+    if (!processId || !timestamp || !values) {
+        return res.status(400).json({ error: 'processId, timestamp, and values are required' });
     }
 
     if (!registrationsByCompany[companyId]) {
@@ -562,10 +711,16 @@ app.get('/', (req, res) => {
 
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
-    if (username === 'admin' && password === '12345') {
-        res.redirect('/selection.html');
+    const user = users.find(u => u.username === username && u.password === password);
+
+    if (user) {
+        // In a real app, you would generate a JWT token here.
+        // For this example, we'll send back the user object (excluding password).
+        const userToSend = { ...user };
+        delete userToSend.password;
+        res.json({ success: true, user: userToSend });
     } else {
-        res.send('Invalid username or password');
+        res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
 });
 
