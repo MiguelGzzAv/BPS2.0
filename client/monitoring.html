@@ -10,69 +10,39 @@
         .status-falla, .status-error { color: #dc3545; font-weight: bold; }
         .status-ambar { color: #ffc107; font-weight: bold; }
         .status-sin-ejecucion { color: #6c757d; font-weight: bold; }
-        .status-por-iniciar { color: #adb5bd; }
-
         .badge-ok { background-color: #198754; }
         .badge-falla, .badge-error { background-color: #dc3545; }
         .badge-ambar { background-color: #ffc107; color: #000; }
         .badge-sin-ejecucion { background-color: #6c757d; }
-        .badge-por-iniciar { background-color: #adb5bd; }
-
-        .badge { font-size: 0.9em; }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
         <div class="container-fluid">
-            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
-                Menu
-            </button>
-            <a class="navbar-brand" href="#">
-                <img src="logo.png" alt="Avatar Logo" style="width:40px;" class="rounded-pill">
-            </a>
+            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu">Menu</button>
+            <a class="navbar-brand ms-3" href="#"><img src="logo.png" alt="Avatar Logo" style="width:40px;" class="rounded-pill"></a>
+            <div class="ms-auto"><button id="logout-btn" class="btn btn-secondary">Logout</button></div>
         </div>
     </nav>
-    <!-- Offcanvas Menu -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menu</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu">
+        <div class="offcanvas-header"><h5 class="offcanvas-title">Menu</h5><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="/dashboard.html" class="nav-link" id="menu-dashboard">Dashboard</a>
-                </li>
-                <li>
-                    <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
-                </li>
-                <li>
-                    <a href="/selection.html" class="nav-link text-dark">Companies</a>
-                </li>
-                <li>
-                    <a href="/departments.html" class="nav-link text-dark" id="menu-departments">Departments</a>
-                </li>
-                <li>
-                    <a href="/processes.html" class="nav-link text-dark" id="menu-processes">Processes</a>
-                </li>
-                <li>
-                    <a href="/monitoring.html" class="nav-link text-dark" id="menu-monitoring">Monitoring</a>
-                </li>
-                <li>
-                    <a href="/escalation.html" class="nav-link text-dark" id="menu-escalation">Escalation</a>
-                </li>
+                <li><a href="#" class="nav-link text-dark" id="menu-dashboard">Dashboard</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-users">Users</a></li>
+                <li><a href="/selection.html" class="nav-link text-dark">Companies</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-departments">Departments</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-processes">Processes</a></li>
+                <li><a href="#" class="nav-link" id="menu-monitoring">Monitoring</a></li>
+                <li><a href="#" class="nav-link text-dark" id="menu-escalation">Escalation</a></li>
             </ul>
         </div>
     </div>
 
-    <!-- Main Content -->
     <main class="container mt-4">
-        <h1 class="mb-4">Process Monitoring</h1>
-
+        <h1 class="mb-4" id="header-title">Process Monitoring</h1>
         <div class="row mb-3 gx-2">
-            <div class="col-md-5">
-                <input type="text" id="filter-name" class="form-control" placeholder="Filter by process name...">
-            </div>
+            <div class="col-md-5"><input type="text" id="filter-name" class="form-control" placeholder="Filter by process name..."></div>
             <div class="col-md-4">
                 <select id="filter-status" class="form-select">
                     <option value="">All Statuses</option>
@@ -81,147 +51,84 @@
                     <option value="error">Error</option>
                     <option value="ambar">Ambar</option>
                     <option value="sin ejecucion">Sin Ejecucion</option>
-                    <option value="POR INICIAR">Por Iniciar</option>
                 </select>
             </div>
-            <div class="col-md-3">
-                <button id="sort-time" class="btn btn-outline-secondary w-100">Sort by Time</button>
-            </div>
+            <div class="col-md-3"><button id="sort-time" class="btn btn-outline-secondary w-100">Sort by Time</button></div>
         </div>
-
         <table class="table table-hover">
             <thead class="table-light">
-                <tr>
-                    <th>PROCESO</th>
-                    <th>INICIO</th>
-                    <th>FIN</th>
-                    <th>ESTATUS</th>
-                    <th>URGENCIA</th>
-                    <th>ACCIONES</th>
-                </tr>
+                <tr><th>PROCESO</th><th>INICIO</th><th>FIN</th><th>ESTATUS</th><th>URGENCIA</th><th>ACCIONES</th></tr>
             </thead>
-            <tbody id="monitoring-list">
-                <!-- Process rows will be inserted here by JavaScript -->
-            </tbody>
+            <tbody id="monitoring-list"></tbody>
         </table>
     </main>
 
-    <!-- Single Registration Modal -->
-    <div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header" style="background-color: #343a40; color: white;">
-                    <h5 class="modal-title" id="registrationModalLabel">Crear Registro</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="process-info-bar mb-3 p-2 rounded" style="background-color: #e9ecef;">
-                        <div class="d-flex justify-content-between">
-                            <div><strong>Proceso:</strong> <span id="modal-process-name"></span></div>
-                            <div>
-                                <strong>Hora Inicio:</strong> <span id="modal-start-time"></span>
-                                <strong class="ms-4">Hora Fin:</strong> <span id="modal-end-time"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <form id="modal-registration-form">
-                        <!-- Dynamic form fields for single registration -->
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="button" class="btn btn-primary" id="save-single-registration-btn">Guardar Registro</button>
-                </div>
-            </div>
-        </div>
+    <div class="modal fade" id="registrationModal" tabindex="-1">
+        <div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="registrationModalLabel">Crear Registro</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="process-info-bar mb-3 p-2 rounded bg-light"><div><strong>Proceso:</strong> <span id="modal-process-name"></span></div></div><form id="modal-registration-form"></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button><button type="button" class="btn btn-primary" id="save-single-registration-btn">Guardar</button></div></div></div>
     </div>
-
-    <!-- Multi-Phase Registration Modal -->
-    <div class="modal fade" id="multiPhaseRegistrationModal" tabindex="-1" aria-labelledby="multiPhaseRegistrationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-fullscreen">
-            <div class="modal-content">
-                <div class="modal-header" style="background-color: #0d6efd; color: white;">
-                    <h5 class="modal-title" id="multiPhaseRegistrationModalLabel">Registrar Fases del Proceso</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Fase</th>
-                                    <th>Estatus Actual</th>
-                                    <th>Campos de Registro</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="multi-phase-table-body">
-                                <!-- Phase rows will be injected by JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM Elements ---
+            protectPage();
+            const user = getLoggedInUser();
+            const companyId = sessionStorage.getItem('selectedCompanyId');
+            const companyName = sessionStorage.getItem('selectedCompanyName');
+
+            if (!companyId) {
+                alert('No company selected. Redirecting...');
+                window.location.href = '/selection.html';
+                return;
+            }
+
+            const canRegister = user.role === 'admin' || user.role === 'superadmin' || user.role === 'operator';
+
+            // --- Elements ---
             const monitoringList = document.getElementById('monitoring-list');
-            const menu = document.getElementById('offcanvasMenu');
-            const sortTimeButton = document.getElementById('sort-time');
             const registrationModal = new bootstrap.Modal(document.getElementById('registrationModal'));
-            const multiPhaseRegistrationModal = new bootstrap.Modal(document.getElementById('multiPhaseRegistrationModal'));
             const modalProcessName = document.getElementById('modal-process-name');
-            const modalStartTime = document.getElementById('modal-start-time');
-            const modalEndTime = document.getElementById('modal-end-time');
             const modalRegistrationForm = document.getElementById('modal-registration-form');
             const saveSingleRegistrationBtn = document.getElementById('save-single-registration-btn');
-            const multiPhaseModalLabel = document.getElementById('multiPhaseRegistrationModalLabel');
-            const multiPhaseTableBody = document.getElementById('multi-phase-table-body');
+            const logoutBtn = document.getElementById('logout-btn');
 
             // --- State ---
-            const urlParams = new URLSearchParams(window.location.search);
-            const companyId = urlParams.get('companyId') || 'default';
-            let userList = [];
             let currentProcessId = null;
-            let currentPhaseName = null;
             let masterProcessList = [];
             let allRegistrations = [];
 
-            // --- Menu Logic ---
-            const updateMenuLinks = (id) => {
-                if (!id) return;
-                menu.querySelector('#menu-dashboard').href = `dashboard.html?companyId=${id}`;
-                menu.querySelector('#menu-users').href = `users.html?companyId=${id}`;
-                menu.querySelector('#menu-departments').href = `departments.html?companyId=${id}`;
-                menu.querySelector('#menu-processes').href = `processes.html?companyId=${id}`;
-                menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
-                menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
-                if (window.location.pathname.includes('monitoring.html')) {
-                    menu.querySelector('#menu-monitoring').classList.add('active');
-                }
+            // --- UI Setup ---
+            document.getElementById('header-title').textContent = `Monitoring - ${companyName}`;
+            logoutBtn.addEventListener('click', logout);
+
+            const updateMenuLinks = () => {
+                const menu = document.getElementById('offcanvasMenu');
+                menu.querySelector('#menu-dashboard').href = `dashboard.html`;
+                menu.querySelector('#menu-users').href = `users.html`;
+                menu.querySelector('#menu-departments').href = `departments.html`;
+                menu.querySelector('#menu-processes').href = `processes.html`;
+                menu.querySelector('#menu-monitoring').href = `monitoring.html`;
+                menu.querySelector('#menu-escalation').href = `escalation.html`;
+                menu.querySelector('#menu-monitoring').classList.add('active');
             };
 
             // --- Data Fetching ---
-            const fetchAndRenderAll = () => {
-                if (!companyId) return;
-                Promise.all([
-                    fetch(`/api/processes?companyId=${companyId}`).then(res => res.json()),
-                    fetch(`/api/registrations?companyId=${companyId}`).then(res => res.json()),
-                    fetch(`/api/users?companyId=${companyId}`).then(res => res.ok ? res.json() : [])
-                ]).then(([processes, registrations, users]) => {
-                    masterProcessList = processes;
-                    allRegistrations = registrations;
-                    userList = users;
+            const fetchAndRenderAll = async () => {
+                const companyQueryParam = user.role === 'superadmin' ? `?companyId=${companyId}` : '';
+                try {
+                    const [processesRes, registrationsRes] = await Promise.all([
+                        fetchWithAuth(`/api/processes${companyQueryParam}`),
+                        fetchWithAuth(`/api/registrations${companyQueryParam}`)
+                    ]);
+                    if (!processesRes.ok || !registrationsRes.ok) throw new Error('Failed to fetch initial data');
+
+                    masterProcessList = await processesRes.json();
+                    allRegistrations = await registrationsRes.json();
                     displayProcesses();
-                }).catch(error => console.error('Error fetching data:', error));
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                    monitoringList.innerHTML = '<tr><td colspan="6" class="text-danger">Error loading data. Please try again.</td></tr>';
+                }
             };
 
             // --- Rendering ---
@@ -230,188 +137,98 @@
                 const statusFilter = document.getElementById('filter-status').value;
                 let processesToDisplay = [...masterProcessList];
 
-                if (nameFilter) {
-                    processesToDisplay = processesToDisplay.filter(p => p.name.toLowerCase().includes(nameFilter));
-                }
-                if (statusFilter) {
-                    processesToDisplay = processesToDisplay.filter(p => p.status === statusFilter);
-                }
-
-                if (sortTimeButton.dataset.sortOrder) {
-                    processesToDisplay.sort((a, b) => {
-                        const timeA = parseInt(a.startTime.replace(':', ''), 10);
-                        const timeB = parseInt(b.startTime.replace(':', ''), 10);
-                        return sortTimeButton.dataset.sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
-                    });
-                }
+                if (nameFilter) processesToDisplay = processesToDisplay.filter(p => p.name.toLowerCase().includes(nameFilter));
+                if (statusFilter) processesToDisplay = processesToDisplay.filter(p => p.status === statusFilter);
 
                 monitoringList.innerHTML = '';
                 if (processesToDisplay.length === 0) {
                     monitoringList.innerHTML = '<tr><td colspan="6" class="text-center">No matching processes found.</td></tr>';
                     return;
                 }
-
-                const processMap = new Map(masterProcessList.map(p => [p.id, p]));
-                const childProcessIds = new Set(masterProcessList.flatMap(p => (p.childProcesses || []).map(child => child.id)));
-
-                processesToDisplay.forEach(proc => {
-                    if (!childProcessIds.has(proc.id)) {
-                        renderProcessRow(proc, 0, processMap);
-                    }
-                });
+                processesToDisplay.forEach(proc => renderProcessRow(proc));
             };
 
-            const renderProcessRow = (proc, level, processMap) => {
-                const status = proc.status || 'POR INICIAR';
-                const rowClass = getRowClass(status);
-                const hasChildren = proc.childProcesses && proc.childProcesses.length > 0;
-                const parentClass = level > 0 ? `child-of-${proc.parentId}` : '';
-                const row = document.createElement('tr');
-                row.className = `${rowClass} ${parentClass}`.trim() + (level > 0 ? ' collapse' : '');
-                row.setAttribute('data-process-id', proc.id);
-
-                const hasActiveDependency = hasChildren && proc.childProcesses.some(c => c.dependency);
-                const hasOwnFieldsToRegister = proc.internalPhases && proc.internalPhases.some(phase => phase.fields && phase.fields.length > 0);
-                const showRegisterButton = !(hasActiveDependency && !hasOwnFieldsToRegister);
-
+            const renderProcessRow = (proc) => {
+                const status = proc.status || 'sin ejecucion';
                 const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
+                const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td style="padding-left: ${level * 25}px;">
-                        ${hasChildren ? `<button class="btn btn-sm btn-light me-2 expand-btn" data-bs-toggle="collapse" data-bs-target=".child-of-${proc.id}">▶</button>` : `<span style="display: inline-block; width: 38px;"></span>`}
-                        ${proc.name}
-                    </td>
-                    <td>${proc.startTime}</td>
-                    <td>${proc.endTime}</td>
+                    <td>${proc.name}</td>
+                    <td>${proc.startTime || 'N/A'}</td>
+                    <td>${proc.endTime || 'N/A'}</td>
                     <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
                     <td><span class="badge bg-secondary">${proc.criticidad || 'Baja'}</span></td>
-                    <td>${showRegisterButton ? `<button class="btn btn-primary btn-sm register-btn">Registrar</button>` : ''}</td>
+                    <td>${canRegister ? `<button class="btn btn-primary btn-sm register-btn" data-id="${proc.id}">Registrar</button>` : 'No actions'}</td>
                 `;
                 monitoringList.appendChild(row);
-
-                if (hasChildren) {
-                    proc.childProcesses.forEach(childLink => {
-                        const childProc = processMap.get(childLink.id);
-                        if (childProc) {
-                            childProc.parentId = proc.id; // Pass parent id for class linking
-                            renderProcessRow(childProc, level + 1, processMap);
-                        }
-                    });
-                }
             };
 
-            const getRowClass = (status) => {
-                const s = status.toLowerCase();
-                if (s === 'ok') return 'table-success';
-                if (s === 'falla' || s === 'error') return 'table-danger';
-                if (s === 'ambar') return 'table-warning';
-                if (s === 'sin ejecucion') return 'table-secondary';
-                return '';
-            };
-
-            // --- Event Listeners & Modal Logic ---
-            monitoringList.addEventListener('click', (e) => {
-                const registerBtn = e.target.closest('.register-btn');
-                if (registerBtn) {
-                    const row = e.target.closest('tr');
-                    const procId = row.dataset.processId;
-                    const proc = masterProcessList.find(p => p.id === procId);
-                    if (proc) {
-                        if (proc.mode === 'Multiple') openMultiPhaseModal(proc);
-                        else openRegistrationModal(proc);
-                    }
-                }
-            });
-
-            const openRegistrationModal = (proc, phaseName = null) => {
+            // --- Modal & Form Logic ---
+            const openRegistrationModal = (proc) => {
                 currentProcessId = proc.id;
-                currentPhaseName = phaseName || (proc.internalPhases && proc.internalPhases.length > 0 ? proc.internalPhases[0].name : 'default');
-                modalProcessName.textContent = phaseName ? `${proc.name} - ${phaseName}` : proc.name;
-                modalStartTime.textContent = proc.startTime;
-                modalEndTime.textContent = proc.endTime;
+                modalProcessName.textContent = proc.name;
                 modalRegistrationForm.innerHTML = '';
-                const phase = proc.internalPhases.find(p => p.name === currentPhaseName) || { fields: [] };
-                if (phase.fields && phase.fields.length > 0) {
-                    phase.fields.forEach(field => modalRegistrationForm.insertAdjacentHTML('beforeend', getFormFieldHtml(field)));
+                const phase = proc.internalPhases.find(p => p.name === 'default') || { fields: [] };
+                if (phase.fields.length > 0) {
+                    phase.fields.forEach(field => {
+                        const fieldId = `field-${field.name.replace(/\s+/g, '-')}`;
+                        modalRegistrationForm.insertAdjacentHTML('beforeend', `
+                            <div class="row mb-3">
+                                <label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label>
+                                <div class="col-sm-8">
+                                    <select id="${fieldId}" class="form-select" data-field-name="${field.name}">
+                                        <option value="ok">OK</option>
+                                        <option value="falla">Falla</option>
+                                        <option value="ambar">Ambar</option>
+                                    </select>
+                                </div>
+                            </div>`);
+                    });
                 } else {
-                    modalRegistrationForm.innerHTML = '<p>No fields defined for this registration.</p>';
+                    modalRegistrationForm.innerHTML = '<p>No registration fields defined for this process.</p>';
                 }
                 registrationModal.show();
             };
 
-            const openMultiPhaseModal = (proc) => {
-                multiPhaseModalLabel.textContent = `Registrar Fases: ${proc.name}`;
-                multiPhaseTableBody.innerHTML = '';
-                proc.internalPhases.forEach(phase => {
-                    const latestPhaseReg = allRegistrations.filter(r => r.processId === proc.id && r.phase === phase.name).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-                    const currentStatus = latestPhaseReg?.values.find(v => v.name === 'Status')?.value || 'N/A';
-                    const badgeClass = `badge-${currentStatus.toLowerCase().replace(/\s+/g, '-')}`;
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${phase.name}</td>
-                        <td><span class="badge ${badgeClass}">${currentStatus.toUpperCase()}</span></td>
-                        <td class="phase-form-fields">${(phase.fields || []).map(field => `<div class="mb-2">${getFormFieldHtml(field, true)}</div>`).join('')}</td>
-                        <td><button class="btn btn-success btn-sm save-phase-btn" data-process-id="${proc.id}" data-phase-name="${phase.name}">Guardar</button></td>
-                    `;
-                    multiPhaseTableBody.appendChild(row);
-                });
-                multiPhaseRegistrationModal.show();
-            };
-
-            const getFormFieldHtml = (field, isInline = false) => {
-                const fieldId = `field-${field.name.replace(/\s+/g, '-')}-${Date.now()}`;
-                let inputHtml = '';
-                switch (field.type) {
-                    case 'status':
-                        inputHtml = `<select id="${fieldId}" class="form-select form-select-sm" data-field-name="${field.name}">${['ok', 'falla', 'ambar', 'error', 'sin ejecucion'].map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`).join('')}</select>`;
-                        break;
-                    case 'responsable':
-                        inputHtml = `<select id="${fieldId}" class="form-select form-select-sm" data-field-name="${field.name}"><option selected>Choose...</option>${userList.map(user => `<option value="${user.name}">${user.name}</option>`).join('')}</select>`;
-                        break;
-                    default:
-                        inputHtml = `<input type="text" id="${fieldId}" class="form-control form-control-sm" data-field-name="${field.name}" placeholder="${field.name}">`;
-                }
-                return isInline ? inputHtml : `<div class="row mb-3"><label for="${fieldId}" class="col-sm-4 col-form-label">${field.name}</label><div class="col-sm-8">${inputHtml}</div></div>`;
-            };
-
-            const saveRegistration = (companyId, processId, phase, values) => {
-                const registrationData = { companyId, processId, phase, values, timestamp: new Date().toISOString() };
-                fetch('/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registrationData) })
-                .then(res => res.ok ? res.json() : Promise.reject('Failed to save'))
-                .then(() => {
-                    registrationModal.hide();
-                    multiPhaseRegistrationModal.hide();
-                    fetchAndRenderAll();
-                })
-                .catch(err => { console.error(err); alert('Error saving.'); });
-            };
-
-            saveSingleRegistrationBtn.addEventListener('click', () => {
+            const saveRegistration = async () => {
                 const values = Array.from(modalRegistrationForm.querySelectorAll('[data-field-name]')).map(input => ({ name: input.dataset.fieldName, value: input.value }));
-                saveRegistration(companyId, currentProcessId, currentPhaseName, values);
-            });
+                const registrationData = { processId: currentProcessId, values, timestamp: new Date().toISOString() };
 
-            multiPhaseTableBody.addEventListener('click', (e) => {
-                if (e.target.classList.contains('save-phase-btn')) {
-                    const button = e.target;
-                    const procId = button.dataset.processId;
-                    const phaseName = button.dataset.phaseName;
-                    const values = Array.from(button.closest('tr').querySelectorAll('[data-field-name]')).map(input => ({ name: input.dataset.fieldName, value: input.value }));
-                    saveRegistration(companyId, procId, phaseName, values);
+                if (user.role === 'superadmin') {
+                    registrationData.companyId = companyId;
+                }
+
+                try {
+                    await fetchWithAuth('/api/registrations', { method: 'POST', body: JSON.stringify(registrationData) });
+                    registrationModal.hide();
+                    fetchAndRenderAll();
+                } catch (err) {
+                    console.error(err);
+                    alert('Error saving registration.');
+                }
+            };
+
+            // --- Event Listeners ---
+            monitoringList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('register-btn')) {
+                    const procId = e.target.dataset.id;
+                    const proc = masterProcessList.find(p => p.id === procId);
+                    if (proc) openRegistrationModal(proc);
                 }
             });
 
-            // --- Initial Load & Intervals ---
-            updateMenuLinks(companyId);
-            fetchAndRenderAll();
-            setInterval(fetchAndRenderAll, 60000); // Refresh every 60 seconds
-
-            // --- Filters ---
+            saveSingleRegistrationBtn.addEventListener('click', saveRegistration);
             document.getElementById('filter-name').addEventListener('input', displayProcesses);
             document.getElementById('filter-status').addEventListener('change', displayProcesses);
-            sortTimeButton.addEventListener('click', () => {
-                sortTimeButton.dataset.sortOrder = sortTimeButton.dataset.sortOrder === 'asc' ? 'desc' : 'asc';
+            document.getElementById('sort-time').addEventListener('click', function() {
+                this.dataset.sortOrder = this.dataset.sortOrder === 'asc' ? 'desc' : 'asc';
                 displayProcesses();
             });
+
+            // --- Initial Load ---
+            updateMenuLinks();
+            fetchAndRenderAll();
+            setInterval(fetchAndRenderAll, 60000); // Refresh every 60 seconds
         });
     </script>
 </body>

@@ -278,10 +278,12 @@ const calculateAllProcessStates = (processes, registrations) => {
         let hasDependentChildren = false;
 
         if (proc.childProcesses && proc.childProcesses.length > 0) {
-            proc.childProcesses.forEach(child => {
-                if (child.dependency) {
+            proc.childProcesses.forEach(childRef => {
+                const childProc = processMap.get(childRef.id);
+                // Only consider children that actually exist and have a dependency
+                if (childProc && childRef.dependency) {
                     hasDependentChildren = true;
-                    const childStatus = getStatus(child.id);
+                    const childStatus = getStatus(childRef.id);
                     if (statusPriority[childStatus] > statusPriority[mostCriticalChildStatus]) {
                         mostCriticalChildStatus = childStatus;
                     }
