@@ -61,6 +61,9 @@
                 <li>
                     <a href="/escalation.html" class="nav-link text-dark" id="menu-escalation">Escalation</a>
                 </li>
+                 <li>
+                    <a href="/configuration.html" class="nav-link text-dark" id="menu-configuration">Configuration</a>
+                </li>
             </ul>
         </div>
     </div>
@@ -97,7 +100,7 @@
                     <th>FIN</th>
                     <th>ESTATUS</th>
                     <th>URGENCIA</th>
-                    <th>ACCIONES</th>
+                    <th class="actions-header">ACCIONES</th>
                 </tr>
             </thead>
             <tbody id="monitoring-list">
@@ -168,11 +171,18 @@
         </div>
     </div>
 
-
+    <script src="auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM Elements ---
+            const userRole = window.loggedInUser ? window.loggedInUser.role : 'Reader';
+            const companyId = window.loggedInUser ? window.loggedInUser.companyId : null;
+
+            const actionsHeader = document.querySelector('.actions-header');
+            if (userRole === 'Reader') {
+                if (actionsHeader) actionsHeader.style.display = 'none';
+            }
+
             const monitoringList = document.getElementById('monitoring-list');
             const menu = document.getElementById('offcanvasMenu');
             const sortTimeButton = document.getElementById('sort-time');
@@ -186,36 +196,32 @@
             const multiPhaseModalLabel = document.getElementById('multiPhaseRegistrationModalLabel');
             const multiPhaseTableBody = document.getElementById('multi-phase-table-body');
 
-            // --- State ---
-            const urlParams = new URLSearchParams(window.location.search);
-            const companyId = urlParams.get('companyId') || 'default';
             let userList = [];
             let currentProcessId = null;
             let currentPhaseName = null;
             let masterProcessList = [];
             let allRegistrations = [];
 
-            // --- Menu Logic ---
             const updateMenuLinks = (id) => {
-                if (!id) return;
+                if (!id || !window.loggedInUser) return;
                 menu.querySelector('#menu-dashboard').href = `dashboard.html?companyId=${id}`;
                 menu.querySelector('#menu-users').href = `users.html?companyId=${id}`;
                 menu.querySelector('#menu-departments').href = `departments.html?companyId=${id}`;
                 menu.querySelector('#menu-processes').href = `processes.html?companyId=${id}`;
                 menu.querySelector('#menu-monitoring').href = `monitoring.html?companyId=${id}`;
                 menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
+                menu.querySelector('#menu-configuration').href = `/configuration.html?companyId=${id}`;
                 if (window.location.pathname.includes('monitoring.html')) {
                     menu.querySelector('#menu-monitoring').classList.add('active');
                 }
             };
 
-            // --- Data Fetching ---
             const fetchAndRenderAll = () => {
                 if (!companyId) return;
                 Promise.all([
-                    fetch(`/api/processes?companyId=${companyId}`).then(res => res.json()),
-                    fetch(`/api/registrations?companyId=${companyId}`).then(res => res.json()),
-                    fetch(`/api/users?companyId=${companyId}`).then(res => res.ok ? res.json() : [])
+                    fetch(`/api/processes?companyId=${companyId}`, {credentials: 'same-origin'}).then(res => res.json()),
+                    fetch(`/api/registrations?companyId=${companyId}`, {credentials: 'same-origin'}).then(res => res.json()),
+                    fetch(`/api/users?companyId=${companyId}`, {credentials: 'same-origin'}).then(res => res.ok ? res.json() : [])
                 ]).then(([processes, registrations, users]) => {
                     masterProcessList = processes;
                     allRegistrations = registrations;
@@ -224,7 +230,6 @@
                 }).catch(error => console.error('Error fetching data:', error));
             };
 
-            // --- Rendering ---
             const displayProcesses = () => {
                 const nameFilter = document.getElementById('filter-name').value.toLowerCase();
                 const statusFilter = document.getElementById('filter-status').value;
@@ -272,9 +277,15 @@
 
                 const hasActiveDependency = hasChildren && proc.childProcesses.some(c => c.dependency);
                 const hasOwnFieldsToRegister = proc.internalPhases && proc.internalPhases.some(phase => phase.fields && phase.fields.length > 0);
-                const showRegisterButton = !(hasActiveDependency && !hasOwnFieldsToRegister);
+                let showRegisterButton = !(hasActiveDependency && !hasOwnFieldsToRegister);
+
+                if (userRole === 'Reader') {
+                    showRegisterButton = false;
+                }
 
                 const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
+                const actionsHtml = showRegisterButton ? `<td class="actions-cell"><button class="btn btn-primary btn-sm register-btn">Registrar</button></td>` : `<td class="actions-cell"></td>`;
+
                 row.innerHTML = `
                     <td style="padding-left: ${level * 25}px;">
                         ${hasChildren ? `<button class="btn btn-sm btn-light me-2 expand-btn" data-bs-toggle="collapse" data-bs-target=".child-of-${proc.id}">▶</button>` : `<span style="display: inline-block; width: 38px;"></span>`}
@@ -284,15 +295,19 @@
                     <td>${proc.endTime}</td>
                     <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
                     <td><span class="badge bg-secondary">${proc.criticidad || 'Baja'}</span></td>
-                    <td>${showRegisterButton ? `<button class="btn btn-primary btn-sm register-btn">Registrar</button>` : ''}</td>
+                    ${actionsHtml}
                 `;
                 monitoringList.appendChild(row);
+
+                if (userRole === 'Reader') {
+                    document.querySelectorAll('.actions-cell').forEach(c => c.style.display = 'none');
+                }
 
                 if (hasChildren) {
                     proc.childProcesses.forEach(childLink => {
                         const childProc = processMap.get(childLink.id);
                         if (childProc) {
-                            childProc.parentId = proc.id; // Pass parent id for class linking
+                            childProc.parentId = proc.id;
                             renderProcessRow(childProc, level + 1, processMap);
                         }
                     });
@@ -306,55 +321,6 @@
                 if (s === 'ambar') return 'table-warning';
                 if (s === 'sin ejecucion') return 'table-secondary';
                 return '';
-            };
-
-            // --- Event Listeners & Modal Logic ---
-            monitoringList.addEventListener('click', (e) => {
-                const registerBtn = e.target.closest('.register-btn');
-                if (registerBtn) {
-                    const row = e.target.closest('tr');
-                    const procId = row.dataset.processId;
-                    const proc = masterProcessList.find(p => p.id === procId);
-                    if (proc) {
-                        if (proc.mode === 'Multiple') openMultiPhaseModal(proc);
-                        else openRegistrationModal(proc);
-                    }
-                }
-            });
-
-            const openRegistrationModal = (proc, phaseName = null) => {
-                currentProcessId = proc.id;
-                currentPhaseName = phaseName || (proc.internalPhases && proc.internalPhases.length > 0 ? proc.internalPhases[0].name : 'default');
-                modalProcessName.textContent = phaseName ? `${proc.name} - ${phaseName}` : proc.name;
-                modalStartTime.textContent = proc.startTime;
-                modalEndTime.textContent = proc.endTime;
-                modalRegistrationForm.innerHTML = '';
-                const phase = proc.internalPhases.find(p => p.name === currentPhaseName) || { fields: [] };
-                if (phase.fields && phase.fields.length > 0) {
-                    phase.fields.forEach(field => modalRegistrationForm.insertAdjacentHTML('beforeend', getFormFieldHtml(field)));
-                } else {
-                    modalRegistrationForm.innerHTML = '<p>No fields defined for this registration.</p>';
-                }
-                registrationModal.show();
-            };
-
-            const openMultiPhaseModal = (proc) => {
-                multiPhaseModalLabel.textContent = `Registrar Fases: ${proc.name}`;
-                multiPhaseTableBody.innerHTML = '';
-                proc.internalPhases.forEach(phase => {
-                    const latestPhaseReg = allRegistrations.filter(r => r.processId === proc.id && r.phase === phase.name).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-                    const currentStatus = latestPhaseReg?.values.find(v => v.name === 'Status')?.value || 'N/A';
-                    const badgeClass = `badge-${currentStatus.toLowerCase().replace(/\s+/g, '-')}`;
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${phase.name}</td>
-                        <td><span class="badge ${badgeClass}">${currentStatus.toUpperCase()}</span></td>
-                        <td class="phase-form-fields">${(phase.fields || []).map(field => `<div class="mb-2">${getFormFieldHtml(field, true)}</div>`).join('')}</td>
-                        <td><button class="btn btn-success btn-sm save-phase-btn" data-process-id="${proc.id}" data-phase-name="${phase.name}">Guardar</button></td>
-                    `;
-                    multiPhaseTableBody.appendChild(row);
-                });
-                multiPhaseRegistrationModal.show();
             };
 
             const getFormFieldHtml = (field, isInline = false) => {
@@ -375,7 +341,12 @@
 
             const saveRegistration = (companyId, processId, phase, values) => {
                 const registrationData = { companyId, processId, phase, values, timestamp: new Date().toISOString() };
-                fetch('/api/registrations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registrationData) })
+                fetch('/api/registrations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(registrationData),
+                    credentials: 'same-origin'
+                })
                 .then(res => res.ok ? res.json() : Promise.reject('Failed to save'))
                 .then(() => {
                     registrationModal.hide();
@@ -384,6 +355,19 @@
                 })
                 .catch(err => { console.error(err); alert('Error saving.'); });
             };
+
+            monitoringList.addEventListener('click', (e) => {
+                const registerBtn = e.target.closest('.register-btn');
+                if (registerBtn) {
+                    const row = e.target.closest('tr');
+                    const procId = row.dataset.processId;
+                    const proc = masterProcessList.find(p => p.id === procId);
+                    if (proc) {
+                        if (proc.mode === 'Multiple') openMultiPhaseModal(proc);
+                        else openRegistrationModal(proc);
+                    }
+                }
+            });
 
             saveSingleRegistrationBtn.addEventListener('click', () => {
                 const values = Array.from(modalRegistrationForm.querySelectorAll('[data-field-name]')).map(input => ({ name: input.dataset.fieldName, value: input.value }));
@@ -400,18 +384,8 @@
                 }
             });
 
-            // --- Initial Load & Intervals ---
             updateMenuLinks(companyId);
             fetchAndRenderAll();
-            setInterval(fetchAndRenderAll, 60000); // Refresh every 60 seconds
-
-            // --- Filters ---
-            document.getElementById('filter-name').addEventListener('input', displayProcesses);
-            document.getElementById('filter-status').addEventListener('change', displayProcesses);
-            sortTimeButton.addEventListener('click', () => {
-                sortTimeButton.dataset.sortOrder = sortTimeButton.dataset.sortOrder === 'asc' ? 'desc' : 'asc';
-                displayProcesses();
-            });
         });
     </script>
 </body>

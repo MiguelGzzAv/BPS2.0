@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const session = require('express-session');
 const app = express();
 const port = 3000;
 
@@ -19,11 +20,11 @@ const processesByCompany = {
             endTime: '23:00',
             frequency: 'Diario',
             days: [],
-            mode: 'Individual', // Changed from Padre
+            mode: 'Individual',
             internalPhases: [
                 { name: 'default', fields: [{ name: 'Status', type: 'status' }, {name: 'Comentarios', type: 'text'}] }
             ],
-            childProcesses: [{ id: 'PRO7033', dependency: true }] // New structure
+            childProcesses: [{ id: 'PRO7033', dependency: true }]
         },
         {
             id: 'PRO7033',
@@ -38,36 +39,22 @@ const processesByCompany = {
                 { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
             ],
             childProcesses: []
-        },
-        {
-            id: 'PRO7034',
-            name: 'PROCESO DE FACTURACION',
-            criticidad: 'Baja',
-            startTime: '10:00',
-            endTime: '12:00',
-            frequency: 'Diario',
-            days: [],
-            mode: 'Multiple',
-            internalPhases: [
-                { name: 'Generar Facturas', fields: [{ name: 'Status', type: 'status' }, { name: 'Facturas Generadas', type: 'number' }] },
-                { name: 'Enviar a Clientes', fields: [{ name: 'Status', type: 'status' }, { name: 'Correos Enviados', type: 'number' }] },
-                { name: 'Confirmar Recepcion', fields: [{ name: 'Status', type: 'status' }] }
-            ],
-            childProcesses: []
         }
     ],
     '2': []
 };
 const usersByCompany = {
     '1': [
-        { id: 1, name: 'John Doe', email: 'john@example.com', phone: '123-456-7890', username: 'johndoe', password: 'password123', groupId: 1 },
-        { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321', username: 'janesmith', password: 'password123', groupId: 2 }
+        { id: 1, name: 'Admin User', email: 'admin@example.com', phone: '123-456-7890', username: 'admin', password: 'password', groupId: 1 },
+        { id: 2, name: 'Operator User', email: 'op@example.com', phone: '098-765-4321', username: 'operator', password: 'password', groupId: 2 },
+        { id: 3, name: 'Reader User', email: 'reader@example.com', phone: '111-222-3333', username: 'reader', password: 'password', groupId: 3 }
     ]
 };
 const groupsByCompany = {
     '1': [
-        { id: 1, name: 'Administrators' },
-        { id: 2, name: 'Operators' }
+        { id: 1, name: 'Administrator' },
+        { id: 2, name: 'Operator' },
+        { id: 3, name: 'Reader' }
     ]
 };
 const departmentsByCompany = {
@@ -81,7 +68,87 @@ const escalationsByCompany = {};
 
 // --- Middleware ---
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); // Middleware to parse JSON bodies
+app.use(express.json());
+app.use(session({
+    secret: 'your-secret-key-that-is-long-and-secure',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false }
+}));
+
+// --- Auth API Routes ---
+const findUserByUsername = (username) => {
+    for (const companyId in usersByCompany) {
+        const user = usersByCompany[companyId].find(u => u.username === username);
+        if (user) {
+            return { ...user, companyId };
+        }
+    }
+    return null;
+};
+
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = findUserByUsername(username);
+
+    if (user && user.password === password) {
+        const companyGroups = groupsByCompany[user.companyId] || [];
+        const group = companyGroups.find(g => g.id === user.groupId);
+        const role = group ? group.name : 'Reader';
+
+        req.session.user = {
+            id: user.id,
+            username: user.username,
+            companyId: user.companyId,
+            role: role
+        };
+        res.json({ success: true, user: req.session.user });
+    } else {
+        res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+});
+
+app.post('/api/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) {
+            return res.status(500).json({ message: 'Could not log out.' });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ success: true });
+    });
+});
+
+app.get('/api/session', (req, res) => {
+    if (req.session.user) {
+        res.json({ loggedIn: true, user: req.session.user });
+    } else {
+        res.json({ loggedIn: false });
+    }
+});
+
+// --- Authorization Middleware ---
+const isAuthenticated = (req, res, next) => {
+    if (req.session.user) {
+        return next();
+    }
+    res.status(401).json({ error: 'Not authenticated' });
+};
+
+const hasPermission = (allowedRoles) => {
+    return (req, res, next) => {
+        const userRole = req.session.user.role;
+        if (allowedRoles.includes(userRole)) {
+            return next();
+        }
+        res.status(403).json({ error: 'Forbidden: You do not have permission to perform this action.' });
+    };
+};
+
+const canWrite = hasPermission(['Administrator', 'Operator']);
+const canAdmin = hasPermission(['Administrator']);
+
+// Apply authentication middleware to all API routes below
+app.use('/api', isAuthenticated);
 
 // --- API Routes ---
 // Companies
@@ -99,7 +166,7 @@ app.get('/api/companies/:id', (req, res) => {
     }
 });
 
-app.post('/api/companies', (req, res) => {
+app.post('/api/companies', canAdmin, (req, res) => {
     const { name } = req.body;
     if (!name) {
         return res.status(400).json({ error: 'Company name is required' });
@@ -110,7 +177,7 @@ app.post('/api/companies', (req, res) => {
     res.status(201).json(newCompany);
 });
 
-app.delete('/api/companies/:id', (req, res) => {
+app.delete('/api/companies/:id', canAdmin, (req, res) => {
     const { id } = req.params;
     const companyIndex = companies.findIndex(c => c.id === parseInt(id));
     if (companyIndex === -1) {
@@ -120,7 +187,7 @@ app.delete('/api/companies/:id', (req, res) => {
     res.status(204).send();
 });
 
-app.put('/api/companies/:id', (req, res) => {
+app.put('/api/companies/:id', canAdmin, (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
     const company = companies.find(c => c.id === parseInt(id));
@@ -149,26 +216,23 @@ const calculateAllProcessStates = (processes, registrations) => {
         const proc = processMap.get(procId);
         if (!proc || !proc.internalPhases) return 'sin ejecucion';
 
-        // Iterate through registrations from newest to oldest
         for (const reg of relevantRegistrations) {
             const phaseName = reg.phase || 'default';
             const phaseDef = proc.internalPhases.find(p => p.name === phaseName);
 
             if (phaseDef && phaseDef.fields) {
-                // Find the field defined with type 'status' in the process definition
                 const statusFieldDef = phaseDef.fields.find(f => f.type === 'status');
                 if (statusFieldDef) {
                     const statusFieldName = statusFieldDef.name;
-                    // Look for a value for that field in the current registration
                     const statusValue = reg.values.find(v => v.name === statusFieldName);
                     if (statusValue && statusValue.value) {
-                        return statusValue.value.toLowerCase(); // Found the latest status, return it.
+                        return statusValue.value.toLowerCase();
                     }
                 }
             }
         }
 
-        return 'sin ejecucion'; // No registration with a status field found
+        return 'sin ejecucion';
     };
 
     const getStatus = (procId) => {
@@ -179,13 +243,15 @@ const calculateAllProcessStates = (processes, registrations) => {
 
         const statusPriority = { 'error': 4, 'falla': 3, 'ambar': 2, 'ok': 1, 'sin ejecucion': 0, 'por iniciar': 0 };
         let mostCriticalChildStatus = 'sin ejecucion';
-        let hasDependentChildren = false;
+        let hasActiveDependentChildren = false;
 
         if (proc.childProcesses && proc.childProcesses.length > 0) {
             proc.childProcesses.forEach(child => {
                 if (child.dependency) {
-                    hasDependentChildren = true;
                     const childStatus = getStatus(child.id);
+                    if (childStatus !== 'sin ejecucion') {
+                        hasActiveDependentChildren = true;
+                    }
                     if (statusPriority[childStatus] > statusPriority[mostCriticalChildStatus]) {
                         mostCriticalChildStatus = childStatus;
                     }
@@ -194,11 +260,9 @@ const calculateAllProcessStates = (processes, registrations) => {
         }
 
         let finalStatus;
-        // If there are dependent children AND at least one has a real status, the parent's status is the most critical child status.
-        if (hasDependentChildren && mostCriticalChildStatus !== 'sin ejecucion') {
+        if (hasActiveDependentChildren) {
             finalStatus = mostCriticalChildStatus;
         } else {
-            // Otherwise, the parent calculates its own status from its registrations.
             finalStatus = getOwnStatus(proc.id);
         }
 
@@ -211,12 +275,9 @@ const calculateAllProcessStates = (processes, registrations) => {
 };
 
 
-// --- Process API Routes ---
+// --- Protected API Routes ---
 app.get('/api/processes', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
+    const companyId = req.session.user.companyId;
     const processes = processesByCompany[companyId] || [];
     const registrations = registrationsByCompany[companyId] || [];
     const states = calculateAllProcessStates(processes, registrations);
@@ -229,284 +290,119 @@ app.get('/api/processes', (req, res) => {
     res.json(processesWithStatus);
 });
 
-app.post('/api/processes', (req, res) => {
-    const { companyId, processData } = req.body;
-    if (!companyId || !processData || !processData.id || !processData.name) {
-        return res.status(400).json({ error: 'companyId and process data are required' });
-    }
+app.post('/api/processes', canWrite, (req, res) => {
+    const companyId = req.session.user.companyId;
+    const { processData } = req.body;
     if (!processesByCompany[companyId]) {
         processesByCompany[companyId] = [];
     }
-    // Remove obsolete field and set defaults
-    delete processData.exclusiveDependency;
-    const newProcess = {
-        ...processData,
-        criticidad: processData.criticidad || 'Baja',
-        mode: processData.mode || 'Individual',
-        internalPhases: processData.internalPhases && processData.internalPhases.length > 0 ? processData.internalPhases : [{ name: 'default', fields: [] }],
-        childProcesses: processData.childProcesses || [],
-    };
-
-    processesByCompany[companyId].push(newProcess);
-    res.status(201).json(newProcess);
+    processesByCompany[companyId].push(processData);
+    res.status(201).json(processData);
 });
 
-app.put('/api/processes/:id', (req, res) => {
+app.put('/api/processes/:id', canWrite, (req, res) => {
     const { id } = req.params;
-    const { companyId, processData } = req.body;
-    if (!companyId || !processData) {
-        return res.status(400).json({ error: 'companyId and processData are required' });
-    }
+    const companyId = req.session.user.companyId;
+    const { processData } = req.body;
     const processes = processesByCompany[companyId] || [];
     const processIndex = processes.findIndex(p => p.id === id);
     if (processIndex === -1) {
         return res.status(404).json({ error: 'Process not found' });
     }
-    // Remove obsolete field
-    delete processData.exclusiveDependency;
-    const updatedProcess = { ...processes[processIndex], ...processData };
-
-    processes[processIndex] = updatedProcess;
-    res.json(updatedProcess);
+    processes[processIndex] = { ...processes[processIndex], ...processData };
+    res.json(processes[processIndex]);
 });
 
-app.delete('/api/processes/:id', (req, res) => {
+app.delete('/api/processes/:id', canWrite, (req, res) => {
     const { id } = req.params;
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
+    const companyId = req.session.user.companyId;
     const processes = processesByCompany[companyId] || [];
     const processIndex = processes.findIndex(p => p.id === id);
     if (processIndex === -1) {
         return res.status(404).json({ error: 'Process not found' });
     }
     processes.splice(processIndex, 1);
-
-    // Also remove the deleted process from any parent's child list
-    processes.forEach(p => {
-        if (p.childProcesses) {
-            p.childProcesses = p.childProcesses.filter(child => child.id !== id);
-        }
-    });
-
     res.status(204).send();
 });
 
-// Summary for Dashboard
-app.get('/api/summary', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
-
-    const processes = processesByCompany[companyId] || [];
-    const registrations = registrationsByCompany[companyId] || [];
-    const calculatedStates = calculateAllProcessStates(processes, registrations);
-
-    // Initialize the summary object in the structure the frontend expects
-    const summary = {
-        'ok': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-        'falla': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-        'error': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-        'ambar': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-        'sin ejecucion': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
-    };
-
-    processes.forEach(proc => {
-        const status = calculatedStates.get(proc.id) || 'sin ejecucion';
-        const criticality = proc.criticidad || 'Baja'; // Default to Baja if not specified
-
-        if (summary[status]) {
-            summary[status].total++;
-            if (summary[status][criticality] !== undefined) {
-                summary[status][criticality]++;
-                if (summary[status].processes[criticality]) {
-                    summary[status].processes[criticality].push(proc.name);
-                }
-            }
-        }
-    });
-
-    // The frontend expects the data to be in a 'summary' property
-    res.json({ summary });
-});
-
-// Affected Processes for Dashboard
-app.get('/api/affected-processes', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
-
-    const processes = processesByCompany[companyId] || [];
-    if (processes.length === 0) {
-        return res.json([]);
-    }
-
-    const registrations = registrationsByCompany[companyId] || [];
-    const calculatedStates = calculateAllProcessStates(processes, registrations);
-    const processMap = new Map(processes.map(p => [p.id, p]));
-
-    const affectedParents = [];
-
-    processes.forEach(parent => {
-        if (parent.childProcesses && parent.childProcesses.length > 0) {
-            for (const childRef of parent.childProcesses) {
-                // Check if the child has a dependency and is in a failed state
-                if (childRef.dependency) {
-                    const childStatus = calculatedStates.get(childRef.id);
-                    if (childStatus === 'falla' || childStatus === 'error') {
-                        const childProcess = processMap.get(childRef.id);
-                        affectedParents.push({
-                            parentProcessId: parent.id,
-                            parentProcessName: parent.name,
-                            failingChildId: childRef.id,
-                            failingChildName: childProcess ? childProcess.name : 'Unknown',
-                            childStatus: childStatus
-                        });
-                        // A parent is listed once, even if multiple children fail.
-                        // We break to avoid duplicate entries for the same parent from different children.
-                        break;
-                    }
-                }
-            }
-        }
-    });
-
-    res.json(affectedParents);
-});
-
-
-// Users
 app.get('/api/users', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
+    const companyId = req.session.user.companyId;
     const users = usersByCompany[companyId] || [];
     res.json(users);
 });
 
-app.post('/api/users', (req, res) => {
-    const { companyId, ...newUser } = req.body;
-    if (!companyId || !newUser.username || !newUser.name) {
-        return res.status(400).json({ error: 'companyId, username, and name are required' });
-    }
+app.post('/api/users', canAdmin, (req, res) => {
+    const companyId = req.session.user.companyId;
+    const { ...newUser } = req.body;
     if (!usersByCompany[companyId]) {
         usersByCompany[companyId] = [];
     }
-    const userToSave = {
-        id: Date.now(),
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        username: newUser.username,
-        password: newUser.password, // In a real app, hash this
-        groupId: newUser.groupId
-    };
-
+    const userToSave = { id: Date.now(), ...newUser };
     usersByCompany[companyId].push(userToSave);
-    console.log(`Added new user to company ${companyId}:`, userToSave);
     res.status(201).json(userToSave);
 });
 
-// Groups
 app.get('/api/groups', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
+    const companyId = req.session.user.companyId;
     const groups = groupsByCompany[companyId] || [];
     res.json(groups);
 });
 
-app.post('/api/groups', (req, res) => {
-    const { companyId, ...newGroup } = req.body;
-    if (!companyId || !newGroup.name) {
-        return res.status(400).json({ error: 'companyId and group name are required' });
-    }
+app.post('/api/groups', canAdmin, (req, res) => {
+    const companyId = req.session.user.companyId;
+    const { ...newGroup } = req.body;
     if (!groupsByCompany[companyId]) {
         groupsByCompany[companyId] = [];
     }
-    newGroup.id = Date.now(); // Simple unique ID
-    groupsByCompany[companyId].push(newGroup);
-    console.log(`Added new group to company ${companyId}:`, newGroup);
-    res.status(201).json(newGroup);
+    const groupToSave = { id: Date.now(), ...newGroup };
+    groupsByCompany[companyId].push(groupToSave);
+    res.status(201).json(groupToSave);
 });
 
-// Departments
 app.get('/api/departments', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
+    const companyId = req.session.user.companyId;
     const departments = departmentsByCompany[companyId] || [];
     res.json(departments);
 });
 
-app.post('/api/departments', (req, res) => {
-    const { companyId, ...newDepartment } = req.body;
-    if (!companyId || !newDepartment.name) {
-        return res.status(400).json({ error: 'companyId and department name are required' });
-    }
+app.post('/api/departments', canAdmin, (req, res) => {
+    const companyId = req.session.user.companyId;
+    const { ...newDepartment } = req.body;
     if (!departmentsByCompany[companyId]) {
         departmentsByCompany[companyId] = [];
     }
-    newDepartment.id = Date.now(); // Simple unique ID
-    departmentsByCompany[companyId].push(newDepartment);
-    console.log(`Added new department to company ${companyId}:`, newDepartment);
-    res.status(201).json(newDepartment);
+    const deptToSave = { id: Date.now(), ...newDepartment };
+    departmentsByCompany[companyId].push(deptToSave);
+    res.status(201).json(deptToSave);
 });
 
-
-// Escalations
 app.get('/api/escalations', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
+    const companyId = req.session.user.companyId;
     const escalations = escalationsByCompany[companyId] || [];
     res.json(escalations);
 });
 
-app.post('/api/escalations', (req, res) => {
-    const { companyId, ...ruleData } = req.body;
-    if (!companyId || !ruleData.processId) {
-        return res.status(400).json({ error: 'companyId and processId are required' });
-    }
-
+app.post('/api/escalations', canWrite, (req, res) => {
+    const companyId = req.session.user.companyId;
+    const { ...ruleData } = req.body;
     if (!escalationsByCompany[companyId]) {
         escalationsByCompany[companyId] = [];
     }
     const escalations = escalationsByCompany[companyId];
-
-    // Check if it's an update or a new rule
     const existingRuleIndex = ruleData.id ? escalations.findIndex(r => r.id === ruleData.id) : -1;
-
     if (existingRuleIndex > -1) {
-        // Update existing rule
         escalations[existingRuleIndex] = { ...escalations[existingRuleIndex], ...ruleData };
-        console.log(`Updated escalation rule for company ${companyId}:`, escalations[existingRuleIndex]);
         res.status(200).json(escalations[existingRuleIndex]);
     } else {
-        // Create new rule
-        const newRule = {
-            ...ruleData,
-            id: Date.now() // Assign a new unique ID
-        };
+        const newRule = { ...ruleData, id: Date.now() };
         escalations.push(newRule);
-        console.log(`Added new escalation rule to company ${companyId}:`, newRule);
         res.status(201).json(newRule);
     }
 });
 
-app.delete('/api/escalations/:id', (req, res) => {
+app.delete('/api/escalations/:id', canWrite, (req, res) => {
     const { id } = req.params;
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
+    const companyId = req.session.user.companyId;
     const escalations = escalationsByCompany[companyId] || [];
     const ruleIndex = escalations.findIndex(r => r.id === parseInt(id));
     if (ruleIndex === -1) {
@@ -516,57 +412,39 @@ app.delete('/api/escalations/:id', (req, res) => {
     res.status(204).send();
 });
 
-
-// Registrations
 app.get('/api/registrations', (req, res) => {
-    const { companyId } = req.query;
-    if (!companyId) {
-        return res.status(400).json({ error: 'companyId is required' });
-    }
+    const companyId = req.session.user.companyId;
     const registrations = registrationsByCompany[companyId] || [];
     res.json(registrations);
 });
 
-app.post('/api/registrations', (req, res) => {
-    const { companyId, processId, timestamp, values, phase } = req.body;
-    if (!companyId || !processId || !timestamp || !values) {
-        return res.status(400).json({ error: 'companyId, processId, timestamp, and values are required' });
-    }
-
+app.post('/api/registrations', canWrite, (req, res) => {
+    const companyId = req.session.user.companyId;
+    const { processId, timestamp, values, phase } = req.body;
     if (!registrationsByCompany[companyId]) {
         registrationsByCompany[companyId] = [];
     }
-
     const newRegistration = {
-        id: Date.now(), // Add a unique ID for the registration itself
+        id: Date.now(),
         processId,
         timestamp,
         values,
-        phase: phase || 'default' // Capture the phase, default if not provided
+        phase: phase || 'default'
     };
-
     registrationsByCompany[companyId].push(newRegistration);
-    console.log(`Added new registration to company ${companyId}:`, newRegistration);
     res.status(201).json(newRegistration);
 });
 
-
 // --- Static Files ---
 app.use(express.static(path.join(__dirname, '../client')));
-
 
 // --- Page-serving Routes ---
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client', 'login.html'));
 });
 
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    if (username === 'admin' && password === '12345') {
-        res.redirect('/selection.html');
-    } else {
-        res.send('Invalid username or password');
-    }
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client', 'login.html'));
 });
 
 // --- Server Start ---
