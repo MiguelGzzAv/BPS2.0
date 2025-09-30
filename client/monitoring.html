@@ -96,7 +96,7 @@
                     <th>INICIO</th>
                     <th>FIN</th>
                     <th>ESTATUS</th>
-                    <th>URGENCIA</th>
+                    <th>PROGRESO</th>
                     <th>ACCIONES</th>
                 </tr>
             </thead>
@@ -224,6 +224,84 @@
                 }).catch(error => console.error('Error fetching data:', error));
             };
 
+            // --- Time and Spinner Logic ---
+            const getSpinnerState = (startTime, endTime) => {
+                const now = new Date();
+                const today = now.toISOString().split('T')[0];
+
+                let start = new Date(`${today}T${startTime}:00`);
+                let end = new Date(`${today}T${endTime}:00`);
+
+                // Handle overnight processes by checking if the end time is on the next day
+                if (end < start) {
+                    // Check if the current time is within yesterday's start and today's end
+                    const yesterdayStart = new Date(start.getTime() - 86400000);
+                    if (now >= yesterdayStart && now <= end) {
+                        start = yesterdayStart;
+                    } else {
+                        // Otherwise, the window is today's start to tomorrow's end
+                        end.setDate(end.getDate() + 1);
+                    }
+                }
+
+                if (now < start || now > end) {
+                    return { color: 'gray', active: false };
+                }
+
+                const totalDuration = end.getTime() - start.getTime();
+                if (totalDuration <= 0) return { color: 'gray', active: false };
+
+                const elapsedDuration = now.getTime() - start.getTime();
+                const percentage = Math.max(0, Math.min(100, (elapsedDuration / totalDuration) * 100));
+
+                let color;
+                if (percentage < 50) {
+                    color = 'green';
+                } else if (percentage < 85) {
+                    color = 'yellow';
+                } else {
+                    color = 'red';
+                }
+                return { color, active: true };
+            };
+
+            const calculateFinalSpinnerStates = (processes, processMap) => {
+                const ownStates = new Map();
+                processes.forEach(p => {
+                    ownStates.set(p.id, getSpinnerState(p.startTime, p.endTime));
+                });
+
+                const finalStates = new Map();
+                const colorPriority = { red: 3, yellow: 2, green: 1, gray: 0 };
+
+                const getFinalState = (processId) => {
+                    if (finalStates.has(processId)) {
+                        return finalStates.get(processId);
+                    }
+
+                    const proc = processMap.get(processId);
+                    if (!proc) return { color: 'gray', active: false };
+
+                    let mostCriticalChildState = { color: 'gray', active: false };
+                    if (proc.childProcesses && proc.childProcesses.length > 0) {
+                        proc.childProcesses.forEach(childLink => {
+                            const childState = getFinalState(childLink.id);
+                            if (childState.active && colorPriority[childState.color] > colorPriority[mostCriticalChildState.color]) {
+                                mostCriticalChildState = childState;
+                            }
+                        });
+                    }
+
+                    const ownState = ownStates.get(processId);
+                    const finalState = mostCriticalChildState.active ? mostCriticalChildState : ownState;
+                    finalStates.set(processId, finalState);
+                    return finalState;
+                };
+
+                [...processes].reverse().forEach(p => getFinalState(p.id));
+                return finalStates;
+            };
+
             // --- Rendering ---
             const displayProcesses = () => {
                 const nameFilter = document.getElementById('filter-name').value.toLowerCase();
@@ -252,16 +330,17 @@
                 }
 
                 const processMap = new Map(masterProcessList.map(p => [p.id, p]));
+                const finalSpinnerStates = calculateFinalSpinnerStates(masterProcessList, processMap);
                 const childProcessIds = new Set(masterProcessList.flatMap(p => (p.childProcesses || []).map(child => child.id)));
 
                 processesToDisplay.forEach(proc => {
                     if (!childProcessIds.has(proc.id)) {
-                        renderProcessRow(proc, 0, processMap);
+                        renderProcessRow(proc, 0, processMap, finalSpinnerStates);
                     }
                 });
             };
 
-            const renderProcessRow = (proc, level, processMap) => {
+            const renderProcessRow = (proc, level, processMap, finalSpinnerStates) => {
                 const status = proc.status || 'POR INICIAR';
                 const rowClass = getRowClass(status);
                 const hasChildren = proc.childProcesses && proc.childProcesses.length > 0;
@@ -275,6 +354,10 @@
                 const showRegisterButton = !(hasActiveDependency && !hasOwnFieldsToRegister);
 
                 const badgeClass = `badge-${status.toLowerCase().replace(/\s+/g, '-')}`;
+                const spinnerState = finalSpinnerStates.get(proc.id) || { color: 'gray', active: false };
+                const spinnerColorClass = spinnerState.color === 'green' ? 'success' : spinnerState.color === 'yellow' ? 'warning' : spinnerState.color === 'red' ? 'danger' : 'secondary';
+                const registerButtonDisabled = !spinnerState.active ? 'disabled' : '';
+
                 row.innerHTML = `
                     <td style="padding-left: ${level * 25}px;">
                         ${hasChildren ? `<button class="btn btn-sm btn-light me-2 expand-btn" data-bs-toggle="collapse" data-bs-target=".child-of-${proc.id}">▶</button>` : `<span style="display: inline-block; width: 38px;"></span>`}
@@ -283,8 +366,8 @@
                     <td>${proc.startTime}</td>
                     <td>${proc.endTime}</td>
                     <td><span class="badge ${badgeClass}">${status.toUpperCase()}</span></td>
-                    <td><span class="badge bg-secondary">${proc.criticidad || 'Baja'}</span></td>
-                    <td>${showRegisterButton ? `<button class="btn btn-primary btn-sm register-btn">Registrar</button>` : ''}</td>
+                    <td><div class="spinner-grow spinner-grow-sm text-${spinnerColorClass}" role="status"><span class="visually-hidden">Loading...</span></div></td>
+                    <td>${showRegisterButton ? `<button class="btn btn-primary btn-sm register-btn" ${registerButtonDisabled}>Registrar</button>` : ''}</td>
                 `;
                 monitoringList.appendChild(row);
 
@@ -292,8 +375,8 @@
                     proc.childProcesses.forEach(childLink => {
                         const childProc = processMap.get(childLink.id);
                         if (childProc) {
-                            childProc.parentId = proc.id; // Pass parent id for class linking
-                            renderProcessRow(childProc, level + 1, processMap);
+                            childProc.parentId = proc.id;
+                            renderProcessRow(childProc, level + 1, processMap, finalSpinnerStates);
                         }
                     });
                 }
@@ -311,7 +394,7 @@
             // --- Event Listeners & Modal Logic ---
             monitoringList.addEventListener('click', (e) => {
                 const registerBtn = e.target.closest('.register-btn');
-                if (registerBtn) {
+                if (registerBtn && !registerBtn.disabled) {
                     const row = e.target.closest('tr');
                     const procId = row.dataset.processId;
                     const proc = masterProcessList.find(p => p.id === procId);
