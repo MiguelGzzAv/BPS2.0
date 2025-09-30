@@ -521,9 +521,10 @@ app.post('/login', (req, res) => {
     }
 });
 
-// Catch-all GET route to send users to login.html for any non-api, non-file route.
-// This must be placed after all other API and static file routes.
-app.get('*', (req, res) => {
+// This is the correct catch-all route. It must be the last route defined.
+// It handles any GET request that hasn't been matched by a previous route
+// and sends the user to the login page, preventing server crashes.
+app.get('/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/login.html'));
 });
 
