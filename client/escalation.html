@@ -5,13 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escalation Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .user-details {
-            font-size: 0.8em;
-            color: #6c757d;
-            margin-top: 4px;
-        }
-    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
@@ -33,7 +26,7 @@
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column mb-auto">
                 <li class="nav-item">
-                    <a href="/dashboard.html" class="nav-link" id="menu-dashboard">Dashboard</a>
+                    <a href="/dashboard.html" class="nav-link text-dark" id="menu-dashboard">Dashboard</a>
                 </li>
                 <li>
                     <a href="/users.html" class="nav-link text-dark" id="menu-users">Users</a>
@@ -53,9 +46,6 @@
                 <li>
                     <a href="/escalation.html" class="nav-link" id="menu-escalation">Escalation</a>
                 </li>
-                 <li>
-                    <a href="/configuration.html" class="nav-link text-dark" id="menu-configuration">Configuration</a>
-                </li>
             </ul>
         </div>
     </div>
@@ -64,220 +54,179 @@
     <main class="container mt-4">
         <header class="d-flex justify-content-between align-items-center mb-4">
             <h1>Escalation Rules</h1>
+            <button id="add-rule-btn" class="btn btn-primary">
+                Add New Rule
+            </button>
         </header>
 
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead class="table-light">
-                    <tr>
-                        <th>PROCESO</th>
-                        <th>GRUPO</th>
-                        <th>NIVEL 1</th>
-                        <th>NIVEL 2</th>
-                        <th>NIVEL 3</th>
-                        <th>NIVEL 4</th>
-                        <th>NIVEL 5</th>
-                        <th class="actions-header">ACCIONES</th>
-                    </tr>
-                </thead>
-                <tbody id="escalation-rules-list">
-                    <!-- Rules will be dynamically injected here -->
-                </tbody>
-            </table>
-        </div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Process</th>
+                    <th>User to Notify</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="escalation-rules-list">
+                <!-- Rules will be injected here -->
+            </tbody>
+        </table>
     </main>
 
-    <script src="auth.js"></script>
+    <!-- Add Rule Modal -->
+    <div class="modal fade" id="addRuleModal" tabindex="-1" aria-labelledby="addRuleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addRuleModalLabel">Add New Escalation Rule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-rule-form">
+                        <div class="mb-3">
+                            <label for="process-select" class="form-label">Process</label>
+                            <select id="process-select" class="form-select" required>
+                                <!-- Process options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="user-select" class="form-label">User to Notify</label>
+                            <select id="user-select" class="form-select" required>
+                                <!-- User options will be populated by JS -->
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="add-rule-form" class="btn btn-primary">Save Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const userRole = window.loggedInUser ? window.loggedInUser.role : 'Reader';
-            const companyId = window.loggedInUser ? window.loggedInUser.companyId : null;
-
-            const actionsHeader = document.querySelector('.actions-header');
-            if (userRole === 'Reader') {
-                if (actionsHeader) actionsHeader.style.display = 'none';
-            }
-
             const menu = document.getElementById('offcanvasMenu');
+            const urlParams = new URLSearchParams(window.location.search);
+            const companyId = urlParams.get('companyId');
+            const addRuleModal = new bootstrap.Modal(document.getElementById('addRuleModal'));
+            const addRuleBtn = document.getElementById('add-rule-btn');
+            const addRuleForm = document.getElementById('add-rule-form');
             const rulesList = document.getElementById('escalation-rules-list');
+            const processSelect = document.getElementById('process-select');
+            const userSelect = document.getElementById('user-select');
 
             let allProcesses = [];
             let allUsers = [];
-            let allGroups = [];
-            let allRules = [];
 
             const updateMenuLinks = (id) => {
-                if (!id || !window.loggedInUser) return;
+                if (!id) return;
                 menu.querySelector('#menu-dashboard').href = `/dashboard.html?companyId=${id}`;
                 menu.querySelector('#menu-users').href = `/users.html?companyId=${id}`;
                 menu.querySelector('#menu-departments').href = `/departments.html?companyId=${id}`;
                 menu.querySelector('#menu-processes').href = `/processes.html?companyId=${id}`;
                 menu.querySelector('#menu-monitoring').href = `/monitoring.html?companyId=${id}`;
                 menu.querySelector('#menu-escalation').href = `/escalation.html?companyId=${id}`;
-                menu.querySelector('#menu-configuration').href = `/configuration.html?companyId=${id}`;
-                if (window.location.pathname.includes('escalation.html')) {
+                const currentPage = window.location.pathname;
+                if (currentPage.includes('escalation.html')) {
                     menu.querySelector('#menu-escalation').classList.add('active');
                 }
             };
 
-            const generateSelectOptions = (items) => {
-                let options = '<option selected value="">Choose...</option>';
-                items.forEach(item => {
-                    options += `<option value="${item.id}">${item.name}</option>`;
-                });
-                return options;
-            };
-
-            const updateUserDetails = (selectElement) => {
-                const userId = selectElement.value;
-                const level = selectElement.dataset.level;
-                const detailsDiv = selectElement.closest('td').querySelector(`.user-details[data-level="${level}"]`);
-
-                if (!userId) {
-                    detailsDiv.innerHTML = '';
-                    return;
-                }
-
-                const user = allUsers.find(u => u.id == userId);
-                if (user) {
-                    detailsDiv.innerHTML = `
-                        <div>${user.email || ''}</div>
-                        <div>${user.phone || ''}</div>
-                    `;
-                }
-            };
-
-            const renderTable = () => {
-                rulesList.innerHTML = '';
-                allProcesses.forEach(proc => {
-                    const rule = allRules.find(r => r.processId === proc.id) || {};
-                    const row = document.createElement('tr');
-                    row.dataset.processId = proc.id;
-                    row.dataset.ruleId = rule.id || '';
-
-                    const actionsHtml = userRole !== 'Reader' ? `
-                        <td class="actions-cell">
-                            <button class="btn btn-sm btn-warning edit-btn">Editar</button>
-                        </td>` : '';
-
-                    row.innerHTML = `
-                        <td>${proc.name}</td>
-                        <td>
-                            <select class="form-select form-select-sm group-select" disabled>
-                                ${generateSelectOptions(allGroups)}
-                            </select>
-                        </td>
-                        ${[1, 2, 3, 4, 5].map(level => `
-                            <td>
-                                <select class="form-select form-select-sm user-select" data-level="${level}" disabled>
-                                    ${generateSelectOptions(allUsers)}
-                                </select>
-                                <div class="user-details" data-level="${level}"></div>
-                            </td>
-                        `).join('')}
-                        ${actionsHtml}
-                    `;
-                    rulesList.appendChild(row);
-
-                    const groupSelect = row.querySelector('.group-select');
-                    groupSelect.value = rule.groupId || '';
-
-                    row.querySelectorAll('.user-select').forEach(select => {
-                        const level = select.dataset.level;
-                        const userLevel = rule.levels ? rule.levels.find(l => l.level === parseInt(level)) : null;
-                        if (userLevel) {
-                            select.value = userLevel.userId || '';
-                            updateUserDetails(select);
-                        }
+            const fetchProcesses = () => {
+                return fetch(`/api/processes?companyId=${companyId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        allProcesses = data;
+                        processSelect.innerHTML = '<option selected>Choose a process...</option>';
+                        data.forEach(proc => {
+                            const option = new Option(proc.name, proc.id);
+                            processSelect.add(option);
+                        });
                     });
-                });
-                if (userRole === 'Reader') {
-                    document.querySelectorAll('.actions-cell').forEach(c => c.style.display = 'none');
-                }
             };
 
-            const fetchAllData = () => {
-                 if (!companyId) return;
-                 Promise.all([
-                    fetch(`/api/processes?companyId=${companyId}`, {credentials: 'same-origin'}),
-                    fetch(`/api/users?companyId=${companyId}`, {credentials: 'same-origin'}),
-                    fetch(`/api/groups?companyId=${companyId}`, {credentials: 'same-origin'}),
-                    fetch(`/api/escalations?companyId=${companyId}`, {credentials: 'same-origin'})
-                ])
-                .then(responses => Promise.all(responses.map(res => res.json())))
-                .then(([processes, users, groups, rules]) => {
-                    allProcesses = processes;
-                    allUsers = users;
-                    allGroups = groups;
-                    allRules = rules;
-                    renderTable();
-                })
-                .catch(error => console.error("Error during initial data fetch:", error));
+            const fetchUsers = () => {
+                return fetch(`/api/users?companyId=${companyId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        allUsers = data;
+                        userSelect.innerHTML = '<option selected>Choose a user...</option>';
+                        data.forEach(user => {
+                            const option = new Option(`${user.name} (${user.email})`, user.id);
+                            userSelect.add(option);
+                        });
+                    });
             };
+
+            const fetchAndRenderRules = () => {
+                fetch(`/api/escalations?companyId=${companyId}`)
+                    .then(res => res.json())
+                    .then(rules => {
+                        rulesList.innerHTML = '';
+                        rules.forEach(rule => {
+                            const process = allProcesses.find(p => p.id === rule.processId);
+                            const user = allUsers.find(u => u.id === rule.userId);
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${process ? process.name : 'Unknown Process'}</td>
+                                <td>${user ? user.name : 'Unknown User'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger delete-rule-btn" data-id="${rule.id}">Delete</button>
+                                </td>
+                            `;
+                            rulesList.appendChild(row);
+                        });
+                    });
+            };
+
+            addRuleBtn.addEventListener('click', () => {
+                addRuleForm.reset();
+                addRuleModal.show();
+            });
+
+            addRuleForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newRule = {
+                    companyId: companyId,
+                    processId: processSelect.value,
+                    userId: parseInt(userSelect.value, 10),
+                };
+
+                fetch('/api/escalations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newRule)
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('Failed to create rule');
+                    addRuleModal.hide();
+                    fetchAndRenderRules();
+                })
+                .catch(err => console.error('Error creating rule:', err));
+            });
 
             rulesList.addEventListener('click', (e) => {
-                const target = e.target;
-                const row = target.closest('tr');
-                if (!row || userRole === 'Reader') return;
-
-                if (target.classList.contains('edit-btn')) {
-                    row.querySelectorAll('select').forEach(s => s.disabled = false);
-                    target.textContent = 'Guardar';
-                    target.classList.remove('btn-warning', 'edit-btn');
-                    target.classList.add('btn-success', 'save-btn');
-                } else if (target.classList.contains('save-btn')) {
-                    const processId = row.dataset.processId;
-                    const ruleId = row.dataset.ruleId;
-                    const groupId = row.querySelector('.group-select').value;
-                    const levels = Array.from(row.querySelectorAll('.user-select'))
-                        .map(select => ({
-                            level: parseInt(select.dataset.level),
-                            userId: select.value ? parseInt(select.value) : null
-                        }))
-                        .filter(level => level.userId);
-
-                    const ruleData = {
-                        id: ruleId ? parseInt(ruleId) : undefined,
-                        companyId: companyId,
-                        processId: processId,
-                        groupId: groupId ? parseInt(groupId) : null,
-                        levels: levels
-                    };
-
-                    fetch('/api/escalations', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(ruleData),
-                        credentials: 'same-origin'
-                    })
-                    .then(res => res.ok ? res.json() : Promise.reject('Failed to save rule'))
-                    .then((savedRule) => {
-                        row.dataset.ruleId = savedRule.id;
-                        row.querySelectorAll('select').forEach(s => s.disabled = true);
-                        target.textContent = 'Editar';
-                        target.classList.remove('btn-success', 'save-btn');
-                        target.classList.add('btn-warning', 'edit-btn');
-
-                        const ruleIndex = allRules.findIndex(r => r.id === savedRule.id);
-                        if (ruleIndex > -1) {
-                            allRules[ruleIndex] = savedRule;
-                        } else {
-                            allRules.push(savedRule);
-                        }
-                    })
-                    .catch(err => console.error('Error saving rule:', err));
+                if (e.target.classList.contains('delete-rule-btn')) {
+                    const ruleId = e.target.dataset.id;
+                    if (confirm('Are you sure you want to delete this rule?')) {
+                        fetch(`/api/escalations/${ruleId}?companyId=${companyId}`, { method: 'DELETE' })
+                            .then(res => {
+                                if (!res.ok) throw new Error('Failed to delete rule');
+                                fetchAndRenderRules();
+                            })
+                            .catch(err => console.error('Error deleting rule:', err));
+                    }
                 }
             });
 
-            rulesList.addEventListener('change', (e) => {
-                if(e.target.classList.contains('user-select')) {
-                    updateUserDetails(e.target);
-                }
-            });
-
+            // Initial Load
             updateMenuLinks(companyId);
-            fetchAllData();
+            Promise.all([fetchProcesses(), fetchUsers()])
+                .then(fetchAndRenderRules)
+                .catch(error => console.error("Error during initial data fetch:", error));
         });
     </script>
 </body>
