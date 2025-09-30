@@ -284,7 +284,10 @@
                 const processId = event.target.dataset.id;
                 if (event.target.classList.contains('edit-btn')) {
                     const processToEdit = masterProcessList.find(p => p.id === processId);
-                    if (processToEdit) resetAndPrepareModal(processToEdit);
+                    if (processToEdit) {
+                        resetAndPrepareModal(processToEdit);
+                        addProcessModal.show();
+                    }
                 } else if (event.target.classList.contains('delete-btn')) {
                     currentProcessId = processId;
                     deleteProcessModal.show();
