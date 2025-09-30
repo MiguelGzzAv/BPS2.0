@@ -328,18 +328,25 @@ app.get('/api/processes', (req, res) => {
 });
 
 app.post('/api/processes', (req, res) => {
-    const companyId = getCompanyId(req);
-    if (!companyId) {
-        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    const { processData, companyId: reqCompanyId } = req.body;
+    let companyId;
+
+    if (req.user.role === 'superadmin') {
+        companyId = reqCompanyId;
+        if (!companyId) {
+            return res.status(400).json({ error: 'Superadmin must provide a companyId to create a process.' });
+        }
+    } else {
+        companyId = req.user.companyId;
     }
-    const { processData } = req.body;
+
     if (!processData || !processData.id || !processData.name) {
         return res.status(400).json({ error: 'Process data (including id and name) is required.' });
     }
     if (!processesByCompany[companyId]) {
         processesByCompany[companyId] = [];
     }
-    // Remove obsolete field and set defaults
+
     delete processData.exclusiveDependency;
     const newProcess = {
         ...processData,
@@ -355,20 +362,27 @@ app.post('/api/processes', (req, res) => {
 
 app.put('/api/processes/:id', (req, res) => {
     const { id } = req.params;
-    const companyId = getCompanyId(req);
-     if (!companyId) {
-        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    const { processData, companyId: reqCompanyId } = req.body;
+    let companyId;
+
+    if (req.user.role === 'superadmin') {
+        companyId = reqCompanyId;
+        if (!companyId) {
+            return res.status(400).json({ error: 'Superadmin must provide a companyId to update a process.' });
+        }
+    } else {
+        companyId = req.user.companyId;
     }
-    const { processData } = req.body;
+
     if (!processData) {
         return res.status(400).json({ error: 'processData is required' });
     }
     const processes = processesByCompany[companyId] || [];
     const processIndex = processes.findIndex(p => p.id === id);
     if (processIndex === -1) {
-        return res.status(404).json({ error: 'Process not found' });
+        return res.status(404).json({ error: 'Process not found in the specified company' });
     }
-    // Remove obsolete field
+
     delete processData.exclusiveDependency;
     const updatedProcess = { ...processes[processIndex], ...processData };
 
@@ -725,6 +739,23 @@ app.post('/login', (req, res) => {
         res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
 });
+
+// --- Error Handling ---
+// This will catch any errors that occur in your route handlers
+app.use((err, req, res, next) => {
+  console.error('--- UNHANDLED EXPRESS ERROR ---');
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
+// This will catch any other unhandled exceptions that would crash the server
+process.on('uncaughtException', (err, origin) => {
+  console.error('--- UNCAUGHT EXCEPTION ---');
+  console.error(`Caught exception: ${err}\n` + `Exception origin: ${origin}`);
+  console.error(err.stack);
+  process.exit(1);
+});
+
 
 // --- Server Start ---
 app.listen(port, () => {
