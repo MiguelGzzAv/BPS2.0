@@ -21,37 +21,37 @@ app.use(express.json());
 
 // --- Authentication & Authorization Middleware ---
 const authAndAuthzMiddleware = (req, res, next) => {
-    const userId = req.headers['x-user-id'];
-    if (!userId) {
-        return res.status(401).json({ error: 'Authentication required. Please provide x-user-id header.' });
-    }
-    const user = users.find(u => u.id === parseInt(userId));
-    if (!user) {
-        return res.status(401).json({ error: 'Invalid user.' });
-    }
-    req.user = user;
+  const userId = req.headers['x-user-id'];
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required. Please provide x-user-id header.' });
+  }
 
-    if (user.role === 'superadmin') {
-        return next();
-    }
+  const user = users.find(u => u.id === parseInt(userId));
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid user.' });
+  }
 
-    const requestedCompanyId = req.query.companyId || req.body.companyId;
-    if (requestedCompanyId && parseInt(requestedCompanyId) !== user.companyId) {
-        return res.status(403).json({ error: "Forbidden: You cannot access another company's data." });
-    }
+  req.user = user;
 
-    if (req.user.role === 'reader' && req.method !== 'GET') {
-        return res.status(403).json({ error: 'Forbidden: Readers can only view data.' });
-    }
+  if (user.role === 'superadmin') return next();
 
-    if (req.user.role === 'operator') {
-        const allowedPostPaths = ['/registrations', '/escalations'];
-        if (req.method !== 'GET' && !(req.method === 'POST' && allowedPostPaths.includes(req.path))) {
-             return res.status(403).json({ error: 'Forbidden: Operators can only view data and create operational records.' });
-        }
-    }
+  const requestedCompanyId = req.query.companyId || req.body.companyId;
+  if (requestedCompanyId && parseInt(requestedCompanyId) !== user.companyId) {
+    return res.status(403).json({ error: "Forbidden: You cannot access another company's data." });
+  }
 
-    next();
+  if (user.role === 'reader' && req.method !== 'GET') {
+    return res.status(403).json({ error: 'Forbidden: Readers can only view data.' });
+  }
+
+  if (user.role === 'operator') {
+    const allowedPostPaths = ['/registrations', '/escalations'];
+    if (req.method !== 'GET' && !(req.method === 'POST' && allowedPostPaths.includes(req.path))) {
+      return res.status(403).json({ error: 'Forbidden: Operators can only view data and create operational records.' });
+    }
+  }
+
+  next();
 };
 
 // --- API Routes ---
@@ -64,29 +64,24 @@ app.use('/api/escalations', authAndAuthzMiddleware, escalationRoutes);
 app.use('/api/registrations', authAndAuthzMiddleware, registrationRoutes);
 app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
 
-
 // --- Login Route (Unprotected) ---
 app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    const user = users.find(u => u.username === username && u.password === password);
-    if (user) {
-        const userToSend = { ...user };
-        delete userToSend.password;
-        res.json({ success: true, user: userToSend });
-    } else {
-        res.status(401).json({ success: false, message: 'Invalid username or password' });
-    }
+  const { username, password } = req.body;
+  const user = users.find(u => u.username === username && u.password === password);
+  if (user) {
+    const userToSend = { ...user };
+    delete userToSend.password;
+    res.json({ success: true, user: userToSend });
+  } else {
+    res.status(401).json({ success: false, message: 'Invalid username or password' });
+  }
 });
-
 
 // --- Static Files & Frontend Entry Point ---
-// This will be used when we build the React app.
-// It assumes the react app is in `client` and its build output is in `client/dist`.
 app.use(express.static(path.join(__dirname, '../client/dist')));
-app.get('/*', (req, res) => {
+app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
 });
-
 
 // --- Error Handling ---
 app.use((err, req, res, next) => {
@@ -94,7 +89,6 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something broke!');
 });
-
 
 // --- Server Start ---
 app.listen(port, () => {
