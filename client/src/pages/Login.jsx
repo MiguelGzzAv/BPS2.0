@@ -14,7 +14,7 @@ function Login() {
         setError('');
 
         try {
-            const response = await fetch('/login', { // The login route is not under /api
+            const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

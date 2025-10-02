@@ -65,7 +65,7 @@ app.use('/api/registrations', authAndAuthzMiddleware, registrationRoutes);
 app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
 
 // --- Login Route (Unprotected) ---
-app.post('/login', (req, res) => {
+app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const user = users.find(u => u.username === username && u.password === password);
   if (user) {
