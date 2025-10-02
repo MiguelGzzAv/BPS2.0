@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 function Login() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const navigate = useNavigate();
+    const auth = useAuth();
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        setError(''); // Clear previous errors
+        setError('');
 
         try {
-            const response = await fetch('/login', {
+            const response = await fetch('/login', { // The login route is not under /api
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -21,11 +25,9 @@ function Login() {
             const data = await response.json();
 
             if (data.success) {
-                // For now, just log the user data.
-                // Later, we will save it to a global context.
-                console.log('Login successful:', data.user);
-                alert('Login successful! Check the console.');
-                // Here we would typically redirect the user or update the auth state.
+                auth.login(data.user);
+                // The navigation is now handled automatically by the routing logic in App.jsx
+                // when the `isAuthenticated` state changes. No need to navigate manually here.
             } else {
                 setError(data.message || 'Login failed.');
             }
