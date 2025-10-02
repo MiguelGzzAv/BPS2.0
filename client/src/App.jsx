@@ -3,7 +3,12 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Selection from './pages/Selection';
 import Dashboard from './pages/Dashboard';
-import Users from './pages/Users'; // Import the Users component
+import Users from './pages/Users';
+import Processes from './pages/Processes';
+import Departments from './pages/Departments';
+import Groups from './pages/Groups';
+import Monitoring from './pages/Monitoring';
+import Escalation from './pages/Escalation';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -24,6 +29,11 @@ function App() {
         <Route path="/selection" element={<Selection />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/users" element={<Users />} />
+        <Route path="/processes" element={<Processes />} />
+        <Route path="/departments" element={<Departments />} />
+        <Route path="/groups" element={<Groups />} />
+        <Route path="/monitoring" element={<Monitoring />} />
+        <Route path="/escalation" element={<Escalation />} />
       </Route>
 
       {/* Default route handler */}
