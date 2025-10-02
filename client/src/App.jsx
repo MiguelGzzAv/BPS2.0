@@ -2,7 +2,8 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Selection from './pages/Selection';
-import Dashboard from './pages/Dashboard'; // Import the Dashboard component
+import Dashboard from './pages/Dashboard';
+import Users from './pages/Users'; // Import the Users component
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -22,6 +23,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/selection" element={<Selection />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/users" element={<Users />} />
       </Route>
 
       {/* Default route handler */}
