@@ -98,13 +98,13 @@ function Selection() {
         <>
             <CompanyFormModal
                 show={isFormModalOpen}
-                onHide={() => { setIsFormModalOpen(false); setSelectedCompany(null); }}
+                onHide={() => setIsFormModalOpen(false)}
                 onSave={handleSaveCompany}
                 company={selectedCompany}
             />
             <AccessConfirmModal
                 show={isAccessModalOpen}
-                onHide={() => { setIsAccessModalOpen(false); setSelectedCompany(null); }}
+                onHide={() => setIsAccessModalOpen(false)}
                 onConfirm={() => handleConfirmAccess(selectedCompany)}
                 companyName={selectedCompany?.name}
             />

@@ -1,18 +1,21 @@
 import React, { useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 function MainLayout() {
     const { logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const companyName = sessionStorage.getItem('selectedCompanyName');
+    const isCompanySelected = !!companyName;
 
     useEffect(() => {
-        if (!companyName) {
+        // If no company is selected and we are not on the selection page, redirect.
+        if (!isCompanySelected && location.pathname !== '/selection') {
             console.warn("No company selected, redirecting to /selection");
             navigate('/selection');
         }
-    }, [companyName, navigate]);
+    }, [isCompanySelected, navigate, location.pathname]);
 
     const handleLinkClick = () => {
         const offcanvasElement = document.getElementById('offcanvasMenu');
@@ -33,7 +36,7 @@ function MainLayout() {
             {/* Top Navbar */}
             <nav className="navbar navbar-expand-sm navbar-dark bg-dark shadow-sm">
                 <div className="container-fluid">
-                    <button className="btn btn-outline-light me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu">
+                    <button className="btn btn-outline-light me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-label="Open navigation menu">
                         <span className="navbar-toggler-icon"></span>
                     </button>
                     <a className="navbar-brand" href="/selection">
@@ -57,25 +60,25 @@ function MainLayout() {
                 <div className="offcanvas-body">
                     <ul className="nav nav-pills flex-column mb-auto">
                         <li className="nav-item">
-                            <NavLink to="/dashboard" className="nav-link text-white" onClick={handleLinkClick}>Dashboard</NavLink>
+                            <NavLink to="/dashboard" className={`nav-link text-white ${!isCompanySelected ? 'disabled' : ''}`} onClick={isCompanySelected ? handleLinkClick : (e) => e.preventDefault()}>Dashboard</NavLink>
                         </li>
-                        <li>
-                            <NavLink to="/users" className="nav-link text-white" onClick={handleLinkClick}>Users</NavLink>
+                        <li className="nav-item">
+                            <NavLink to="/users" className={`nav-link text-white ${!isCompanySelected ? 'disabled' : ''}`} onClick={isCompanySelected ? handleLinkClick : (e) => e.preventDefault()}>Users</NavLink>
                         </li>
-                        <li>
+                        <li className="nav-item">
                             <NavLink to="/selection" className="nav-link text-white" onClick={handleLinkClick}>Companies</NavLink>
                         </li>
-                        <li>
-                            <NavLink to="/departments" className="nav-link text-white" onClick={handleLinkClick}>Departments</NavLink>
+                        <li className="nav-item">
+                            <NavLink to="/departments" className={`nav-link text-white ${!isCompanySelected ? 'disabled' : ''}`} onClick={isCompanySelected ? handleLinkClick : (e) => e.preventDefault()}>Departments</NavLink>
                         </li>
-                        <li>
-                            <NavLink to="/processes" className="nav-link text-white" onClick={handleLinkClick}>Processes</NavLink>
+                        <li className="nav-item">
+                            <NavLink to="/processes" className={`nav-link text-white ${!isCompanySelected ? 'disabled' : ''}`} onClick={isCompanySelected ? handleLinkClick : (e) => e.preventDefault()}>Processes</NavLink>
                         </li>
-                        <li>
-                            <NavLink to="/monitoring" className="nav-link text-white" onClick={handleLinkClick}>Monitoring</NavLink>
+                        <li className="nav-item">
+                            <NavLink to="/monitoring" className={`nav-link text-white ${!isCompanySelected ? 'disabled' : ''}`} onClick={isCompanySelected ? handleLinkClick : (e) => e.preventDefault()}>Monitoring</NavLink>
                         </li>
-                        <li>
-                            <NavLink to="/escalation" className="nav-link text-white" onClick={handleLinkClick}>Escalation</NavLink>
+                        <li className="nav-item">
+                            <NavLink to="/escalation" className={`nav-link text-white ${!isCompanySelected ? 'disabled' : ''}`} onClick={isCompanySelected ? handleLinkClick : (e) => e.preventDefault()}>Escalation</NavLink>
                         </li>
                     </ul>
                 </div>
