@@ -1,62 +1,43 @@
 /*
 ==============================================
-Custom Stylesheet for the Application
+Custom Stylesheet - Step 1: Table Improvements
 ==============================================
 */
 
-/* General Body and Layout */
-body {
-    background-color: #f4f7f6; /* A light grey background for a softer look */
-}
-
-#root {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-}
-
-/* Main Content Area */
-.main-content {
-    padding: 2rem;
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    margin: 1.5rem;
-}
-
-/* Customizing Bootstrap Components */
-.navbar {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.offcanvas-header {
-    border-bottom: 1px solid #dee2e6;
-}
-
+/* Table Styling */
 .table {
     margin-top: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Add a subtle shadow to the table */
 }
 
 .table thead {
-    background-color: #343a40; /* Dark header for tables */
+    background-color: #343a40; /* Dark header for better contrast */
     color: #ffffff;
+    font-weight: 600;
 }
 
 .table-striped tbody tr:nth-of-type(odd) {
-    background-color: rgba(0, 0, 0, 0.02); /* Subtler striping */
+    background-color: rgba(0, 0, 0, 0.02); /* Make the striping very subtle */
 }
 
-tr:hover {
-    background-color: #e9ecef; /* Hover effect for table rows */
+.table-hover tbody tr:hover {
+    background-color: #e9ecef; /* A light grey for hover effect */
+    cursor: pointer;
 }
 
-/* Custom button styles */
-.btn-primary {
-    background-color: #0056b3;
-    border-color: #0056b3;
+.table td, .table th {
+    vertical-align: middle; /* Center content vertically in cells */
 }
 
-.btn-primary:hover {
-    background-color: #004494;
-    border-color: #003d82;
+/* General Layout */
+body {
+    background-color: #f8f9fa; /* Light grey background */
+}
+
+.page-container {
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    margin: 2rem auto;
 }

@@ -32,7 +32,7 @@ function MainLayout() {
     return (
         <div>
             {/* Top Navbar */}
-            <nav className="navbar navbar-expand-sm navbar-dark bg-dark">
+            <nav className="navbar navbar-expand-sm navbar-dark bg-dark shadow-sm">
                 <div className="container-fluid">
                     <button className="btn btn-outline-light me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu">
                         <span className="navbar-toggler-icon"></span>
@@ -40,8 +40,8 @@ function MainLayout() {
                     <a className="navbar-brand" href="#">
                         BPS 2.0
                     </a>
-                    <div className="ms-auto">
-                        <span className="navbar-text me-3 text-white">
+                    <div className="ms-auto d-flex align-items-center">
+                        <span className="navbar-text me-3 text-white-50">
                             Company: {companyName || 'N/A'}
                         </span>
                         <button onClick={logout} className="btn btn-outline-danger">Logout</button>
@@ -51,29 +51,29 @@ function MainLayout() {
 
             {/* Offcanvas Menu */}
             <div className="offcanvas offcanvas-start bg-dark text-white" tabIndex="-1" id="offcanvasMenu">
-                <div className="offcanvas-header">
+                <div className="offcanvas-header border-bottom border-secondary">
                     <h5 className="offcanvas-title">Menu - {companyName || 'No Company'}</h5>
-                    <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                    <button type="button" className="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
                 </div>
                 <div className="offcanvas-body">
                     <ul className="nav nav-pills flex-column mb-auto">
                         <li className="nav-item">
-                            <NavLink to="/dashboard" className="nav-link" onClick={handleLinkClick}>Dashboard</NavLink>
+                            <NavLink to="/dashboard" className="nav-link text-white" onClick={handleLinkClick}>Dashboard</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/users" className="nav-link" onClick={handleLinkClick}>Users</NavLink>
+                            <NavLink to="/users" className="nav-link text-white" onClick={handleLinkClick}>Users</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/selection" className="nav-link" onClick={handleLinkClick}>Companies</NavLink>
+                            <NavLink to="/selection" className="nav-link text-white" onClick={handleLinkClick}>Companies</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/departments" className="nav-link" onClick={handleLinkClick}>Departments</NavLink>
+                            <NavLink to="/departments" className="nav-link text-white" onClick={handleLinkClick}>Departments</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/processes" className="nav-link" onClick={handleLinkClick}>Processes</NavLink>
+                            <NavLink to="/processes" className="nav-link text-white" onClick={handleLinkClick}>Processes</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/monitoring" className="nav-link" onClick={handleLinkClick}>Monitoring</NavLink>
+                            <NavLink to="/monitoring" className="nav-link text-white" onClick={handleLinkClick}>Monitoring</NavLink>
                         </li>
                         <li>
                             <NavLink to="/escalation" className="nav-link text-white" onClick={handleLinkClick}>Escalation</NavLink>
@@ -83,11 +83,9 @@ function MainLayout() {
             </div>
 
             {/* Main Content Area */}
-            <main className="main-content">
-                <div className="container-fluid">
-                    {/* The Outlet component renders the matched child route component */}
-                    <Outlet />
-                </div>
+            <main className="container page-container">
+                {/* The Outlet component renders the matched child route component */}
+                <Outlet />
             </main>
         </div>
     );
