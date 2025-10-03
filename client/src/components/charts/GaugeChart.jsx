@@ -4,7 +4,7 @@ import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js';
 
 ChartJS.register(ArcElement, Tooltip);
 
-const GaugeChart = ({ value, max = 100, label }) => {
+const GaugeChart = ({ value, max = 100, label, statusColor = '#28a745' }) => {
     const percentage = max > 0 ? (value / max) * 100 : 0;
 
     const data = {
@@ -12,10 +12,10 @@ const GaugeChart = ({ value, max = 100, label }) => {
         datasets: [
             {
                 data: [value, max - value],
-                backgroundColor: ['#28a745', '#e9ecef'], // Green for value, light grey for remaining
+                backgroundColor: [statusColor, '#e9ecef'],
                 borderWidth: 0,
-                circumference: 180, // Make it a semi-circle
-                rotation: 270, // Start from the bottom
+                circumference: 180,
+                rotation: 270,
             },
         ],
     };
@@ -36,24 +36,24 @@ const GaugeChart = ({ value, max = 100, label }) => {
             const ctx = chart.ctx;
             const { top, left, width, height } = chart.chartArea;
             const x = left + width / 2;
-            const y = top + height / 2 + 30;
+            const y = top + height / 2 + 20; // Adjusted for smaller size
 
             ctx.save();
-            ctx.font = 'bold 30px sans-serif';
+            ctx.font = 'bold 24px sans-serif'; // Smaller font
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#495057';
-            ctx.fillText(`${Math.round(percentage)}%`, x, y - 15);
+            ctx.fillText(`${Math.round(percentage)}%`, x, y - 10); // Adjusted position
 
-            ctx.font = '16px sans-serif';
+            ctx.font = '12px sans-serif'; // Smaller font
             ctx.fillStyle = '#6c757d';
-            ctx.fillText(label || 'Completion', x, y + 15);
+            ctx.fillText(label || 'Of Total', x, y + 10); // Adjusted position
             ctx.restore();
         }
     };
 
     return (
-        <div style={{ position: 'relative', height: '200px' }}>
+        <div style={{ position: 'relative', height: '120px', margin: 'auto' }}>
             <Doughnut data={data} options={options} plugins={[centerTextPlugin]} />
         </div>
     );

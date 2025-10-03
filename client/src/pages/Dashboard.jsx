@@ -12,6 +12,14 @@ const statusToBootstrapColor = {
     'sin ejecucion': 'secondary',
 };
 
+const statusColors = {
+    'ok': '#28a745',
+    'falla': '#dc3545',
+    'error': '#ffc107',
+    'ambar': '#fd7e14',
+    'sin ejecucion': '#6c757d',
+};
+
 function Dashboard() {
     const { user } = useAuth();
     const [summary, setSummary] = useState(null);
@@ -67,52 +75,59 @@ function Dashboard() {
         alert(`View '${viewMode}' has been pinned as your default for this company.`);
     };
 
-    const renderSummaryCards = () => (
-        <div className="row g-4">
-            {Object.entries(summary).map(([status, data]) => {
-                const hasProcesses = data.processes && data.processes.length > 0;
-                const borderColorClass = `border-${statusToBootstrapColor[status] || 'secondary'}`;
-                const sanitizedStatusId = status.replace(/\s+/g, '-');
+    const renderCardContent = (status, data, totalProcesses) => {
+        switch (viewMode) {
+            case 'doughnut':
+                return <DoughnutChart statusData={data} />;
+            case 'gauge':
+                return <GaugeChart value={data.total} max={totalProcesses} label="Of Total" statusColor={statusColors[status]} />;
+            case 'cards':
+            default:
+                return <p className="card-text display-4 fw-bold">{data.total}</p>;
+        }
+    };
 
-                return (
-                    <div key={status} className="col-lg-4 col-md-6 mb-4">
-                        <div className={`card h-100 border-start border-5 ${borderColorClass}`}>
-                            <div className="card-body">
-                                <div className="text-center">
-                                    <h5 className="card-title text-uppercase">{status}</h5>
-                                    <p className="card-text display-4 fw-bold">{data.total}</p>
-                                    <ul className="list-group list-group-flush mb-3">
-                                        <li className="list-group-item d-flex justify-content-between">Alta <span className="badge bg-danger">{data.Alta}</span></li>
-                                        <li className="list-group-item d-flex justify-content-between">Media <span className="badge bg-warning text-dark">{data.Media}</span></li>
-                                        <li className="list-group-item d-flex justify-content-between">Baja <span className="badge bg-success">{data.Baja}</span></li>
-                                    </ul>
-                                </div>
-                                {hasProcesses && (
-                                    <>
-                                        <p className="text-center mb-2"><a className="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" href={`#collapse-${sanitizedStatusId}`}>Top 5 Critical Processes</a></p>
-                                        <div className="collapse" id={`collapse-${sanitizedStatusId}`}>
-                                            <ul className="list-group">{data.processes.map(p => <li key={p.id} className="list-group-item">{p.name}</li>)}</ul>
+    const renderSummaryCards = () => {
+        if (!summary) return null;
+        const totalProcesses = Object.values(summary).reduce((acc, val) => acc + val.total, 0);
+
+        return (
+            <div className="row g-4">
+                {Object.entries(summary).map(([status, data]) => {
+                    const hasProcesses = data.processes && data.processes.length > 0;
+                    const borderColorClass = `border-${statusToBootstrapColor[status] || 'secondary'}`;
+                    const sanitizedStatusId = status.replace(/\s+/g, '-');
+
+                    return (
+                        <div key={status} className="col-lg-4 col-md-6 mb-4">
+                            <div className={`card h-100 border-start border-5 ${borderColorClass}`}>
+                                <div className="card-body d-flex flex-column">
+                                    <div className="text-center">
+                                        <h5 className="card-title text-uppercase">{status}</h5>
+                                        <div className="my-3">
+                                            {renderCardContent(status, data, totalProcesses)}
                                         </div>
-                                    </>
-                                )}
+                                        <ul className="list-group list-group-flush mb-3">
+                                            <li className="list-group-item d-flex justify-content-between">Alta <span className="badge bg-danger">{data.Alta}</span></li>
+                                            <li className="list-group-item d-flex justify-content-between">Media <span className="badge bg-warning text-dark">{data.Media}</span></li>
+                                            <li className="list-group-item d-flex justify-content-between">Baja <span className="badge bg-success">{data.Baja}</span></li>
+                                        </ul>
+                                    </div>
+                                    {hasProcesses && (
+                                        <div className="mt-auto">
+                                            <p className="text-center mb-2"><a className="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" href={`#collapse-${sanitizedStatusId}`}>Top 5 Critical Processes</a></p>
+                                            <div className="collapse" id={`collapse-${sanitizedStatusId}`}>
+                                                <ul className="list-group">{data.processes.map(p => <li key={p.id} className="list-group-item">{p.name}</li>)}</ul>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-
-    const renderActiveView = () => {
-        if (!summary) return <p>No summary data available.</p>;
-        switch (viewMode) {
-            case 'doughnut': return <DoughnutChart summaryData={summary} />;
-            case 'gauge':
-                const total = Object.values(summary).reduce((acc, val) => acc + val.total, 0);
-                const ok = summary.ok?.total || 0;
-                return <GaugeChart value={ok} max={total} label="Processes OK" />;
-            default: return renderSummaryCards();
-        }
+                    );
+                })}
+            </div>
+        );
     };
 
     const renderAffectedProcesses = () => (
@@ -155,7 +170,7 @@ function Dashboard() {
                             </div>
                             <button className="btn btn-sm btn-outline-secondary" onClick={handlePinView}>Pin View</button>
                         </div>
-                        {renderActiveView()}
+                        {renderSummaryCards()}
                     </div>
                 ) : (
                     affectedProcesses.length > 0 ? renderAffectedProcesses() : <div className="alert alert-info">No hay procesos afectados para la fecha seleccionada.</div>

@@ -4,32 +4,30 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const statusColors = {
-    'ok': '#28a745', // success
-    'falla': '#dc3545', // danger
-    'error': '#ffc107', // warning
-    'ambar': '#fd7e14', // orange
-    'sin ejecucion': '#6c757d', // secondary
+// New colors for criticality levels
+const criticalityColors = {
+    'Alta': '#dc3545',   // danger
+    'Media': '#ffc107',  // warning
+    'Baja': '#28a745',    // success
 };
 
-const DoughnutChart = ({ summaryData }) => {
-    if (!summaryData) {
+const DoughnutChart = ({ statusData }) => {
+    if (!statusData) {
         return <p>No data to display.</p>;
     }
 
-    const labels = Object.keys(summaryData);
-    const dataValues = labels.map(label => summaryData[label].total);
-    const backgroundColors = labels.map(label => statusColors[label] || '#000000');
+    const labels = ['Alta', 'Media', 'Baja'];
+    const dataValues = [statusData.Alta, statusData.Media, statusData.Baja];
+    const backgroundColors = labels.map(label => criticalityColors[label]);
 
     const chartData = {
         labels: labels,
         datasets: [
             {
-                label: '# of Processes',
                 data: dataValues,
                 backgroundColor: backgroundColors,
                 borderColor: '#ffffff',
-                borderWidth: 2,
+                borderWidth: 1,
             },
         ],
     };
@@ -37,22 +35,26 @@ const DoughnutChart = ({ summaryData }) => {
     const options = {
         responsive: true,
         maintainAspectRatio: false,
+        cutout: '60%',
         plugins: {
             legend: {
-                position: 'top',
+                display: true, // Show legend to identify colors
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    font: {
+                        size: 10,
+                    }
+                }
             },
             title: {
-                display: true,
-                text: 'Process Status Overview',
-                font: {
-                    size: 16,
-                }
+                display: false, // No title needed for the small version
             },
         },
     };
 
     return (
-        <div style={{ position: 'relative', height: '400px' }}>
+        <div style={{ position: 'relative', height: '150px', margin: 'auto' }}>
             <Doughnut data={chartData} options={options} />
         </div>
     );
