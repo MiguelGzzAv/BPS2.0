@@ -1,33 +1,8 @@
 /*
 ==============================================
-Custom Stylesheet - Step 1: Table Improvements
+Custom Stylesheet - Final Version
 ==============================================
 */
-
-/* Table Styling */
-.table {
-    margin-top: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Add a subtle shadow to the table */
-}
-
-.table thead {
-    background-color: #343a40; /* Dark header for better contrast */
-    color: #ffffff;
-    font-weight: 600;
-}
-
-.table-striped tbody tr:nth-of-type(odd) {
-    background-color: rgba(0, 0, 0, 0.02); /* Make the striping very subtle */
-}
-
-.table-hover tbody tr:hover {
-    background-color: #e9ecef; /* A light grey for hover effect */
-    cursor: pointer;
-}
-
-.table td, .table th {
-    vertical-align: middle; /* Center content vertically in cells */
-}
 
 /* General Layout */
 body {
@@ -40,6 +15,30 @@ body {
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.05);
     margin: 2rem auto;
+}
+
+/* Table Styling */
+.table {
+    margin-top: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.table thead {
+    background-color: #343a40;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.table-hover tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+.table td, .table th {
+    vertical-align: middle;
 }
 
 /* Company Selection Cards */
@@ -62,13 +61,6 @@ body {
 .company-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-}
-
-.company-card-logo {
-    max-width: 100px;
-    height: 80px;
-    object-fit: contain;
-    margin-bottom: 1rem;
 }
 
 .company-card .btn {
