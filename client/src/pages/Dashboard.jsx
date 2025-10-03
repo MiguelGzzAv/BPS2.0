@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
+import DoughnutChart from '../components/charts/DoughnutChart';
+import GaugeChart from '../components/charts/GaugeChart';
 
-ChartJS.register(ArcElement, Tooltip, Legend, DoughnutController);
+const statusToBootstrapColor = {
+    'ok': 'success',
+    'falla': 'danger',
+    'error': 'warning',
+    'ambar': 'warning',
+    'sin ejecucion': 'secondary',
+};
 
 function Dashboard() {
     const { user } = useAuth();
@@ -13,8 +19,15 @@ function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('criticality');
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [viewMode, setViewMode] = useState('cards'); // 'cards', 'doughnut', 'gauge'
 
     const companyId = sessionStorage.getItem('selectedCompanyId');
+
+    useEffect(() => {
+        const pinnedView = localStorage.getItem(`pinnedView_${companyId}`);
+        if (pinnedView) setViewMode(pinnedView);
+    }, [companyId]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -23,21 +36,21 @@ function Dashboard() {
                 setLoading(false);
                 return;
             }
-
             setLoading(true);
             try {
-                const companyQueryParam = user.role === 'superadmin' ? `?companyId=${companyId}` : '';
+                const dateQuery = `date=${selectedDate.toISOString().split('T')[0]}`;
+                const companyQuery = user.role === 'superadmin' ? `companyId=${companyId}` : '';
+                const queryString = `?${[dateQuery, companyQuery].filter(Boolean).join('&')}`;
 
-                const summaryRes = await fetchWithAuth(`/api/dashboard/summary${companyQueryParam}`);
-                const affectedRes = await fetchWithAuth(`/api/dashboard/affected-processes${companyQueryParam}`);
+                const [summaryRes, affectedRes] = await Promise.all([
+                    fetchWithAuth(`/api/dashboard/summary${queryString}`),
+                    fetchWithAuth(`/api/dashboard/affected-processes${queryString}`)
+                ]);
 
-                if (!summaryRes.ok || !affectedRes.ok) {
-                    throw new Error('Failed to fetch dashboard data');
-                }
+                if (!summaryRes.ok || !affectedRes.ok) throw new Error('Failed to fetch dashboard data');
 
                 const summaryData = await summaryRes.json();
                 const affectedData = await affectedRes.json();
-
                 setSummary(summaryData.summary);
                 setAffectedProcesses(affectedData);
             } catch (err) {
@@ -46,77 +59,106 @@ function Dashboard() {
                 setLoading(false);
             }
         };
-
         fetchData();
-    }, [companyId, user]);
+    }, [companyId, user, selectedDate]);
 
-    const renderSummaryCards = () => {
-        if (!summary) return null;
-        return Object.entries(summary).map(([status, data]) => (
-            <div key={status} className="col-lg-4 col-md-6 mb-4">
-                <div className={`card h-100 border-start border-5 border-${status.replace(/\s+/g, '-')}`}>
-                    <div className="card-body text-center">
-                        <h5 className="card-title text-uppercase">{status}</h5>
-                        <p className="card-text display-4 fw-bold">{data.total}</p>
-                        <ul className="list-group list-group-flush">
-                            <li className="list-group-item d-flex justify-content-between">Alta <span className="badge bg-danger">{data.Alta}</span></li>
-                            <li className="list-group-item d-flex justify-content-between">Media <span className="badge bg-warning text-dark">{data.Media}</span></li>
-                            <li className="list-group-item d-flex justify-content-between">Baja <span className="badge bg-success">{data.Baja}</span></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        ));
+    const handlePinView = () => {
+        localStorage.setItem(`pinnedView_${companyId}`, viewMode);
+        alert(`View '${viewMode}' has been pinned as your default for this company.`);
     };
 
-    const renderAffectedProcesses = () => {
-        if (affectedProcesses.length === 0) {
-            return <div className="alert alert-info">No hay procesos afectados por fallas en sus dependencias.</div>;
-        }
-        return (
-            <div className="list-group">
-                {affectedProcesses.map(item => (
-                    <div key={item.parentProcessId + item.failingChildId} className="list-group-item">
-                        <div className="d-flex w-100 justify-content-between">
-                            <h5 className="mb-1">{item.parentProcessName}</h5>
-                            <small>ID: {item.parentProcessId}</small>
+    const renderSummaryCards = () => (
+        <div className="row g-4">
+            {Object.entries(summary).map(([status, data]) => {
+                const hasProcesses = data.processes && data.processes.length > 0;
+                const borderColorClass = `border-${statusToBootstrapColor[status] || 'secondary'}`;
+                const sanitizedStatusId = status.replace(/\s+/g, '-');
+
+                return (
+                    <div key={status} className="col-lg-4 col-md-6 mb-4">
+                        <div className={`card h-100 border-start border-5 ${borderColorClass}`}>
+                            <div className="card-body">
+                                <div className="text-center">
+                                    <h5 className="card-title text-uppercase">{status}</h5>
+                                    <p className="card-text display-4 fw-bold">{data.total}</p>
+                                    <ul className="list-group list-group-flush mb-3">
+                                        <li className="list-group-item d-flex justify-content-between">Alta <span className="badge bg-danger">{data.Alta}</span></li>
+                                        <li className="list-group-item d-flex justify-content-between">Media <span className="badge bg-warning text-dark">{data.Media}</span></li>
+                                        <li className="list-group-item d-flex justify-content-between">Baja <span className="badge bg-success">{data.Baja}</span></li>
+                                    </ul>
+                                </div>
+                                {hasProcesses && (
+                                    <>
+                                        <p className="text-center mb-2"><a className="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" href={`#collapse-${sanitizedStatusId}`}>Top 5 Critical Processes</a></p>
+                                        <div className="collapse" id={`collapse-${sanitizedStatusId}`}>
+                                            <ul className="list-group">{data.processes.map(p => <li key={p.id} className="list-group-item">{p.name}</li>)}</ul>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
-                        <p className="mb-1">
-                            Afectado por la falla del proceso hijo: <strong>{item.failingChildName}</strong> (ID: {item.failingChildId})
-                        </p>
-                        <small>Estado del hijo: <span className={`badge bg-${item.childStatus === 'falla' ? 'danger' : 'warning'}`}>{item.childStatus.toUpperCase()}</span></small>
                     </div>
-                ))}
-            </div>
-        );
+                );
+            })}
+        </div>
+    );
+
+    const renderActiveView = () => {
+        if (!summary) return <p>No summary data available.</p>;
+        switch (viewMode) {
+            case 'doughnut': return <DoughnutChart summaryData={summary} />;
+            case 'gauge':
+                const total = Object.values(summary).reduce((acc, val) => acc + val.total, 0);
+                const ok = summary.ok?.total || 0;
+                return <GaugeChart value={ok} max={total} label="Processes OK" />;
+            default: return renderSummaryCards();
+        }
     };
 
-    if (loading) {
-        return <div className="text-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
-    }
+    const renderAffectedProcesses = () => (
+        <div className="list-group">
+            {affectedProcesses.map(item => (
+                <div key={item.parentProcessId + item.failingChildId} className="list-group-item">
+                    <h5 className="mb-1">{item.parentProcessName}</h5>
+                    <p className="mb-1">Affected by failure in: <strong>{item.failingChildName}</strong></p>
+                    <small>Child Status: <span className={`badge bg-${statusToBootstrapColor[item.childStatus] || 'secondary'}`}>{item.childStatus.toUpperCase()}</span></small>
+                </div>
+            ))}
+        </div>
+    );
 
-    if (error) {
-        return <div className="alert alert-danger">{error}</div>;
-    }
+    if (loading) return <div className="text-center mt-5"><div className="spinner-border" /></div>;
+    if (error) return <div className="alert alert-danger">{error}</div>;
+    if (!summary) return <div className="alert alert-info">No data available for the selected date.</div>;
 
     return (
         <div>
-            <h1 className="mb-4">Dashboard</h1>
+            <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                <h1 className="mb-0">Dashboard</h1>
+                <div>
+                    <label htmlFor="dashboard-date" className="form-label fw-bold">Select Date</label>
+                    <input type="date" id="dashboard-date" className="form-control" value={selectedDate.toISOString().split('T')[0]} onChange={(e) => setSelectedDate(new Date(e.target.value + 'T00:00:00Z'))} />
+                </div>
+            </div>
             <ul className="nav nav-tabs mb-3">
-                <li className="nav-item">
-                    <button className={`nav-link ${activeTab === 'criticality' ? 'active' : ''}`} onClick={() => setActiveTab('criticality')}>Criticidad</button>
-                </li>
-                <li className="nav-item">
-                    <button className={`nav-link ${activeTab === 'affected' ? 'active' : ''}`} onClick={() => setActiveTab('affected')}>Procesos Afectados</button>
-                </li>
+                <li className="nav-item"><button className={`nav-link ${activeTab === 'criticality' ? 'active' : ''}`} onClick={() => setActiveTab('criticality')}>Criticidad</button></li>
+                <li className="nav-item"><button className={`nav-link ${activeTab === 'affected' ? 'active' : ''}`} onClick={() => setActiveTab('affected')}>Procesos Afectados</button></li>
             </ul>
-
             <div className="tab-content">
-                {activeTab === 'criticality' && (
-                    <div className="row g-4">{renderSummaryCards()}</div>
-                )}
-                {activeTab === 'affected' && (
-                    <div>{renderAffectedProcesses()}</div>
+                {activeTab === 'criticality' ? (
+                    <div>
+                        <div className="d-flex justify-content-end align-items-center mb-3 gap-2">
+                            <div className="btn-group" role="group">
+                                <button type="button" className={`btn btn-sm ${viewMode === 'cards' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setViewMode('cards')}>Cards</button>
+                                <button type="button" className={`btn btn-sm ${viewMode === 'doughnut' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setViewMode('doughnut')}>Doughnut</button>
+                                <button type="button" className={`btn btn-sm ${viewMode === 'gauge' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setViewMode('gauge')}>Gauge</button>
+                            </div>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={handlePinView}>Pin View</button>
+                        </div>
+                        {renderActiveView()}
+                    </div>
+                ) : (
+                    affectedProcesses.length > 0 ? renderAffectedProcesses() : <div className="alert alert-info">No hay procesos afectados para la fecha seleccionada.</div>
                 )}
             </div>
         </div>
