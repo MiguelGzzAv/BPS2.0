@@ -33,7 +33,12 @@ function Selection() {
     const handleSelectCompany = (company) => {
         sessionStorage.setItem('selectedCompanyId', company.id);
         sessionStorage.setItem('selectedCompanyName', company.name);
-        navigate('/dashboard'); // Navigate to the dashboard
+
+        if (auth.user.role === 'superadmin') {
+            navigate('/confirm-selection');
+        } else {
+            navigate('/dashboard');
+        }
     };
 
     if (!auth.user) {
