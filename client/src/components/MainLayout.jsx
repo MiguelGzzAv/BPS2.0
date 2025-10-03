@@ -5,11 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 function MainLayout() {
     const { logout } = useAuth();
     const navigate = useNavigate();
-
-    // Attempt to get company name from sessionStorage
     const companyName = sessionStorage.getItem('selectedCompanyName');
 
-    // If no company is selected, redirect to the selection page
     useEffect(() => {
         if (!companyName) {
             console.warn("No company selected, redirecting to /selection");
@@ -17,66 +14,73 @@ function MainLayout() {
         }
     }, [companyName, navigate]);
 
-
-    // This function will be used to close the offcanvas menu when a link is clicked
     const handleLinkClick = () => {
-        const offcanvasElement = document.getElementById('offcanvasMenu');
+        const offcanvasElement = document.getElementById('demo');
         if (offcanvasElement) {
-            const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
-            if (bsOffcanvas) {
-                bsOffcanvas.hide();
+            // This requires Bootstrap's JavaScript to be loaded.
+            // Assuming it is, we try to get the instance and hide it.
+            try {
+                const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
+                if (bsOffcanvas) {
+                    bsOffcanvas.hide();
+                }
+            } catch (e) {
+                console.error("Could not hide offcanvas. Make sure Bootstrap's JS is loaded.", e);
             }
         }
     };
 
     return (
         <div>
-            {/* Top Navbar */}
-            <nav className="navbar navbar-expand-sm navbar-dark bg-dark shadow-sm">
+            {/* Top Navbar from user example */}
+            <nav className="navbar navbar-expand-sm bg-dark navbar-dark">
                 <div className="container-fluid">
-                    <button className="btn btn-outline-light me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu">
-                        <span className="navbar-toggler-icon"></span>
-                    </button>
                     <a className="navbar-brand" href="#">
-                        BPS 2.0
+                        <img
+                            src="https://www.w3schools.com/bootstrap5/img/logo.svg"
+                            alt="Logo"
+                            style={{width: '40px'}}
+                            className="rounded-pill"
+                        />
                     </a>
-                    <div className="ms-auto d-flex align-items-center">
-                        <span className="navbar-text me-3 text-white-50">
-                            Company: {companyName || 'N/A'}
-                        </span>
+                    {/* Button to open the offcanvas sidebar */}
+                    <button className="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#demo">
+                        Open Menu
+                    </button>
+                    <div className="ms-auto">
                         <button onClick={logout} className="btn btn-outline-danger">Logout</button>
                     </div>
                 </div>
             </nav>
 
-            {/* Offcanvas Menu */}
-            <div className="offcanvas offcanvas-start bg-dark text-white" tabIndex="-1" id="offcanvasMenu">
-                <div className="offcanvas-header border-bottom border-secondary">
-                    <h5 className="offcanvas-title">Menu - {companyName || 'No Company'}</h5>
-                    <button type="button" className="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            {/* Offcanvas Sidebar from user example */}
+            <div className="offcanvas offcanvas-start" id="demo">
+                <div className="offcanvas-header">
+                    <h1 className="offcanvas-title">Menu</h1>
+                    <button type="button" className="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
                 </div>
                 <div className="offcanvas-body">
                     <ul className="nav nav-pills flex-column mb-auto">
                         <li className="nav-item">
-                            <NavLink to="/dashboard" className="nav-link text-white" onClick={handleLinkClick}>Dashboard</NavLink>
+                            <NavLink to="/dashboard" className="nav-link" onClick={handleLinkClick}>Dashboard</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/users" className="nav-link text-white" onClick={handleLinkClick}>Users</NavLink>
+                            <NavLink to="/users" className="nav-link" onClick={handleLinkClick}>Users</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/selection" className="nav-link text-white" onClick={handleLinkClick}>Companies</NavLink>
+                            <NavLink to="/selection" className="nav-link" onClick={handleLinkClick}>Companies</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/departments" className="nav-link text-white" onClick={handleLinkClick}>Departments</NavLink>
+                            <NavLink to="/departments" className="nav-link" onClick={handleLinkClick}>Departments</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/processes" className="nav-link text-white" onClick={handleLinkClick}>Processes</NavLink>
+                            <NavLink to="/processes" className="nav-link" onClick={handleLinkClick}>Processes</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/monitoring" className="nav-link text-white" onClick={handleLinkClick}>Monitoring</NavLink>
+                            <NavLink to="/monitoring" className="nav-link" onClick={handleLinkClick}>Monitoring</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/escalation" className="nav-link text-white" onClick={handleLinkClick}>Escalation</NavLink>
+                            <NavLink to="/escalation" className="nav-link" onClick={handleLinkClick}>Escalation</NavLink>
                         </li>
                     </ul>
                 </div>
@@ -84,7 +88,6 @@ function MainLayout() {
 
             {/* Main Content Area */}
             <main className="container page-container">
-                {/* The Outlet component renders the matched child route component */}
                 <Outlet />
             </main>
         </div>
