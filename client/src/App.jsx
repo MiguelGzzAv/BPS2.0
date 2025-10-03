@@ -57,6 +57,7 @@ function App() {
         element={<Navigate to={isAuthenticated ? "/selection" : "/login"} replace />}
       />
     </Routes>
+    </>
   );
 }
 
