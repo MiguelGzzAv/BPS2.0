@@ -34,13 +34,17 @@ function Selection() {
         }
     }, [auth.isAuthenticated]);
 
-    const handleCardClick = (company) => {
+    const handleSelectCompany = (company) => {
         setSelectedCompany(company);
-        // For superadmins, show confirmation modal. For others, navigate directly.
+    };
+
+    const handleAccessCompany = () => {
+        if (!selectedCompany) return; // Do nothing if no company is selected
+
         if (auth.user.role === 'superadmin') {
             setIsAccessModalOpen(true);
         } else {
-            handleConfirmAccess(company);
+            handleConfirmAccess(selectedCompany);
         }
     };
 
@@ -98,13 +102,13 @@ function Selection() {
         <>
             <CompanyFormModal
                 show={isFormModalOpen}
-                onHide={() => setIsFormModalOpen(false)}
+                onHide={() => { setIsFormModalOpen(false); setSelectedCompany(null); }}
                 onSave={handleSaveCompany}
                 company={selectedCompany}
             />
             <AccessConfirmModal
                 show={isAccessModalOpen}
-                onHide={() => setIsAccessModalOpen(false)}
+                onHide={() => { setIsAccessModalOpen(false); setSelectedCompany(null); }}
                 onConfirm={() => handleConfirmAccess(selectedCompany)}
                 companyName={selectedCompany?.name}
             />
@@ -139,7 +143,8 @@ function Selection() {
                             <div
                                 className={`card ${selectedCompany?.id === company.id ? 'border-primary' : ''}`}
                                 style={{ cursor: 'pointer' }}
-                                onClick={() => handleCardClick(company)}
+                                onClick={() => handleSelectCompany(company)}
+                                onDoubleClick={handleAccessCompany}
                             >
                                 <div className="card-body text-center">
                                     <h5 className="card-title">{company.name}</h5>
