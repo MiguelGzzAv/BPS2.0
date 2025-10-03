@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../api';
 import DepartmentFormModal from '../components/DepartmentFormModal';
-import { toast } from 'react-toastify';
 
 const Departments = () => {
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDepartment, setEditingDepartment] = useState(null);
 
@@ -13,7 +13,7 @@ const Departments = () => {
         try {
             const companyId = sessionStorage.getItem('selectedCompanyId');
             if (!companyId) {
-                toast.warn('Please select a company first.');
+                setError('No company selected.');
                 setLoading(false);
                 return;
             }
@@ -25,7 +25,7 @@ const Departments = () => {
             const data = await response.json();
             setDepartments(data);
         } catch (err) {
-            toast.error(err.message);
+            setError(err.message);
         } finally {
             setLoading(false);
         }
@@ -51,27 +51,25 @@ const Departments = () => {
     };
 
     const handleSave = async (departmentData) => {
+        const companyId = sessionStorage.getItem('selectedCompanyId');
         const isEditing = !!editingDepartment;
-        const action = isEditing ? 'update' : 'create';
         const url = isEditing ? `/api/departments/${editingDepartment.id}` : '/api/departments';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
-            const companyId = sessionStorage.getItem('selectedCompanyId');
             const response = await fetchWithAuth(url, {
                 method,
                 body: JSON.stringify({ ...departmentData, companyId }),
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to ${action} department`);
+                throw new Error(`Failed to ${isEditing ? 'update' : 'create'} department`);
             }
 
-            await fetchDepartments();
-            toast.success(`Department ${isEditing ? 'updated' : 'created'} successfully!`);
+            fetchDepartments(); // Refetch all departments to update the list
             handleCloseModal();
         } catch (err) {
-            toast.error(err.message);
+            setError(err.message);
         }
     };
 
@@ -86,10 +84,9 @@ const Departments = () => {
                     throw new Error('Failed to delete department');
                 }
 
-                await fetchDepartments();
-                toast.success('Department deleted successfully!');
+                fetchDepartments(); // Refetch all departments to update the list
             } catch (err) {
-                toast.error(err.message);
+                setError(err.message);
             }
         }
     };
@@ -110,7 +107,8 @@ const Departments = () => {
             )}
 
             {loading && <p>Loading...</p>}
-            {!loading && (
+            {error && <div className="alert alert-danger">{error}</div>}
+            {!loading && !error && (
                 <table className="table table-striped">
                     <thead>
                         <tr>

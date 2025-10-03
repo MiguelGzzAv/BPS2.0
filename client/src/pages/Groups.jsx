@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../api';
 import GroupFormModal from '../components/GroupFormModal';
-import { toast } from 'react-toastify';
 
 const Groups = () => {
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingGroup, setEditingGroup] = useState(null);
 
@@ -13,7 +13,7 @@ const Groups = () => {
         try {
             const companyId = sessionStorage.getItem('selectedCompanyId');
             if (!companyId) {
-                toast.warn('Please select a company first.');
+                setError('No company selected.');
                 setLoading(false);
                 return;
             }
@@ -25,7 +25,7 @@ const Groups = () => {
             const data = await response.json();
             setGroups(data);
         } catch (err) {
-            toast.error(err.message);
+            setError(err.message);
         } finally {
             setLoading(false);
         }
@@ -51,27 +51,25 @@ const Groups = () => {
     };
 
     const handleSave = async (groupData) => {
+        const companyId = sessionStorage.getItem('selectedCompanyId');
         const isEditing = !!editingGroup;
-        const action = isEditing ? 'update' : 'create';
         const url = isEditing ? `/api/groups/${editingGroup.id}` : '/api/groups';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
-            const companyId = sessionStorage.getItem('selectedCompanyId');
             const response = await fetchWithAuth(url, {
                 method,
                 body: JSON.stringify({ ...groupData, companyId }),
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to ${action} group`);
+                throw new Error(`Failed to ${isEditing ? 'update' : 'create'} group`);
             }
 
-            await fetchGroups();
-            toast.success(`Group ${isEditing ? 'updated' : 'created'} successfully!`);
+            fetchGroups(); // Refetch all groups to update the list
             handleCloseModal();
         } catch (err) {
-            toast.error(err.message);
+            setError(err.message);
         }
     };
 
@@ -86,10 +84,9 @@ const Groups = () => {
                     throw new Error('Failed to delete group');
                 }
 
-                await fetchGroups();
-                toast.success('Group deleted successfully!');
+                fetchGroups(); // Refetch all groups to update the list
             } catch (err) {
-                toast.error(err.message);
+                setError(err.message);
             }
         }
     };
@@ -110,7 +107,8 @@ const Groups = () => {
             )}
 
             {loading && <p>Loading...</p>}
-            {!loading && (
+            {error && <div className="alert alert-danger">{error}</div>}
+            {!loading && !error && (
                 <table className="table table-striped">
                     <thead>
                         <tr>

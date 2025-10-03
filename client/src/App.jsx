@@ -11,30 +11,15 @@ import Monitoring from './pages/Monitoring';
 import Escalation from './pages/Escalation';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 
 function App() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <>
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
-      <Routes>
-        {/* If the user is authenticated and tries to go to /login, redirect them to the selection page */}
-        <Route
+    <Routes>
+      {/* If the user is authenticated and tries to go to /login, redirect them to the selection page */}
+      <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/selection" replace /> : <Login />}
       />
@@ -57,7 +42,6 @@ function App() {
         element={<Navigate to={isAuthenticated ? "/selection" : "/login"} replace />}
       />
     </Routes>
-    </>
   );
 }
 

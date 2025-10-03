@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
 import UserFormModal from '../components/UserFormModal';
-import { toast } from 'react-toastify';
 
 function Users() {
     const { user } = useAuth();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
 
@@ -15,7 +15,7 @@ function Users() {
 
     const fetchUsers = async () => {
         if (user.role !== 'superadmin' && !companyId) {
-            toast.warn("Please select a company first.");
+            setError("Please select a company first.");
             setLoading(false);
             return;
         }
@@ -27,7 +27,7 @@ function Users() {
             const data = await response.json();
             setUsers(data);
         } catch (err) {
-            toast.error(err.message);
+            setError(err.message);
         } finally {
             setLoading(false);
         }
@@ -39,7 +39,6 @@ function Users() {
 
     const handleSave = () => {
         fetchUsers(); // Refresh the list
-        toast.success(`User ${editingUser ? 'updated' : 'created'} successfully!`);
     };
 
     const handleCreate = () => {
@@ -61,9 +60,8 @@ function Users() {
                     throw new Error(errData.error || 'Failed to delete user.');
                 }
                 fetchUsers(); // Refresh list
-                toast.success('User deleted successfully!');
             } catch (err) {
-                toast.error(err.message);
+                setError(err.message);
             }
         }
     };
@@ -78,6 +76,7 @@ function Users() {
 
     const canAddUsers = user.role === 'admin' || user.role === 'superadmin';
     if (loading) return <div className="text-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
+    if (error) return <div className="alert alert-danger">{error}</div>;
 
     return (
         <div>
