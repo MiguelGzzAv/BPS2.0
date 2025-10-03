@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
 import DoughnutChart from '../components/charts/DoughnutChart';
 import GaugeChart from '../components/charts/GaugeChart';
+import ProcessListModal from '../components/ProcessListModal';
 
 const statusToBootstrapColor = {
     'ok': 'success',
@@ -29,6 +30,11 @@ function Dashboard() {
     const [activeTab, setActiveTab] = useState('criticality');
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewMode, setViewMode] = useState('cards'); // 'cards', 'doughnut', 'gauge'
+
+    // Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalContent, setModalContent] = useState({ title: '', processes: [] });
+    const [isModalLoading, setIsModalLoading] = useState(false);
 
     const companyId = sessionStorage.getItem('selectedCompanyId');
 
@@ -75,6 +81,28 @@ function Dashboard() {
         alert(`View '${viewMode}' has been pinned as your default for this company.`);
     };
 
+    const handleShowMore = async (status) => {
+        setIsModalLoading(true);
+        setIsModalOpen(true);
+        setModalContent({ title: `All Processes in "${status}"`, processes: [] });
+
+        try {
+            const dateQuery = `date=${selectedDate.toISOString().split('T')[0]}`;
+            const companyQuery = user.role === 'superadmin' ? `companyId=${companyId}` : '';
+            const queryString = `?${[dateQuery, companyQuery].filter(Boolean).join('&')}`;
+
+            const res = await fetchWithAuth(`/api/dashboard/processes-by-status/${status}${queryString}`);
+            if (!res.ok) throw new Error('Failed to fetch process list');
+            const data = await res.json();
+            setModalContent(prev => ({ ...prev, processes: data }));
+        } catch (err) {
+            console.error(err);
+            // Optionally set an error state for the modal
+        } finally {
+            setIsModalLoading(false);
+        }
+    };
+
     const renderCardContent = (status, data, totalProcesses) => {
         switch (viewMode) {
             case 'doughnut':
@@ -115,7 +143,10 @@ function Dashboard() {
                                     </div>
                                     {hasProcesses && (
                                         <div className="mt-auto">
-                                            <p className="text-center mb-2"><a className="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" href={`#collapse-${sanitizedStatusId}`}>Top 5 Critical Processes</a></p>
+                                            <div className="text-center mb-2 d-flex justify-content-center align-items-center gap-2">
+                                                <a className="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" href={`#collapse-${sanitizedStatusId}`}>Top 5 Critical Processes</a>
+                                                <button className="btn btn-info btn-sm rounded-circle" onClick={() => handleShowMore(status)} title="Show All">+</button>
+                                            </div>
                                             <div className="collapse" id={`collapse-${sanitizedStatusId}`}>
                                                 <ul className="list-group">{data.processes.map(p => <li key={p.id} className="list-group-item">{p.name}</li>)}</ul>
                                             </div>
@@ -176,6 +207,14 @@ function Dashboard() {
                     affectedProcesses.length > 0 ? renderAffectedProcesses() : <div className="alert alert-info">No hay procesos afectados para la fecha seleccionada.</div>
                 )}
             </div>
+
+            <ProcessListModal
+                show={isModalOpen}
+                onHide={() => setIsModalOpen(false)}
+                title={modalContent.title}
+                processes={modalContent.processes}
+                isLoading={isModalLoading}
+            />
         </div>
     );
 }
