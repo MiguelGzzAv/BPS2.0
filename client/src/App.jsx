@@ -9,7 +9,6 @@ import Departments from './pages/Departments';
 import Groups from './pages/Groups';
 import Monitoring from './pages/Monitoring';
 import Escalation from './pages/Escalation';
-import ConfirmSelection from './pages/ConfirmSelection';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -35,7 +34,6 @@ function App() {
         <Route path="/groups" element={<Groups />} />
         <Route path="/monitoring" element={<Monitoring />} />
         <Route path="/escalation" element={<Escalation />} />
-        <Route path="/confirm-selection" element={<ConfirmSelection />} />
       </Route>
 
       {/* Default route handler */}
