@@ -1,37 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../api';
 import ProcessFormModal from '../components/ProcessFormModal';
+import { toast } from 'react-toastify';
 
 const Processes = () => {
     const [processes, setProcesses] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProcess, setEditingProcess] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+
+    const fetchProcesses = async () => {
+        try {
+            const companyId = sessionStorage.getItem('selectedCompanyId');
+            if (!companyId) {
+                toast.warn('Please select a company first.');
+                setLoading(false);
+                return;
+            }
+
+            const response = await fetchWithAuth(`/api/processes?companyId=${companyId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch processes');
+            }
+            const data = await response.json();
+            setProcesses(data);
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchProcesses = async () => {
-            try {
-                const companyId = sessionStorage.getItem('selectedCompanyId');
-                if (!companyId) {
-                    setError('No company selected.');
-                    setLoading(false);
-                    return;
-                }
-
-                const response = await fetchWithAuth(`/api/processes?companyId=${companyId}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch processes');
-                }
-                const data = await response.json();
-                setProcesses(data);
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchProcesses();
     }, []);
 
@@ -51,35 +51,27 @@ const Processes = () => {
     };
 
     const handleSaveProcess = async (processData) => {
+        const isEditing = !!editingProcess;
+        const action = isEditing ? 'update' : 'create';
+        const url = isEditing ? `/api/processes/${editingProcess.id}` : '/api/processes';
+        const method = isEditing ? 'PUT' : 'POST';
+
         try {
             const companyId = sessionStorage.getItem('selectedCompanyId');
-            const isEditing = !!editingProcess;
-
-            const url = isEditing ? `/api/processes/${editingProcess.id}` : '/api/processes';
-            const method = isEditing ? 'PUT' : 'POST';
-
             const response = await fetchWithAuth(url, {
                 method: method,
                 body: JSON.stringify({ ...processData, companyId }),
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to ${isEditing ? 'update' : 'create'} process`);
+                throw new Error(`Failed to ${action} process`);
             }
 
-            const savedProcess = await response.json();
-
-            if (isEditing) {
-                setProcesses(prevProcesses =>
-                    prevProcesses.map(p => (p.id === savedProcess.id ? savedProcess : p))
-                );
-            } else {
-                setProcesses(prevProcesses => [...prevProcesses, savedProcess]);
-            }
-
+            await fetchProcesses(); // Refetch to get the latest list
+            toast.success(`Process ${isEditing ? 'updated' : 'created'} successfully!`);
             handleCloseModal();
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message);
         }
     };
 
@@ -94,9 +86,10 @@ const Processes = () => {
                     throw new Error('Failed to delete process');
                 }
 
-                setProcesses(prevProcesses => prevProcesses.filter(p => p.id !== processId));
+                await fetchProcesses(); // Refetch to get the latest list
+                toast.success('Process deleted successfully!');
             } catch (err) {
-                setError(err.message);
+                toast.error(err.message);
             }
         }
     };
@@ -117,8 +110,7 @@ const Processes = () => {
             )}
 
             {loading && <p>Loading...</p>}
-            {error && <div className="alert alert-danger">{error}</div>}
-            {!loading && !error && (
+            {!loading && (
                 <table className="table table-striped">
                     <thead>
                         <tr>
