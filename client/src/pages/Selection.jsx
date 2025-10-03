@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
-import { toast } from 'react-toastify';
 import CompanyFormModal from '../components/CompanyFormModal';
 import AccessConfirmModal from '../components/AccessConfirmModal';
 
@@ -11,6 +10,7 @@ function Selection() {
     const navigate = useNavigate();
     const [companies, setCompanies] = useState([]);
     const [selectedCompany, setSelectedCompany] = useState(null);
+    const [error, setError] = useState('');
 
     // Modal states
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -18,12 +18,13 @@ function Selection() {
 
     const fetchCompanies = async () => {
         try {
+            setError('');
             const response = await fetchWithAuth('/api/companies');
             if (!response.ok) throw new Error('Failed to fetch companies');
             const data = await response.json();
             setCompanies(data);
         } catch (err) {
-            toast.error(err.message);
+            setError(err.message);
         }
     };
 
@@ -35,13 +36,19 @@ function Selection() {
 
     const handleCardClick = (company) => {
         setSelectedCompany(company);
-        setIsAccessModalOpen(true);
+        // For superadmins, show confirmation modal. For others, navigate directly.
+        if (auth.user.role === 'superadmin') {
+            setIsAccessModalOpen(true);
+        } else {
+            handleConfirmAccess(company);
+        }
     };
 
-    const handleConfirmAccess = () => {
-        if (!selectedCompany) return;
-        sessionStorage.setItem('selectedCompanyId', selectedCompany.id);
-        sessionStorage.setItem('selectedCompanyName', selectedCompany.name);
+    const handleConfirmAccess = (companyToAccess) => {
+        const company = companyToAccess || selectedCompany;
+        if (!company) return;
+        sessionStorage.setItem('selectedCompanyId', company.id);
+        sessionStorage.setItem('selectedCompanyName', company.name);
         navigate('/dashboard');
     };
 
@@ -58,17 +65,16 @@ function Selection() {
             if (!response.ok) throw new Error(`Failed to ${isEditing ? 'update' : 'add'} company`);
 
             await fetchCompanies();
-            toast.success(`Company ${isEditing ? 'updated' : 'added'} successfully!`);
             setIsFormModalOpen(false);
-            setSelectedCompany(null); // Deselect after edit
+            setSelectedCompany(null);
         } catch (err) {
-            toast.error(err.message);
+            setError(err.message);
         }
     };
 
     const handleDeleteCompany = async () => {
         if (!selectedCompany) {
-            toast.warn('Please select a company to delete.');
+            setError('Please select a company to delete.');
             return;
         }
         if (window.confirm(`Are you sure you want to delete ${selectedCompany.name}?`)) {
@@ -77,10 +83,9 @@ function Selection() {
                 if (!response.ok) throw new Error('Failed to delete company');
 
                 await fetchCompanies();
-                toast.success('Company deleted successfully!');
-                setSelectedCompany(null); // Deselect after delete
+                setSelectedCompany(null);
             } catch (err) {
-                toast.error(err.message);
+                setError(err.message);
             }
         }
     };
@@ -100,7 +105,7 @@ function Selection() {
             <AccessConfirmModal
                 show={isAccessModalOpen}
                 onHide={() => { setIsAccessModalOpen(false); setSelectedCompany(null); }}
-                onConfirm={handleConfirmAccess}
+                onConfirm={() => handleConfirmAccess(selectedCompany)}
                 companyName={selectedCompany?.name}
             />
 
@@ -112,6 +117,8 @@ function Selection() {
                         <button onClick={auth.logout} className="btn btn-outline-secondary btn-lg">Logout</button>
                     </div>
                 </div>
+
+                {error && <div className="alert alert-danger">{error}</div>}
 
                 <hr />
 
