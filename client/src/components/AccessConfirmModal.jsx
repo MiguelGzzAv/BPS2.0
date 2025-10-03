@@ -16,7 +16,7 @@ const AccessConfirmModal = ({ show, onHide, onConfirm, companyName }) => {
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={onHide}>Cancel</button>
-                        <button type="button" className="btn btn-primary" onClick={onConfirm}>Confirm Access</button>
+                        <button type="button" className="btn btn-primary" onClick={onConfirm}>OK</button>
                     </div>
                 </div>
             </div>

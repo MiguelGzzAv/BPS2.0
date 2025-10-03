@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ProcessListModal = ({ show, onHide, title, processes }) => {
+const ProcessListModal = ({ show, onHide, title, processes, isLoading }) => {
     if (!show) {
         return null;
     }
@@ -22,7 +22,13 @@ const ProcessListModal = ({ show, onHide, title, processes }) => {
                         <button type="button" className="btn-close" onClick={onHide} aria-label="Close"></button>
                     </div>
                     <div className="modal-body">
-                        {processes && processes.length > 0 ? (
+                        {isLoading ? (
+                            <div className="text-center">
+                                <div className="spinner-border" role="status">
+                                    <span className="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        ) : processes && processes.length > 0 ? (
                             <table className="table table-striped table-hover">
                                 <thead>
                                     <tr>

@@ -34,17 +34,13 @@ function Selection() {
         }
     }, [auth.isAuthenticated]);
 
-    const handleSelectCompany = (company) => {
+    const handleCardClick = (company) => {
         setSelectedCompany(company);
-    };
-
-    const handleAccessCompany = () => {
-        if (!selectedCompany) return; // Do nothing if no company is selected
-
+        // For superadmins, show confirmation modal. For others, navigate directly.
         if (auth.user.role === 'superadmin') {
             setIsAccessModalOpen(true);
         } else {
-            handleConfirmAccess(selectedCompany);
+            handleConfirmAccess(company);
         }
     };
 
@@ -143,8 +139,7 @@ function Selection() {
                             <div
                                 className={`card ${selectedCompany?.id === company.id ? 'border-primary' : ''}`}
                                 style={{ cursor: 'pointer' }}
-                                onClick={() => handleSelectCompany(company)}
-                                onDoubleClick={handleAccessCompany}
+                                onClick={() => handleCardClick(company)}
                             >
                                 <div className="card-body text-center">
                                     <h5 className="card-title">{company.name}</h5>
