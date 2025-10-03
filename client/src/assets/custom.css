@@ -41,3 +41,37 @@ body {
     box-shadow: 0 4px 8px rgba(0,0,0,0.05);
     margin: 2rem auto;
 }
+
+/* Company Selection Cards */
+.selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.company-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    text-align: center;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    background-color: #fff;
+}
+
+.company-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.company-card-logo {
+    max-width: 100px;
+    height: 80px;
+    object-fit: contain;
+    margin-bottom: 1rem;
+}
+
+.company-card .btn {
+    margin-top: 1rem;
+    width: 100%;
+}

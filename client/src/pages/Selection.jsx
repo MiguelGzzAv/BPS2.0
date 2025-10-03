@@ -37,36 +37,47 @@ function Selection() {
     };
 
     if (!auth.user) {
-        return <div>Loading...</div>;
+        return <div className="text-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
     }
 
     return (
-        <div style={{ padding: '20px' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="container page-container">
+            <header className="d-flex justify-content-between align-items-center mb-4">
                 <h1>Welcome, {auth.user.name}!</h1>
-                <button onClick={auth.logout}>Logout</button>
+                <button onClick={auth.logout} className="btn btn-outline-secondary">Logout</button>
             </header>
 
-            <h2 style={{ marginTop: '30px' }}>Company Selection</h2>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            <div className="text-center">
+                <h2>Company Selection</h2>
+                <p className="text-muted">Please select a company to proceed to the dashboard.</p>
+            </div>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', marginTop: '20px' }}>
+            {error && <div className="alert alert-danger">{error}</div>}
+
+            <div className="selection-grid">
                 {companies.map(company => (
-                    <div key={company.id} style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '20px', width: '200px' }}>
-                        <h3>{company.name}</h3>
-                        <button onClick={() => handleSelectCompany(company)}>
-                            Access Dashboard
+                    <div key={company.id} className="company-card">
+                        {/* Placeholder for company logo */}
+                        <img
+                            src={`https://ui-avatars.com/api/?name=${company.name.replace(' ', '+')}&background=0D6EFD&color=fff&size=100`}
+                            alt={`${company.name} Logo`}
+                            className="company-card-logo rounded-circle"
+                        />
+                        <h5 className="card-title mt-3">{company.name}</h5>
+                        <button onClick={() => handleSelectCompany(company)} className="btn btn-primary">
+                            Select
                         </button>
                     </div>
                 ))}
             </div>
 
             {auth.user.role === 'superadmin' && (
-                <div style={{ marginTop: '30px' }}>
-                    <h3>Admin Controls</h3>
-                    <button>Add Company</button>
-                    <button style={{ marginLeft: '10px' }} disabled>Edit Company</button>
-                    <button style={{ marginLeft: '10px' }} disabled>Delete Company</button>
+                <div className="mt-5 p-4 bg-light rounded border">
+                    <h4>Admin Controls</h4>
+                    <p className="text-muted small">Manage companies in the system.</p>
+                    <button className="btn btn-success">Add Company</button>
+                    <button className="btn btn-secondary ms-2" disabled>Edit Company</button>
+                    <button className="btn btn-secondary ms-2" disabled>Delete Company</button>
                 </div>
             )}
         </div>
