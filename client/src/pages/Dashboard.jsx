@@ -201,7 +201,11 @@ function Dashboard() {
                         {summary ? renderSummaryCards() : <div className="alert alert-info">No data available for the selected date.</div>}
                     </div>
                 ) : (
-                    affectedProcesses.length > 0 ? renderAffectedProcesses() : <div className="alert alert-info">No hay procesos afectados para la fecha seleccionada.</div>
+                    <div className="row">
+                        <div className="col">
+                            {affectedProcesses.length > 0 ? renderAffectedProcesses() : <div className="alert alert-info">No hay procesos afectados para la fecha seleccionada.</div>}
+                        </div>
+                    </div>
                 )}
             </div>
 
