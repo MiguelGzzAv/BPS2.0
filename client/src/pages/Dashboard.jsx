@@ -187,7 +187,7 @@ function Dashboard() {
                 <li className="nav-item"><button className={`nav-link ${activeTab === 'criticality' ? 'active' : ''}`} onClick={() => setActiveTab('criticality')}>Criticidad</button></li>
                 <li className="nav-item"><button className={`nav-link ${activeTab === 'affected' ? 'active' : ''}`} onClick={() => setActiveTab('affected')}>Procesos Afectados</button></li>
             </ul>
-            <div className="tab-content">
+            <div className="tab-content dashboard-tab-content">
                 {activeTab === 'criticality' ? (
                     <div>
                         <div className="d-flex justify-content-end align-items-center mb-3 gap-2">

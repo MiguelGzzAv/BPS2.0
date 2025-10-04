@@ -10,8 +10,8 @@ body {
 }
 
 /* Dashboard specific styles */
-.tab-content {
-    min-height: 400px; /* Maintain a consistent height */
+.dashboard-tab-content {
+    min-height: 450px; /* Maintain a consistent height for tab content areas */
 }
 
 .page-container {
