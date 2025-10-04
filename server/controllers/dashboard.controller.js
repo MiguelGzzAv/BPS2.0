@@ -11,57 +11,56 @@ const getCompanyId = (req) => {
 const getSummary = (req, res) => {
     const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.json({ summary: {} }); // Return empty summary if no companyId
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
-
-    const { date } = req.query;
-    const forDate = date ? new Date(`${date}T00:00:00Z`) : new Date();
-    if (!date) forDate.setUTCHours(0, 0, 0, 0);
 
     const processes = processesByCompany[companyId] || [];
-    const allRegistrations = registrationsByCompany[companyId] || [];
-    const calculatedStates = calculateAllProcessStates(processes, allRegistrations, forDate);
+    const registrations = registrationsByCompany[companyId] || [];
+    const calculatedStates = calculateAllProcessStates(processes, registrations);
 
-    const processesByStatus = { 'ok': [], 'falla': [], 'error': [], 'ambar': [], 'sin ejecucion': [] };
+    const summary = {
+        'ok': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'falla': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'error': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'ambar': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+        'sin ejecucion': { total: 0, Alta: 0, Media: 0, Baja: 0, processes: { Alta: [], Media: [], Baja: [] } },
+    };
+
     processes.forEach(proc => {
         const status = calculatedStates.get(proc.id) || 'sin ejecucion';
-        if (processesByStatus[status]) processesByStatus[status].push(proc);
+        const criticality = proc.criticidad || 'Baja';
+
+        if (summary[status]) {
+            summary[status].total++;
+            if (summary[status][criticality] !== undefined) {
+                summary[status][criticality]++;
+                if (summary[status].processes[criticality]) {
+                    summary[status].processes[criticality].push(proc.name);
+                }
+            }
+        }
     });
 
-    const finalSummary = {};
-    const criticalityOrder = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
-    for (const status in processesByStatus) {
-        const processGroup = processesByStatus[status];
-        const sortedProcesses = [...processGroup].sort((a, b) => (criticalityOrder[a.criticidad] || 4) - (criticalityOrder[b.criticidad] || 4));
-        finalSummary[status] = {
-            total: processGroup.length,
-            Alta: processGroup.filter(p => p.criticidad === 'Alta').length,
-            Media: processGroup.filter(p => p.criticidad === 'Media').length,
-            Baja: processGroup.filter(p => p.criticidad === 'Baja').length,
-            processes: sortedProcesses.slice(0, 5),
-        };
-    }
-    res.json({ summary: finalSummary });
+    res.json({ summary });
 };
 
 const getAffectedProcesses = (req, res) => {
     const companyId = getCompanyId(req);
     if (!companyId) {
-        return res.json([]); // Return empty array if no company is selected
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
 
-    const { date } = req.query;
-    const forDate = date ? new Date(`${date}T00:00:00Z`) : new Date();
-    if (!date) forDate.setUTCHours(0, 0, 0, 0);
-
     const processes = processesByCompany[companyId] || [];
-    if (processes.length === 0) return res.json([]);
+    if (processes.length === 0) {
+        return res.json([]);
+    }
 
-    const allRegistrations = registrationsByCompany[companyId] || [];
-    const calculatedStates = calculateAllProcessStates(processes, allRegistrations, forDate);
+    const registrations = registrationsByCompany[companyId] || [];
+    const calculatedStates = calculateAllProcessStates(processes, registrations);
     const processMap = new Map(processes.map(p => [p.id, p]));
 
     const affectedParents = [];
+
     processes.forEach(parent => {
         if (parent.childProcesses && parent.childProcesses.length > 0) {
             for (const childRef of parent.childProcesses) {
@@ -82,44 +81,11 @@ const getAffectedProcesses = (req, res) => {
             }
         }
     });
+
     res.json(affectedParents);
-};
-
-const getProcessesByStatus = (req, res) => {
-    const { status } = req.params;
-    const companyId = getCompanyId(req);
-
-    if (!companyId) {
-        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
-    }
-    if (!status) {
-        return res.status(400).json({ error: 'A status parameter is required.' });
-    }
-
-    const { date } = req.query;
-    const forDate = date ? new Date(`${date}T00:00:00Z`) : new Date();
-    if (!date) {
-        forDate.setUTCHours(0, 0, 0, 0);
-    }
-
-    const processes = processesByCompany[companyId] || [];
-    const allRegistrations = registrationsByCompany[companyId] || [];
-    const calculatedStates = calculateAllProcessStates(processes, allRegistrations, forDate);
-
-    const filteredProcesses = processes.filter(proc => (calculatedStates.get(proc.id) || 'sin ejecucion') === status);
-
-    const criticalityOrder = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
-    const sortedProcesses = [...filteredProcesses].sort((a, b) => {
-        const critA = criticalityOrder[a.criticidad] || 4;
-        const critB = criticalityOrder[b.criticidad] || 4;
-        return critA - critB;
-    });
-
-    res.json(sortedProcesses);
 };
 
 module.exports = {
     getSummary,
-    getAffectedProcesses,
-    getProcessesByStatus
+    getAffectedProcesses
 };

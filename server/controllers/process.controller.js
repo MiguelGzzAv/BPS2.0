@@ -9,22 +9,16 @@ const getCompanyId = (req) => {
 };
 
 // --- Status Calculation Logic ---
-const calculateAllProcessStates = (processes, allRegistrations, forDate) => {
+const calculateAllProcessStates = (processes, registrations) => {
     if (!processes || processes.length === 0) {
         return new Map();
     }
     const processMap = new Map(processes.map(p => [p.id, p]));
     const calculatedStates = new Map();
 
-    // Timezone-safe helper to check if two dates are the same day
-    const isSameDayUTC = (date1, date2) =>
-        date1.getUTCFullYear() === date2.getUTCFullYear() &&
-        date1.getUTCMonth() === date2.getUTCMonth() &&
-        date1.getUTCDate() === date2.getUTCDate();
-
     const getOwnStatus = (procId) => {
-        const relevantRegistrations = (allRegistrations || [])
-            .filter(r => r.processId === procId && isSameDayUTC(new Date(r.timestamp), forDate))
+        const relevantRegistrations = (registrations || [])
+            .filter(r => r.processId === procId)
             .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         if (relevantRegistrations.length === 0) return 'sin ejecucion';
