@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, DoughnutController } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
-
-ChartJS.register(ArcElement, Tooltip, Legend, DoughnutController);
+import DoughnutChart from '../components/DoughnutChart';
+import GaugeChart from '../components/GaugeChart';
+import { toast } from 'react-toastify';
 
 function Dashboard() {
     const { user } = useAuth();
-    const [summary, setSummary] = useState(null);
     const [affectedProcesses, setAffectedProcesses] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [activeTab, setActiveTab] = useState('criticality');
+
+    // State for chart data
+    const [criticalityData, setCriticalityData] = useState([]);
+    const [successRate, setSuccessRate] = useState(0);
 
     const companyId = sessionStorage.getItem('selectedCompanyId');
 
     useEffect(() => {
         const fetchData = async () => {
             if (!companyId) {
-                setError("No company selected.");
+                toast.warn("No company selected.");
                 setLoading(false);
                 return;
             }
@@ -38,10 +38,34 @@ function Dashboard() {
                 const summaryData = await summaryRes.json();
                 const affectedData = await affectedRes.json();
 
-                setSummary(summaryData.summary);
                 setAffectedProcesses(affectedData);
+
+                // Process data for charts
+                if (summaryData.summary) {
+                    const { summary } = summaryData;
+
+                    // For Doughnut Chart
+                    const critData = { 'Alta': 0, 'Media': 0, 'Baja': 0 };
+                    Object.values(summary).forEach(status => {
+                        critData['Alta'] += status.Alta;
+                        critData['Media'] += status.Media;
+                        critData['Baja'] += status.Baja;
+                    });
+                    setCriticalityData([
+                        { label: 'High', value: critData['Alta'] },
+                        { label: 'Medium', value: critData['Media'] },
+                        { label: 'Low', value: critData['Baja'] },
+                    ]);
+
+                    // For Gauge Chart
+                    const totalProcesses = Object.values(summary).reduce((acc, curr) => acc + curr.total, 0);
+                    const okProcesses = summary.OK ? summary.OK.total : 0;
+                    const rate = totalProcesses > 0 ? Math.round((okProcesses / totalProcesses) * 100) : 0;
+                    setSuccessRate(rate);
+                }
+
             } catch (err) {
-                setError(err.message);
+                toast.error(err.message);
             } finally {
                 setLoading(false);
             }
@@ -50,43 +74,27 @@ function Dashboard() {
         fetchData();
     }, [companyId, user]);
 
-    const renderSummaryCards = () => {
-        if (!summary) return null;
-        return Object.entries(summary).map(([status, data]) => (
-            <div key={status} className="col-lg-4 col-md-6 mb-4">
-                <div className={`card h-100 border-start border-5 border-${status.replace(/\s+/g, '-')}`}>
-                    <div className="card-body text-center">
-                        <h5 className="card-title text-uppercase">{status}</h5>
-                        <p className="card-text display-4 fw-bold">{data.total}</p>
-                        <ul className="list-group list-group-flush">
-                            <li className="list-group-item d-flex justify-content-between">Alta <span className="badge bg-danger">{data.Alta}</span></li>
-                            <li className="list-group-item d-flex justify-content-between">Media <span className="badge bg-warning text-dark">{data.Media}</span></li>
-                            <li className="list-group-item d-flex justify-content-between">Baja <span className="badge bg-success">{data.Baja}</span></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        ));
-    };
-
     const renderAffectedProcesses = () => {
         if (affectedProcesses.length === 0) {
-            return <div className="alert alert-info">No hay procesos afectados por fallas en sus dependencias.</div>;
+            return <div className="alert alert-info mt-4">No hay procesos afectados por fallas en sus dependencias.</div>;
         }
         return (
-            <div className="list-group">
-                {affectedProcesses.map(item => (
-                    <div key={item.parentProcessId + item.failingChildId} className="list-group-item">
-                        <div className="d-flex w-100 justify-content-between">
-                            <h5 className="mb-1">{item.parentProcessName}</h5>
-                            <small>ID: {item.parentProcessId}</small>
+            <div className="mt-5">
+                <h4>Procesos Afectados por Fallas</h4>
+                <div className="list-group">
+                    {affectedProcesses.map(item => (
+                        <div key={item.parentProcessId + item.failingChildId} className="list-group-item">
+                            <div className="d-flex w-100 justify-content-between">
+                                <h5 className="mb-1">{item.parentProcessName}</h5>
+                                <small>ID: {item.parentProcessId}</small>
+                            </div>
+                            <p className="mb-1">
+                                Afectado por la falla del proceso hijo: <strong>{item.failingChildName}</strong> (ID: {item.failingChildId})
+                            </p>
+                            <small>Estado del hijo: <span className={`badge bg-danger`}>{item.childStatus.toUpperCase()}</span></small>
                         </div>
-                        <p className="mb-1">
-                            Afectado por la falla del proceso hijo: <strong>{item.failingChildName}</strong> (ID: {item.failingChildId})
-                        </p>
-                        <small>Estado del hijo: <span className={`badge bg-${item.childStatus === 'falla' ? 'danger' : 'warning'}`}>{item.childStatus.toUpperCase()}</span></small>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
         );
     };
@@ -95,30 +103,24 @@ function Dashboard() {
         return <div className="text-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
     }
 
-    if (error) {
-        return <div className="alert alert-danger">{error}</div>;
-    }
-
     return (
         <div>
             <h1 className="mb-4">Dashboard</h1>
-            <ul className="nav nav-tabs mb-3">
-                <li className="nav-item">
-                    <button className={`nav-link ${activeTab === 'criticality' ? 'active' : ''}`} onClick={() => setActiveTab('criticality')}>Criticidad</button>
-                </li>
-                <li className="nav-item">
-                    <button className={`nav-link ${activeTab === 'affected' ? 'active' : ''}`} onClick={() => setActiveTab('affected')}>Procesos Afectados</button>
-                </li>
-            </ul>
 
-            <div className="tab-content">
-                {activeTab === 'criticality' && (
-                    <div className="row g-4">{renderSummaryCards()}</div>
-                )}
-                {activeTab === 'affected' && (
-                    <div>{renderAffectedProcesses()}</div>
-                )}
+            <div className="row g-4">
+                <div className="col-md-6 col-lg-5">
+                    <div className="p-3 border rounded h-100">
+                        <DoughnutChart data={criticalityData} title="Procesos por Criticidad" />
+                    </div>
+                </div>
+                <div className="col-md-6 col-lg-5">
+                    <div className="p-3 border rounded h-100">
+                       <GaugeChart value={successRate} title="Tasa de Éxito de Procesos" />
+                    </div>
+                </div>
             </div>
+
+            {renderAffectedProcesses()}
         </div>
     );
 }
