@@ -9,6 +9,11 @@ body {
     background-color: #f8f9fa; /* Light grey background */
 }
 
+/* Dashboard specific styles */
+.tab-content {
+    min-height: 400px; /* Maintain a consistent height */
+}
+
 .page-container {
     background-color: #ffffff;
     padding: 2rem;
