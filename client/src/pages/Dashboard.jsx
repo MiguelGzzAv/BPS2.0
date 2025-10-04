@@ -3,12 +3,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
 import DoughnutChart from '../components/DoughnutChart';
 import GaugeChart from '../components/GaugeChart';
-import { toast } from 'react-toastify';
 
 function Dashboard() {
     const { user } = useAuth();
     const [affectedProcesses, setAffectedProcesses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     // State for chart data
     const [criticalityData, setCriticalityData] = useState([]);
@@ -19,12 +19,13 @@ function Dashboard() {
     useEffect(() => {
         const fetchData = async () => {
             if (!companyId) {
-                toast.warn("No company selected.");
+                setError("No company selected.");
                 setLoading(false);
                 return;
             }
 
             setLoading(true);
+            setError('');
             try {
                 const companyQueryParam = user.role === 'superadmin' ? `?companyId=${companyId}` : '';
 
@@ -40,11 +41,9 @@ function Dashboard() {
 
                 setAffectedProcesses(affectedData);
 
-                // Process data for charts
                 if (summaryData.summary) {
                     const { summary } = summaryData;
 
-                    // For Doughnut Chart
                     const critData = { 'Alta': 0, 'Media': 0, 'Baja': 0 };
                     Object.values(summary).forEach(status => {
                         critData['Alta'] += status.Alta;
@@ -57,7 +56,6 @@ function Dashboard() {
                         { label: 'Low', value: critData['Baja'] },
                     ]);
 
-                    // For Gauge Chart
                     const totalProcesses = Object.values(summary).reduce((acc, curr) => acc + curr.total, 0);
                     const okProcesses = summary.OK ? summary.OK.total : 0;
                     const rate = totalProcesses > 0 ? Math.round((okProcesses / totalProcesses) * 100) : 0;
@@ -65,7 +63,7 @@ function Dashboard() {
                 }
 
             } catch (err) {
-                toast.error(err.message);
+                setError(err.message);
             } finally {
                 setLoading(false);
             }
@@ -106,6 +104,8 @@ function Dashboard() {
     return (
         <div>
             <h1 className="mb-4">Dashboard</h1>
+
+            {error && <div className="alert alert-danger">{error}</div>}
 
             <div className="row g-4">
                 <div className="col-md-6 col-lg-5">
