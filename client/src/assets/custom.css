@@ -67,3 +67,12 @@ body {
     margin-top: 1rem;
     width: 100%;
 }
+
+/* Dashboard Chart Containers */
+.chart-container {
+    padding: 1.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    height: 100%;
+}

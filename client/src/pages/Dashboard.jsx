@@ -109,12 +109,12 @@ function Dashboard() {
 
             <div className="row g-4">
                 <div className="col-md-6 col-lg-5">
-                    <div className="p-3 border rounded h-100">
+                    <div className="chart-container">
                         <DoughnutChart data={criticalityData} title="Procesos por Criticidad" />
                     </div>
                 </div>
                 <div className="col-md-6 col-lg-5">
-                    <div className="p-3 border rounded h-100">
+                    <div className="chart-container">
                        <GaugeChart value={successRate} title="Tasa de Éxito de Procesos" />
                     </div>
                 </div>
