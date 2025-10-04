@@ -85,7 +85,41 @@ const getAffectedProcesses = (req, res) => {
     res.json(affectedParents);
 };
 
+const getProcessesByStatus = (req, res) => {
+    const { status } = req.params;
+    const companyId = getCompanyId(req);
+
+    if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+    if (!status) {
+        return res.status(400).json({ error: 'A status parameter is required.' });
+    }
+
+    const { date } = req.query;
+    const forDate = date ? new Date(`${date}T00:00:00Z`) : new Date();
+    if (!date) {
+        forDate.setUTCHours(0, 0, 0, 0);
+    }
+
+    const processes = processesByCompany[companyId] || [];
+    const allRegistrations = registrationsByCompany[companyId] || [];
+    const calculatedStates = calculateAllProcessStates(processes, allRegistrations, forDate);
+
+    const filteredProcesses = processes.filter(proc => (calculatedStates.get(proc.id) || 'sin ejecucion') === status);
+
+    const criticalityOrder = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
+    const sortedProcesses = [...filteredProcesses].sort((a, b) => {
+        const critA = criticalityOrder[a.criticidad] || 4;
+        const critB = criticalityOrder[b.criticidad] || 4;
+        return critA - critB;
+    });
+
+    res.json(sortedProcesses);
+};
+
 module.exports = {
     getSummary,
     getAffectedProcesses,
+    getProcessesByStatus
 };
