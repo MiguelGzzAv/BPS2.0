@@ -82,7 +82,7 @@ function MainLayout() {
             </div>
 
             {/* Main Content Area */}
-            <main className="container page-container">
+            <main className="container-fluid page-container">
                 <Outlet />
             </main>
         </div>
