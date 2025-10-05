@@ -66,3 +66,10 @@ body {
     margin-top: 1rem;
     width: 100%;
 }
+
+/* Monitoring Page Status Styles */
+.badge-ok { background-color: #198754; }
+.badge-falla, .badge-error { background-color: #dc3545; }
+.badge-ambar { background-color: #ffc107; color: #000; }
+.badge-sin-ejecucion { background-color: #6c757d; }
+.badge-por-iniciar { background-color: #adb5bd; }
