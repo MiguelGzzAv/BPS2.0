@@ -29,7 +29,7 @@ function MainLayout() {
     };
 
     return (
-        <div>
+        <div className="d-flex flex-column vh-100">
             {/* Top Navbar */}
             <nav className="navbar navbar-expand-sm navbar-dark bg-dark shadow-sm">
                 <div className="container-fluid">
@@ -82,7 +82,7 @@ function MainLayout() {
             </div>
 
             {/* Main Content Area */}
-            <main className="container-fluid page-container">
+            <main className="container-fluid page-container flex-grow-1">
                 <Outlet />
             </main>
         </div>

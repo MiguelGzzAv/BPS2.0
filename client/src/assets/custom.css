@@ -16,7 +16,6 @@ body {
     box-shadow: 0 4px 8px rgba(0,0,0,0.05);
     margin: 2rem auto;
     max-width: 1600px; /* Make the main container wider */
-    min-height: 80vh; /* Set a minimum height for all page containers */
 }
 
 /* Table Styling */
