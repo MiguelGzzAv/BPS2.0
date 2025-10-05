@@ -60,7 +60,7 @@ const Processes = () => {
 
             const response = await fetchWithAuth(url, {
                 method: method,
-                body: JSON.stringify({ ...processData, companyId }),
+                body: JSON.stringify({ processData, companyId }),
             });
 
             if (!response.ok) {

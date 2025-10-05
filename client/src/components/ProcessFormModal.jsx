@@ -131,16 +131,41 @@ const ProcessFormModal = ({ process, allProcesses, onSave, onClose }) => {
                             <form id="process-form" onSubmit={handleSubmit}>
                                 {/* Basic Info */}
                                 <div className="row">
-                                    <div className="col-md-6 mb-3"><label className="form-label">Process ID</label><input type="text" className="form-control" name="id" value={formData.id} onChange={handleChange} required disabled={!!process} /></div>
-                                    <div className="col-md-6 mb-3"><label className="form-label">Process Name</label><input type="text" className="form-control" name="name" value={formData.name} onChange={handleChange} required /></div>
+                                    <div className="col-md-6 mb-3">
+                                        <label htmlFor="process-id" className="form-label">Process ID</label>
+                                        <input type="text" className="form-control" id="process-id" name="id" value={formData.id} onChange={handleChange} required disabled={!!process} />
+                                    </div>
+                                    <div className="col-md-6 mb-3">
+                                        <label htmlFor="process-name" className="form-label">Process Name</label>
+                                        <input type="text" className="form-control" id="process-name" name="name" value={formData.name} onChange={handleChange} required />
+                                    </div>
                                 </div>
                                 <div className="row">
-                                    <div className="col-md-6 mb-3"><label className="form-label">Start Time</label><input type="time" className="form-control" name="startTime" value={formData.startTime} onChange={handleChange} /></div>
-                                    <div className="col-md-6 mb-3"><label className="form-label">End Time</label><input type="time" className="form-control" name="endTime" value={formData.endTime} onChange={handleChange} /></div>
+                                    <div className="col-md-6 mb-3">
+                                        <label htmlFor="process-startTime" className="form-label">Start Time</label>
+                                        <input type="time" className="form-control" id="process-startTime" name="startTime" value={formData.startTime} onChange={handleChange} />
+                                    </div>
+                                    <div className="col-md-6 mb-3">
+                                        <label htmlFor="process-endTime" className="form-label">End Time</label>
+                                        <input type="time" className="form-control" id="process-endTime" name="endTime" value={formData.endTime} onChange={handleChange} />
+                                    </div>
                                 </div>
                                 <div className="row">
-                                    <div className="col-md-6 mb-3"><label className="form-label">Criticidad</label><select className="form-select" name="criticidad" value={formData.criticidad} onChange={handleChange}><option value="Baja">Baja</option><option value="Media">Media</option><option value="Alta">Alta</option></select></div>
-                                    <div className="col-md-6 mb-3"><label className="form-label">Frequency</label><select className="form-select" name="frequency" value={formData.frequency} onChange={handleChange}><option value="Diario">Diario</option><option value="Personalizado">Personalizado</option></select></div>
+                                    <div className="col-md-6 mb-3">
+                                        <label htmlFor="process-criticidad" className="form-label">Criticidad</label>
+                                        <select className="form-select" id="process-criticidad" name="criticidad" value={formData.criticidad} onChange={handleChange}>
+                                            <option value="Baja">Baja</option>
+                                            <option value="Media">Media</option>
+                                            <option value="Alta">Alta</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-md-6 mb-3">
+                                        <label htmlFor="process-frequency" className="form-label">Frequency</label>
+                                        <select className="form-select" id="process-frequency" name="frequency" value={formData.frequency} onChange={handleChange}>
+                                            <option value="Diario">Diario</option>
+                                            <option value="Personalizado">Personalizado</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 {formData.frequency === 'Personalizado' && (<div className="mb-3"><label className="form-label">Select Days</label><div>{weekDays.map(day => (<div key={day} className="form-check form-check-inline"><input className="form-check-input" type="checkbox" value={day} checked={formData.days.includes(day)} onChange={handleDayChange} /><label className="form-check-label">{day}</label></div>))}</div></div>)}
                                 <hr />
