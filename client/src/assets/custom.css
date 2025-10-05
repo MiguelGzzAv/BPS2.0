@@ -9,11 +9,6 @@ body {
     background-color: #f8f9fa; /* Light grey background */
 }
 
-/* Dashboard specific styles */
-.dashboard-tab-content {
-    min-height: 450px; /* Maintain a consistent height for tab content areas */
-}
-
 .page-container {
     background-color: #ffffff;
     padding: 2rem;
@@ -21,6 +16,7 @@ body {
     box-shadow: 0 4px 8px rgba(0,0,0,0.05);
     margin: 2rem auto;
     max-width: 1600px; /* Make the main container wider */
+    min-height: 80vh; /* Set a minimum height for all page containers */
 }
 
 /* Table Styling */
