@@ -111,6 +111,7 @@ const Processes = () => {
             {isModalOpen && (
                 <ProcessFormModal
                     process={editingProcess}
+                    allProcesses={processes}
                     onSave={handleSaveProcess}
                     onClose={handleCloseModal}
                 />
@@ -119,29 +120,46 @@ const Processes = () => {
             {loading && <p>Loading...</p>}
             {error && <div className="alert alert-danger">{error}</div>}
             {!loading && !error && (
-                <table className="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Description</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {processes.map(process => (
-                            <tr key={process.id}>
-                                <td>{process.id}</td>
-                                <td>{process.name}</td>
-                                <td>{process.description}</td>
-                                <td>
-                                    <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(process)}>Edit</button>
-                                    <button className="btn btn-sm btn-danger" onClick={() => handleDelete(process.id)}>Delete</button>
-                                </td>
+                <div className="table-responsive">
+                    <table className="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Mode</th>
+                                <th>Criticidad</th>
+                                <th>Frequency</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {processes.map(process => {
+                                const criticidad = process.criticidad || 'Baja';
+                                let badgeClass = 'bg-success';
+                                if (criticidad === 'Media') badgeClass = 'bg-warning text-dark';
+                                if (criticidad === 'Alta') badgeClass = 'bg-danger';
+
+                                return (
+                                    <tr key={process.id}>
+                                        <td>{process.id}</td>
+                                        <td>{process.name}</td>
+                                        <td>{process.mode || 'Individual'}</td>
+                                        <td><span className={`badge ${badgeClass}`}>{criticidad}</span></td>
+                                        <td>{`${process.frequency || ''} ${process.days && process.days.length ? `(${process.days.join(', ')})` : ''}`}</td>
+                                        <td>{process.startTime}</td>
+                                        <td>{process.endTime}</td>
+                                        <td>
+                                            <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(process)}>Edit</button>
+                                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(process.id)}>Delete</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </>
     );
