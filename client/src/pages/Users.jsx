@@ -4,9 +4,10 @@ import { fetchWithAuth } from '../api';
 import UserFormModal from '../components/UserFormModal';
 import GroupManagement from '../components/GroupManagement';
 import PermissionsManagement from '../components/PermissionsManagement';
+import RolePermissionsManagement from '../components/RolePermissionsManagement';
 
 function Users() {
-    const { user } = useAuth();
+    const { user, can } = useAuth();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -68,16 +69,7 @@ function Users() {
         }
     };
 
-    const canManageUser = (targetUser) => {
-        if (user.role === 'superadmin') return true;
-        if (user.role === 'admin') {
-            return targetUser.companyId === user.companyId && targetUser.role !== 'admin' && targetUser.role !== 'superadmin';
-        }
-        return false;
-    };
-
     const [activeTab, setActiveTab] = useState('users');
-    const canAddUsers = user.role === 'admin' || user.role === 'superadmin';
 
     if (loading) return <div className="text-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
     if (error) return <div className="alert alert-danger">{error}</div>;
@@ -86,7 +78,7 @@ function Users() {
         <div>
             <header className="d-flex justify-content-between align-items-center mb-4">
                 <h1>User and Group Management</h1>
-                {canAddUsers && (
+                {can('users', 'create') && (
                     <button className="btn btn-primary" onClick={handleCreate}>
                         Add User
                     </button>
@@ -113,7 +105,12 @@ function Users() {
                 </li>
                 <li className="nav-item">
                     <button className={`nav-link ${activeTab === 'permissions' ? 'active' : ''}`} onClick={() => setActiveTab('permissions')}>
-                        Permissions
+                        Page Access
+                    </button>
+                </li>
+                <li className="nav-item">
+                    <button className={`nav-link ${activeTab === 'role-permissions' ? 'active' : ''}`} onClick={() => setActiveTab('role-permissions')}>
+                        Role Permissions
                     </button>
                 </li>
             </ul>
@@ -141,8 +138,8 @@ function Users() {
                                         <td>{u.role}</td>
                                         {user.role === 'superadmin' && <td>{u.companyName || 'N/A'}</td>}
                                         <td>
-                                            <button className="btn btn-sm btn-warning" onClick={() => handleEdit(u)} disabled={!canManageUser(u)}>Edit</button>
-                                            <button className="btn btn-sm btn-danger ms-2" onClick={() => handleDelete(u.id)} disabled={!canManageUser(u) || u.id === user.id}>Delete</button>
+                                            <button className="btn btn-sm btn-warning" onClick={() => handleEdit(u)} disabled={!can('users', 'update')}>Edit</button>
+                                            <button className="btn btn-sm btn-danger ms-2" onClick={() => handleDelete(u.id)} disabled={!can('users', 'delete') || u.id === user.id}>Delete</button>
                                         </td>
                                     </tr>
                                 ))}
@@ -152,6 +149,7 @@ function Users() {
                 )}
                 {activeTab === 'groups' && <GroupManagement />}
                 {activeTab === 'permissions' && <PermissionsManagement />}
+                {activeTab === 'role-permissions' && <RolePermissionsManagement />}
             </div>
         </div>
     );

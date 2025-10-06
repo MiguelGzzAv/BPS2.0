@@ -77,6 +77,26 @@ const permissionsByCompany = {
     }
 };
 
+const rolePermissionsByCompany = {
+    '1': { // Default permissions for Banorte
+        'admin': {
+            'users': { create: true, read: true, update: true, delete: false },
+            'groups': { create: true, read: true, update: true, delete: true },
+            'processes': { create: true, read: true, update: true, delete: true },
+            'permissions': { read: true, update: true }
+        },
+        'operator': {
+            'registrations': { create: true, read: true, update: false, delete: false },
+            'processes': { read: true },
+        },
+         'reader': {
+            'processes': { read: true },
+            'users': { read: true },
+            'groups': { read: true },
+        }
+    }
+};
+
 module.exports = {
     companies,
     processesByCompany,
@@ -84,5 +104,6 @@ module.exports = {
     groupsByCompany,
     registrationsByCompany,
     escalationsByCompany,
-    permissionsByCompany
+    permissionsByCompany,
+    rolePermissionsByCompany
 };

@@ -1,14 +1,13 @@
 const { groupsByCompany } = require('../data/database');
-
-const getCompanyId = (req) => {
-    if (req.user.role === 'superadmin') {
-        return req.query.companyId || req.body.companyId;
-    }
-    return req.user.companyId;
-};
+const { hasPermission } = require('../utils/permissionUtils');
 
 const getGroups = (req, res) => {
-    const companyId = getCompanyId(req);
+    const companyId = req.user.role === 'superadmin' ? (req.query.companyId || req.user.companyId) : req.user.companyId;
+
+    if (!hasPermission(req.user.role, 'groups', 'read', companyId)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to view groups.' });
+    }
+
     if (!companyId) {
         return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
@@ -17,8 +16,13 @@ const getGroups = (req, res) => {
 };
 
 const createGroup = (req, res) => {
-    const companyId = getCompanyId(req);
-     if (!companyId) {
+    const companyId = req.user.role === 'superadmin' ? req.body.companyId : req.user.companyId;
+
+    if (!hasPermission(req.user.role, 'groups', 'create', companyId)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to create groups.' });
+    }
+
+    if (!companyId) {
         return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
     const { name } = req.body;
@@ -35,11 +39,10 @@ const createGroup = (req, res) => {
 };
 
 const updateGroup = (req, res) => {
-    let companyId;
-    if (req.user.role === 'superadmin') {
-        companyId = req.body.companyId;
-    } else {
-        companyId = req.user.companyId;
+    const companyId = req.user.role === 'superadmin' ? req.body.companyId : req.user.companyId;
+
+    if (!hasPermission(req.user.role, 'groups', 'update', companyId)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to update groups.' });
     }
 
     if (!companyId) {
@@ -71,11 +74,10 @@ const updateGroup = (req, res) => {
 };
 
 const deleteGroup = (req, res) => {
-    let companyId;
-    if (req.user.role === 'superadmin') {
-        companyId = req.body.companyId;
-    } else {
-        companyId = req.user.companyId;
+    const companyId = req.user.role === 'superadmin' ? req.body.companyId : req.user.companyId;
+
+    if (!hasPermission(req.user.role, 'groups', 'delete', companyId)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to delete groups.' });
     }
 
     if (!companyId) {

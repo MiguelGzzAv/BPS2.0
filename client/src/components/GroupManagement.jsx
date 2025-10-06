@@ -4,7 +4,7 @@ import { fetchWithAuth } from '../api';
 import GroupFormModal from './GroupFormModal';
 
 const GroupManagement = () => {
-    const { user } = useAuth();
+    const { user, can } = useAuth();
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -88,8 +88,6 @@ const GroupManagement = () => {
         }
     };
 
-    const canManageGroups = user.role === 'admin' || user.role === 'superadmin';
-
     if (loading) return <div className="text-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
     if (error) return <div className="alert alert-danger">{error}</div>;
 
@@ -97,7 +95,7 @@ const GroupManagement = () => {
         <div>
             <header className="d-flex justify-content-between align-items-center mb-4">
                 <h2>Group Management</h2>
-                {canManageGroups && (
+                {can('groups', 'create') && (
                     <button className="btn btn-primary" onClick={handleCreate}>
                         Create Group
                     </button>
@@ -126,8 +124,8 @@ const GroupManagement = () => {
                                 <td>{g.id}</td>
                                 <td>{g.name}</td>
                                 <td>
-                                    <button className="btn btn-sm btn-warning" onClick={() => handleEdit(g)} disabled={!canManageGroups}>Edit</button>
-                                    <button className="btn btn-sm btn-danger ms-2" onClick={() => handleDelete(g.id)} disabled={!canManageGroups}>Delete</button>
+                                    <button className="btn btn-sm btn-warning" onClick={() => handleEdit(g)} disabled={!can('groups', 'update')}>Edit</button>
+                                    <button className="btn btn-sm btn-danger ms-2" onClick={() => handleDelete(g.id)} disabled={!can('groups', 'delete')}>Delete</button>
                                 </td>
                             </tr>
                         ))}

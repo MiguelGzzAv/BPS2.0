@@ -5,43 +5,62 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [userPermissions, setUserPermissions] = useState(new Set());
+    const [pagePermissions, setPagePermissions] = useState(new Set());
+    const [actionPermissions, setActionPermissions] = useState({});
 
-    const loadUserPermissions = async (currentUser, companyId) => {
+    const loadAllPermissions = async (currentUser, companyId) => {
         if (!currentUser || !companyId) {
-            setUserPermissions(new Set());
+            setPagePermissions(new Set());
+            setActionPermissions({});
             return;
         }
 
-        // Superadmins have all permissions by default
         if (currentUser.role === 'superadmin') {
             const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection']);
-            setUserPermissions(allPages);
+            setPagePermissions(allPages);
+            // Superadmin can do everything
+            setActionPermissions({
+                users: { create: true, read: true, update: true, delete: true },
+                groups: { create: true, read: true, update: true, delete: true },
+                processes: { create: true, read: true, update: true, delete: true },
+                permissions: { read: true, update: true },
+                registrations: { create: true, read: true, update: true, delete: true },
+            });
             return;
         }
 
         try {
-            const permsRes = await fetchWithAuth(`/api/permissions?companyId=${companyId}`);
-            if (!permsRes.ok) throw new Error('Failed to fetch permissions.');
-            const companyPermissions = await permsRes.json();
+            const [pagePermsRes, rolePermsRes] = await Promise.all([
+                fetchWithAuth(`/api/permissions?companyId=${companyId}`),
+                fetchWithAuth(`/api/role-permissions?companyId=${companyId}`)
+            ]);
 
+            if (!pagePermsRes.ok) throw new Error('Failed to fetch page permissions.');
+            if (!rolePermsRes.ok) throw new Error('Failed to fetch role permissions.');
+
+            const companyPagePermissions = await pagePermsRes.json();
+            const companyRolePermissions = await rolePermsRes.json();
+
+            // Calculate page permissions
             const userGroups = currentUser.groupIds || [];
             const allowedPages = new Set();
             userGroups.forEach(groupId => {
-                // Ensure groupId is a string for object key access, as JSON keys are strings
-                const groupPermissions = companyPermissions[String(groupId)] || [];
+                const groupPermissions = companyPagePermissions[String(groupId)] || [];
                 groupPermissions.forEach(page => allowedPages.add(page));
             });
+            allowedPages.add('selection');
+            setPagePermissions(allowedPages);
 
-            allowedPages.add('selection'); // Always allow access to the company selection page
-            setUserPermissions(allowedPages);
+            // Set action permissions for the user's role
+            setActionPermissions(companyRolePermissions[currentUser.role] || {});
+
         } catch (error) {
-            console.error("Failed to load user permissions:", error);
-            setUserPermissions(new Set(['selection'])); // Default to minimal permissions on error
+            console.error("Failed to load permissions:", error);
+            setPagePermissions(new Set(['selection']));
+            setActionPermissions({});
         }
     };
 
-    // On initial load, check for user and company to load permissions
     useEffect(() => {
         const storedUserJSON = localStorage.getItem('user');
         if (storedUserJSON) {
@@ -49,7 +68,7 @@ export const AuthProvider = ({ children }) => {
             setUser(storedUser);
             const storedCompanyId = sessionStorage.getItem('selectedCompanyId');
             if (storedCompanyId) {
-                loadUserPermissions(storedUser, storedCompanyId);
+                loadAllPermissions(storedUser, storedCompanyId);
             }
         }
     }, []);
@@ -57,7 +76,8 @@ export const AuthProvider = ({ children }) => {
     const login = (userData) => {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
-        setUserPermissions(new Set()); // Clear old permissions
+        setPagePermissions(new Set());
+        setActionPermissions({});
     };
 
     const logout = () => {
@@ -65,13 +85,19 @@ export const AuthProvider = ({ children }) => {
         sessionStorage.removeItem('selectedCompanyId');
         sessionStorage.removeItem('selectedCompanyName');
         setUser(null);
-        setUserPermissions(new Set());
+        setPagePermissions(new Set());
+        setActionPermissions({});
     };
 
     const selectCompany = (companyId, companyName) => {
         sessionStorage.setItem('selectedCompanyId', companyId);
         sessionStorage.setItem('selectedCompanyName', companyName);
-        loadUserPermissions(user, companyId);
+        loadAllPermissions(user, companyId);
+    };
+
+    const can = (resource, action) => {
+        if (user?.role === 'superadmin') return true;
+        return actionPermissions[resource]?.[action] === true;
     };
 
     const value = {
@@ -79,7 +105,8 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         selectCompany,
-        userPermissions,
+        pagePermissions,
+        can, // Expose the 'can' function
         isAuthenticated: !!user,
     };
 

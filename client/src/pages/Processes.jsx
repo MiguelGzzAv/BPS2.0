@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import ProcessFormModal from '../components/ProcessFormModal';
 
 const Processes = () => {
+    const { can } = useAuth();
     const [processes, setProcesses] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProcess, setEditingProcess] = useState(null);
@@ -58,9 +60,10 @@ const Processes = () => {
             const url = isEditing ? `/api/processes/${editingProcess.id}` : '/api/processes';
             const method = isEditing ? 'PUT' : 'POST';
 
+            // Corrected: Pass the object directly, fetchWithAuth handles stringify
             const response = await fetchWithAuth(url, {
                 method: method,
-                body: JSON.stringify({ processData, companyId }),
+                body: { processData, companyId },
             });
 
             if (!response.ok) {
@@ -105,7 +108,9 @@ const Processes = () => {
         <>
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h1>Processes</h1>
-                <button className="btn btn-primary" onClick={handleCreate}>Crear Proceso</button>
+                {can('processes', 'create') && (
+                    <button className="btn btn-primary" onClick={handleCreate}>Crear Proceso</button>
+                )}
             </div>
 
             {isModalOpen && (
@@ -151,8 +156,8 @@ const Processes = () => {
                                         <td>{process.startTime}</td>
                                         <td>{process.endTime}</td>
                                         <td>
-                                            <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(process)}>Edit</button>
-                                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(process.id)}>Delete</button>
+                                            <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(process)} disabled={!can('processes', 'update')}>Edit</button>
+                                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(process.id)} disabled={!can('processes', 'delete')}>Delete</button>
                                         </td>
                                     </tr>
                                 );

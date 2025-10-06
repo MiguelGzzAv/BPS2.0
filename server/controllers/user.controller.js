@@ -1,6 +1,13 @@
 const { users, companies } = require('../data/database');
+const { hasPermission } = require('../utils/permissionUtils');
 
 const getUsers = (req, res) => {
+    const companyId = req.user.role === 'superadmin' ? (req.query.companyId || req.user.companyId) : req.user.companyId;
+
+    if (!hasPermission(req.user.role, 'users', 'read', companyId)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to view users.' });
+    }
+
     let usersToReturn = [];
     if (req.user.role === 'superadmin') {
         usersToReturn = users;
@@ -18,16 +25,8 @@ const getUsers = (req, res) => {
 
 const createUser = (req, res) => {
     const newUser = req.body;
-
-    if (req.user.role === 'admin' && (newUser.role === 'admin' || newUser.role === 'superadmin')) {
-        return res.status(403).json({ error: 'Forbidden: Admins cannot create other admins or superadmins.' });
-    }
-
-    if (!newUser.username || !newUser.name || !newUser.role) {
-         return res.status(400).json({ error: 'Username, name, and role are required' });
-    }
-
     let companyIdForNewUser;
+
     if (req.user.role === 'superadmin') {
         companyIdForNewUser = newUser.companyId;
         if (newUser.role !== 'superadmin' && !companyIdForNewUser) {
@@ -37,13 +36,21 @@ const createUser = (req, res) => {
         companyIdForNewUser = req.user.companyId;
     }
 
+    if (!hasPermission(req.user.role, 'users', 'create', companyIdForNewUser)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to create users.' });
+    }
+
+    if (!newUser.username || !newUser.name || !newUser.role) {
+         return res.status(400).json({ error: 'Username, name, and role are required' });
+    }
+
     const userToSave = {
         id: Date.now(),
         name: newUser.name,
         email: newUser.email,
         phone: newUser.phone,
         username: newUser.username,
-        password: newUser.password, // In a real app, hash this
+        password: newUser.password,
         role: newUser.role,
         companyId: companyIdForNewUser,
         groupIds: newUser.groupIds || []
@@ -58,7 +65,6 @@ const createUser = (req, res) => {
 const updateUser = (req, res) => {
     const userIdToUpdate = parseInt(req.params.id);
     const updates = req.body;
-
     const userIndex = users.findIndex(u => u.id === userIdToUpdate);
 
     if (userIndex === -1) {
@@ -66,27 +72,23 @@ const updateUser = (req, res) => {
     }
 
     const userToUpdate = users[userIndex];
+    const companyId = userToUpdate.companyId || req.user.companyId;
 
-    // Authorization checks
-    if (req.user.role === 'admin') {
-        // Admins can't edit superadmins or other admins
-        if (userToUpdate.role === 'superadmin' || (userToUpdate.role === 'admin' && userToUpdate.id !== req.user.id)) {
-            return res.status(403).json({ error: 'Forbidden: Admins cannot edit other admins or superadmins.' });
-        }
-        // Admins can only edit users within their own company
-        if (userToUpdate.companyId !== req.user.companyId) {
-            return res.status(403).json({ error: "Forbidden: You cannot edit users from another company." });
-        }
+    if (!hasPermission(req.user.role, 'users', 'update', companyId)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to update users.' });
     }
 
-    // Prevent role escalation
-    if (updates.role && req.user.role !== 'superadmin') {
-        delete updates.role;
+    // Prevent role escalation by non-superadmins
+    if (updates.role && updates.role !== userToUpdate.role && req.user.role !== 'superadmin') {
+       return res.status(403).json({ error: 'Forbidden: You do not have permission to change user roles.'});
     }
 
-    // Update user data (omitting password for simplicity, should be handled separately)
     const { password, ...safeUpdates } = updates;
     const updatedUser = { ...userToUpdate, ...safeUpdates };
+    if (password) { // Only update password if a new one is provided
+        updatedUser.password = password;
+    }
+
     users[userIndex] = updatedUser;
 
     console.log(`Updated user ${userIdToUpdate}:`, updatedUser);
@@ -103,15 +105,10 @@ const deleteUser = (req, res) => {
     }
 
     const userToDelete = users[userIndex];
+    const companyId = userToDelete.companyId || req.user.companyId;
 
-    // Authorization checks
-    if (req.user.role === 'admin') {
-        if (userToDelete.role === 'superadmin' || userToDelete.role === 'admin') {
-            return res.status(403).json({ error: 'Forbidden: Admins cannot delete other admins or superadmins.' });
-        }
-        if (userToDelete.companyId !== req.user.companyId) {
-            return res.status(403).json({ error: "Forbidden: You cannot delete users from another company." });
-        }
+    if (!hasPermission(req.user.role, 'users', 'delete', companyId)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to delete users.' });
     }
 
     if (userToDelete.id === req.user.id) {
@@ -122,7 +119,6 @@ const deleteUser = (req, res) => {
     console.log(`Deleted user ${userIdToDelete}`);
     res.status(204).send();
 };
-
 
 module.exports = {
     getUsers,
