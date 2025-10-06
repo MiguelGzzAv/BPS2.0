@@ -49,7 +49,17 @@ const createGroup = (req, res) => {
 };
 
 const updateGroup = (req, res) => {
-    const companyId = getCompanyId(req);
+    let companyId;
+    if (req.user.role === 'superadmin') {
+        companyId = req.body.companyId;
+    } else {
+        companyId = req.user.companyId;
+    }
+
+    if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+
     const groupId = parseInt(req.params.id);
     const { name } = req.body;
 
@@ -75,7 +85,17 @@ const updateGroup = (req, res) => {
 };
 
 const deleteGroup = (req, res) => {
-    const companyId = getCompanyId(req);
+    let companyId;
+    if (req.user.role === 'superadmin') {
+        companyId = req.body.companyId;
+    } else {
+        companyId = req.user.companyId;
+    }
+
+    if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
+
     const groupId = parseInt(req.params.id);
 
     if (!groupsByCompany[companyId]) {
