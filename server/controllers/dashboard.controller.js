@@ -2,8 +2,9 @@ const { processesByCompany, registrationsByCompany } = require('../data/database
 const { calculateAllProcessStates } = require('../controllers/process.controller');
 
 const getCompanyId = (req) => {
+    // For GET requests, companyId for superadmin should only come from query string.
     if (req.user.role === 'superadmin') {
-        return req.query.companyId || req.body.companyId;
+        return req.query.companyId;
     }
     return req.user.companyId;
 };
