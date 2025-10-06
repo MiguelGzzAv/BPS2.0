@@ -134,6 +134,7 @@ const createProcess = (req, res) => {
         mode: processData.mode || 'Individual',
         internalPhases: processData.internalPhases && processData.internalPhases.length > 0 ? processData.internalPhases : [{ name: 'default', fields: [] }],
         childProcesses: processData.childProcesses || [],
+        escalationLevels: processData.escalationLevels || 5,
     };
 
     processesByCompany[companyId].push(newProcess);

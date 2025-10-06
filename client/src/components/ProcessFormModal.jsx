@@ -22,14 +22,16 @@ const ProcessFormModal = ({ process, allProcesses, onSave, onClose }) => {
                 days: process.days || [],
                 mode: process.mode || 'Individual',
                 internalPhases: process.internalPhases && process.internalPhases.length > 0 ? process.internalPhases : [{ name: 'default', fields: [] }],
-                childProcesses: process.childProcesses || []
+                childProcesses: process.childProcesses || [],
+                escalationLevels: process.escalationLevels || 5,
             });
         } else {
             setFormData({
                 id: '', name: '', startTime: '', endTime: '',
                 criticidad: 'Baja', frequency: 'Diario', days: [],
                 mode: 'Individual', internalPhases: [{ name: 'default', fields: [] }],
-                childProcesses: []
+                childProcesses: [],
+                escalationLevels: 5,
             });
         }
     }, [process]);
@@ -165,6 +167,12 @@ const ProcessFormModal = ({ process, allProcesses, onSave, onClose }) => {
                                             <option value="Diario">Diario</option>
                                             <option value="Personalizado">Personalizado</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-md-6 mb-3">
+                                        <label htmlFor="process-escalationLevels" className="form-label">Niveles de Escalación</label>
+                                        <input type="number" className="form-control" id="process-escalationLevels" name="escalationLevels" value={formData.escalationLevels} onChange={handleChange} min="1" />
                                     </div>
                                 </div>
                                 {formData.frequency === 'Personalizado' && (<div className="mb-3"><label className="form-label">Select Days</label><div>{weekDays.map(day => (<div key={day} className="form-check form-check-inline"><input className="form-check-input" type="checkbox" value={day} checked={formData.days.includes(day)} onChange={handleDayChange} /><label className="form-check-label">{day}</label></div>))}</div></div>)}
