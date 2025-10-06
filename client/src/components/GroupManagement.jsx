@@ -1,93 +1,137 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
 import GroupFormModal from './GroupFormModal';
-import { toast } from 'react-toastify';
 
 const GroupManagement = () => {
+    const { user } = useAuth();
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingGroup, setEditingGroup] = useState(null);
 
-    const fetchGroups = async () => {
+    const companyId = sessionStorage.getItem('selectedCompanyId');
+
+    const fetchGroups = useCallback(async () => {
+        if (!companyId) {
+            setError("Please select a company first.");
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
-            const companyId = sessionStorage.getItem('selectedCompanyId');
-            if (!companyId) {
-                toast.warn('Please select a company first.');
-                return;
-            }
             const response = await fetchWithAuth(`/api/groups?companyId=${companyId}`);
-            if (!response.ok) throw new Error('Failed to fetch groups');
+            if (!response.ok) throw new Error('Failed to fetch groups.');
             const data = await response.json();
             setGroups(data);
         } catch (err) {
-            toast.error(err.message);
+            setError(err.message);
         } finally {
             setLoading(false);
         }
-    };
+    }, [companyId]);
 
     useEffect(() => {
         fetchGroups();
-    }, []);
+    }, [fetchGroups]);
 
-    const handleSave = async () => {
-        await fetchGroups();
-        toast.success(`Group ${editingGroup ? 'updated' : 'created'} successfully!`);
-        setIsModalOpen(false);
+    const handleCreate = () => {
+        setEditingGroup(null);
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (group) => {
+        setEditingGroup(group);
+        setIsModalOpen(true);
+    };
+
+    const handleSave = async (groupData) => {
+        const isEditing = !!groupData.id;
+        const url = isEditing ? `/api/groups/${groupData.id}` : '/api/groups';
+        const method = isEditing ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetchWithAuth(url, {
+                method,
+                body: JSON.stringify({ ...groupData, companyId }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || `Failed to ${isEditing ? 'update' : 'create'} group.`);
+            }
+            setIsModalOpen(false);
+            fetchGroups(); // Refresh list
+        } catch (err) {
+            setError(err.message);
+        }
     };
 
     const handleDelete = async (groupId) => {
         if (window.confirm('Are you sure you want to delete this group?')) {
             try {
-                const response = await fetchWithAuth(`/api/groups/${groupId}`, { method: 'DELETE' });
-                if (!response.ok) throw new Error('Failed to delete group');
-                await fetchGroups();
-                toast.success('Group deleted successfully!');
+                const response = await fetchWithAuth(`/api/groups/${groupId}`, {
+                    method: 'DELETE',
+                    body: JSON.stringify({ companyId }),
+                });
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Failed to delete group.');
+                }
+                fetchGroups(); // Refresh list
             } catch (err) {
-                toast.error(err.message);
+                setError(err.message);
             }
         }
     };
 
+    const canManageGroups = user.role === 'admin' || user.role === 'superadmin';
+
+    if (loading) return <div className="text-center mt-5"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>;
+    if (error) return <div className="alert alert-danger">{error}</div>;
+
     return (
         <div>
-            {isModalOpen && (
-                <GroupFormModal
-                    group={editingGroup}
-                    onSave={handleSave}
-                    onClose={() => setIsModalOpen(false)}
-                />
-            )}
-            <div className="d-flex justify-content-end my-3">
-                <button onClick={() => { setEditingGroup(null); setIsModalOpen(true); }} className="btn btn-primary">Add Group</button>
-            </div>
-            {loading ? (
-                <p>Loading groups...</p>
-            ) : (
-                <div className="table-responsive">
-                    <table className="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Group Name</th>
-                                <th>Actions</th>
+            <header className="d-flex justify-content-between align-items-center mb-4">
+                <h2>Group Management</h2>
+                {canManageGroups && (
+                    <button className="btn btn-primary" onClick={handleCreate}>
+                        Create Group
+                    </button>
+                )}
+            </header>
+
+            <GroupFormModal
+                show={isModalOpen}
+                onHide={() => setIsModalOpen(false)}
+                onSave={handleSave}
+                groupToEdit={editingGroup}
+            />
+
+            <div className="table-responsive">
+                <table className="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {groups.map(g => (
+                            <tr key={g.id}>
+                                <td>{g.id}</td>
+                                <td>{g.name}</td>
+                                <td>
+                                    <button className="btn btn-sm btn-warning" onClick={() => handleEdit(g)} disabled={!canManageGroups}>Edit</button>
+                                    <button className="btn btn-sm btn-danger ms-2" onClick={() => handleDelete(g.id)} disabled={!canManageGroups}>Delete</button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {groups.map(group => (
-                                <tr key={group.id}>
-                                    <td>{group.name}</td>
-                                    <td>
-                                        <button onClick={() => { setEditingGroup(group); setIsModalOpen(true); }} className="btn btn-sm btn-warning me-2">Edit</button>
-                                        <button onClick={() => handleDelete(group.id)} className="btn btn-sm btn-danger">Delete</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };

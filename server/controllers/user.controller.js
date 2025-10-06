@@ -45,7 +45,8 @@ const createUser = (req, res) => {
         username: newUser.username,
         password: newUser.password, // In a real app, hash this
         role: newUser.role,
-        companyId: companyIdForNewUser
+        companyId: companyIdForNewUser,
+        groupIds: newUser.groupIds || []
     };
 
     users.push(userToSave);

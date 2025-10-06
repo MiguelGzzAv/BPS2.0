@@ -66,9 +66,6 @@ function MainLayout() {
                             <NavLink to="/selection" className="nav-link text-white" onClick={handleLinkClick}>Companies</NavLink>
                         </li>
                         <li>
-                            <NavLink to="/departments" className="nav-link text-white" onClick={handleLinkClick}>Departments</NavLink>
-                        </li>
-                        <li>
                             <NavLink to="/processes" className="nav-link text-white" onClick={handleLinkClick}>Processes</NavLink>
                         </li>
                         <li>

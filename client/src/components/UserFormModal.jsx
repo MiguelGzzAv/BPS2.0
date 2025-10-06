@@ -6,9 +6,10 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
     const { user } = useAuth();
     const [formData, setFormData] = useState({
         name: '', email: '', phone: '', username: '',
-        password: '', role: 'reader', companyId: ''
+        password: '', role: 'reader', companyId: '', groupIds: []
     });
     const [companies, setCompanies] = useState([]);
+    const [groups, setGroups] = useState([]);
     const [error, setError] = useState('');
 
     const isEditing = !!userToEdit;
@@ -22,15 +23,34 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                 username: userToEdit.username || '',
                 password: '', // Always clear password for edits
                 role: userToEdit.role || 'reader',
-                companyId: userToEdit.companyId || ''
+                companyId: userToEdit.companyId || '',
+                groupIds: userToEdit.groupIds || []
             });
         } else {
             setFormData({
                 name: '', email: '', phone: '', username: '',
-                password: '', role: 'reader', companyId: ''
+                password: '', role: 'reader', companyId: '', groupIds: []
             });
         }
     }, [userToEdit, show]);
+
+    useEffect(() => {
+        const companyIdToFetch = user.role === 'superadmin' ? formData.companyId : sessionStorage.getItem('selectedCompanyId');
+
+        if (show && companyIdToFetch) {
+            const fetchGroups = async () => {
+                try {
+                    const response = await fetchWithAuth(`/api/groups?companyId=${companyIdToFetch}`);
+                    if (!response.ok) throw new Error('Failed to fetch groups.');
+                    const data = await response.json();
+                    setGroups(data);
+                } catch (err) {
+                    console.error("Failed to fetch groups", err);
+                }
+            };
+            fetchGroups();
+        }
+    }, [show, formData.companyId, user.role]);
 
     useEffect(() => {
         if (user.role === 'superadmin' && show) {
@@ -53,6 +73,11 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleGroupChange = (e) => {
+        const selectedGroupIds = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+        setFormData(prev => ({ ...prev, groupIds: selectedGroupIds }));
     };
 
     const handleSubmit = async (e) => {
@@ -128,6 +153,20 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                                 <select name="role" id="role" className="form-select" value={formData.role} onChange={handleChange} required disabled={user.role !== 'superadmin' && isEditing}>
                                     {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
                                 </select>
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="groups" className="form-label">Groups</label>
+                                <select
+                                    multiple
+                                    name="groups"
+                                    id="groups"
+                                    className="form-select"
+                                    value={formData.groupIds}
+                                    onChange={handleGroupChange}
+                                >
+                                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                                <div className="form-text">Hold Ctrl or Cmd to select multiple groups.</div>
                             </div>
                         </div>
                         <div className="modal-footer">

@@ -68,12 +68,6 @@ const groupsByCompany = {
         { id: 2, name: 'Operators' }
     ]
 };
-const departmentsByCompany = {
-    '1': [
-        { id: 1, name: 'Human Resources' },
-        { id: 2, name: 'IT' }
-    ]
-};
 const registrationsByCompany = {};
 const escalationsByCompany = {};
 
@@ -82,7 +76,6 @@ module.exports = {
     processesByCompany,
     users,
     groupsByCompany,
-    departmentsByCompany,
     registrationsByCompany,
     escalationsByCompany
 };
