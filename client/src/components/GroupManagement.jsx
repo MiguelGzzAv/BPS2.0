@@ -52,9 +52,10 @@ const GroupManagement = () => {
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
+            // The fetchWithAuth helper handles JSON.stringify, so we pass the object directly.
             const response = await fetchWithAuth(url, {
                 method,
-                body: JSON.stringify({ ...groupData, companyId }),
+                body: { ...groupData, companyId },
             });
 
             if (!response.ok) {
@@ -71,9 +72,10 @@ const GroupManagement = () => {
     const handleDelete = async (groupId) => {
         if (window.confirm('Are you sure you want to delete this group?')) {
             try {
+                 // The fetchWithAuth helper handles JSON.stringify
                 const response = await fetchWithAuth(`/api/groups/${groupId}`, {
                     method: 'DELETE',
-                    body: JSON.stringify({ companyId }),
+                    body: { companyId },
                 });
                 if (!response.ok) {
                     const errData = await response.json();
