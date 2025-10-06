@@ -15,24 +15,28 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
     const isEditing = !!userToEdit;
 
     useEffect(() => {
-        if (isEditing) {
-            setFormData({
-                name: userToEdit.name || '',
-                email: userToEdit.email || '',
-                phone: userToEdit.phone || '',
-                username: userToEdit.username || '',
-                password: '', // Always clear password for edits
-                role: userToEdit.role || 'reader',
-                companyId: userToEdit.companyId || '',
-                groupIds: userToEdit.groupIds || []
-            });
-        } else {
-            setFormData({
-                name: '', email: '', phone: '', username: '',
-                password: '', role: 'reader', companyId: '', groupIds: []
-            });
+        if (show) {
+            if (isEditing) {
+                // If editing, populate the form with the user's data
+                setFormData({
+                    name: userToEdit.name || '',
+                    email: userToEdit.email || '',
+                    phone: userToEdit.phone || '',
+                    username: userToEdit.username || '',
+                    password: '', // Always clear password for security
+                    role: userToEdit.role || 'reader',
+                    companyId: userToEdit.companyId || '',
+                    groupIds: userToEdit.groupIds || []
+                });
+            } else {
+                // If creating a new user, reset the form completely
+                setFormData({
+                    name: '', email: '', phone: '', username: '',
+                    password: '', role: 'reader', companyId: '', groupIds: []
+                });
+            }
         }
-    }, [userToEdit, show]);
+    }, [userToEdit, show, isEditing]);
 
     useEffect(() => {
         const companyIdToFetch = user.role === 'superadmin' ? formData.companyId : sessionStorage.getItem('selectedCompanyId');

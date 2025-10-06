@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { users } = require('./data/database');
+const { users, companies } = require('./data/database');
 
 // --- Route Imports ---
 const companyRoutes = require('./routes/company.routes');
@@ -73,6 +73,15 @@ app.post('/api/login', (req, res) => {
   if (user) {
     const userToSend = { ...user };
     delete userToSend.password;
+
+    // If the user belongs to a company, find the company name and add it
+    if (user.companyId) {
+        const company = companies.find(c => c.id === user.companyId);
+        if (company) {
+            userToSend.companyName = company.name;
+        }
+    }
+
     res.json({ success: true, user: userToSend });
   } else {
     res.status(401).json({ success: false, message: 'Invalid username or password' });

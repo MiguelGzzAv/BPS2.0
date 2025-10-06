@@ -26,8 +26,13 @@ function Login() {
 
             if (data.success) {
                 auth.login(data.user);
-                // The navigation is now handled automatically by the routing logic in App.jsx
-                // when the `isAuthenticated` state changes. No need to navigate manually here.
+                // If the user is not a superadmin, they belong to a specific company.
+                // We automatically select their company and redirect to the dashboard.
+                if (data.user.role !== 'superadmin') {
+                    auth.selectCompany(data.user.companyId, data.user.companyName);
+                    navigate('/dashboard');
+                }
+                // Superadmins will be redirected to the company selection page by the router.
             } else {
                 setError(data.message || 'Login failed.');
             }
