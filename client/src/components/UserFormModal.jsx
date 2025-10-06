@@ -79,9 +79,17 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleGroupChange = (e) => {
-        const selectedGroupIds = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-        setFormData(prev => ({ ...prev, groupIds: selectedGroupIds }));
+    const handleGroupChange = (groupId, isChecked) => {
+        setFormData(prev => {
+            const currentGroupIds = prev.groupIds || [];
+            if (isChecked) {
+                // Add the group ID if it's not already there
+                return { ...prev, groupIds: [...new Set([...currentGroupIds, groupId])] };
+            } else {
+                // Remove the group ID
+                return { ...prev, groupIds: currentGroupIds.filter(id => id !== groupId) };
+            }
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -159,18 +167,23 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                                 </select>
                             </div>
                             <div className="mb-3">
-                                <label htmlFor="groups" className="form-label">Groups</label>
-                                <select
-                                    multiple
-                                    name="groups"
-                                    id="groups"
-                                    className="form-select"
-                                    value={formData.groupIds}
-                                    onChange={handleGroupChange}
-                                >
-                                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                                </select>
-                                <div className="form-text">Hold Ctrl or Cmd to select multiple groups.</div>
+                                <label className="form-label">Groups</label>
+                                <div className="border rounded p-2" style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                                    {groups.length > 0 ? groups.map(g => (
+                                        <div key={g.id} className="form-check">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                id={`group-${g.id}`}
+                                                checked={formData.groupIds.includes(g.id)}
+                                                onChange={(e) => handleGroupChange(g.id, e.target.checked)}
+                                            />
+                                            <label className="form-check-label" htmlFor={`group-${g.id}`}>
+                                                {g.name}
+                                            </label>
+                                        </div>
+                                    )) : <p className="text-muted small mb-0">No groups available for this company.</p>}
+                                </div>
                             </div>
                         </div>
                         <div className="modal-footer">
