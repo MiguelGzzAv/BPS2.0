@@ -89,10 +89,11 @@ export const AuthProvider = ({ children }) => {
         setActionPermissions({});
     };
 
-    const selectCompany = (companyId, companyName) => {
+    const selectCompany = async (companyId, companyName) => {
         sessionStorage.setItem('selectedCompanyId', companyId);
         sessionStorage.setItem('selectedCompanyName', companyName);
-        loadAllPermissions(user, companyId);
+        // Wait for all permissions to be loaded before proceeding.
+        await loadAllPermissions(user, companyId);
     };
 
     const can = (resource, action) => {

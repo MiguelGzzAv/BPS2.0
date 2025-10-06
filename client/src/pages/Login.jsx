@@ -27,9 +27,9 @@ function Login() {
             if (data.success) {
                 auth.login(data.user);
                 // If the user is not a superadmin, they belong to a specific company.
-                // We automatically select their company and redirect to the dashboard.
+                // We wait for the permissions to load completely before redirecting.
                 if (data.user.role !== 'superadmin') {
-                    auth.selectCompany(data.user.companyId, data.user.companyName);
+                    await auth.selectCompany(data.user.companyId, data.user.companyName);
                     navigate('/dashboard');
                 }
                 // Superadmins will be redirected to the company selection page by the router.

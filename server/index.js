@@ -36,7 +36,11 @@ const authAndAuthzMiddleware = (req, res, next) => {
 
   if (user.role === 'superadmin') return next();
 
-  const requestedCompanyId = req.query.companyId || req.body.companyId;
+  let requestedCompanyId = req.query.companyId;
+  if (req.method !== 'GET' && req.body && req.body.companyId) {
+      requestedCompanyId = requestedCompanyId || req.body.companyId;
+  }
+
   if (requestedCompanyId && parseInt(requestedCompanyId) !== user.companyId) {
     return res.status(403).json({ error: "Forbidden: You cannot access another company's data." });
   }
