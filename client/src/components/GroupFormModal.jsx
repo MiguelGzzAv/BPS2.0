@@ -1,23 +1,31 @@
 import React, { useState, useEffect } from 'react';
 
 const GroupFormModal = ({ show, onHide, onSave, groupToEdit }) => {
-    const [name, setName] = useState('');
+    const [formData, setFormData] = useState({ id: '', name: '' });
+
+    const isEditing = !!groupToEdit;
 
     useEffect(() => {
-        if (groupToEdit) {
-            setName(groupToEdit.name);
+        if (isEditing) {
+            setFormData({ id: groupToEdit.id, name: groupToEdit.name || '' });
         } else {
-            setName('');
+            setFormData({ id: '', name: '' });
         }
     }, [groupToEdit, show]);
 
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!name.trim()) {
-            alert('Group name cannot be empty.');
+        if (!formData.name.trim() || !String(formData.id).trim()) {
+            alert('Group ID and Name cannot be empty.');
             return;
         }
-        onSave({ id: groupToEdit?.id, name });
+        // Ensure ID is sent as a number if it's numeric
+        onSave({ ...formData, id: isEditing ? formData.id : Number(formData.id) || formData.id });
     };
 
     if (!show) {
@@ -30,20 +38,35 @@ const GroupFormModal = ({ show, onHide, onSave, groupToEdit }) => {
                 <div className="modal-content">
                     <form onSubmit={handleSubmit}>
                         <div className="modal-header">
-                            <h5 className="modal-title">{groupToEdit ? 'Edit Group' : 'Create Group'}</h5>
+                            <h5 className="modal-title">{isEditing ? 'Edit Group' : 'Create Group'}</h5>
                             <button type="button" className="btn-close" onClick={onHide}></button>
                         </div>
                         <div className="modal-body">
+                            <div className="mb-3">
+                                <label htmlFor="group-id" className="form-label">Group ID</label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    id="group-id"
+                                    name="id"
+                                    value={formData.id}
+                                    onChange={handleChange}
+                                    required
+                                    disabled={isEditing}
+                                    autoFocus={!isEditing}
+                                />
+                            </div>
                             <div className="mb-3">
                                 <label htmlFor="group-name" className="form-label">Group Name</label>
                                 <input
                                     type="text"
                                     className="form-control"
                                     id="group-name"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
                                     required
-                                    autoFocus
+                                    autoFocus={isEditing}
                                 />
                             </div>
                         </div>

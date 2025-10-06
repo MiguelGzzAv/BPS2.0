@@ -18,17 +18,26 @@ const getGroups = (req, res) => {
 
 const createGroup = (req, res) => {
     const companyId = getCompanyId(req);
-     if (!companyId) {
+    if (!companyId) {
         return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
-    const { name } = req.body;
-    if (!name) {
-        return res.status(400).json({ error: 'Group name is required' });
+
+    const { id, name } = req.body;
+    if (!id || !name) {
+        return res.status(400).json({ error: 'Group ID and name are required' });
     }
+
     if (!groupsByCompany[companyId]) {
         groupsByCompany[companyId] = [];
     }
-    const newGroup = { id: Date.now(), name };
+
+    // Check if group with the same ID already exists for this company
+    const existingGroup = groupsByCompany[companyId].find(g => g.id === id);
+    if (existingGroup) {
+        return res.status(409).json({ error: `Group with ID ${id} already exists in this company.` });
+    }
+
+    const newGroup = { id, name };
     groupsByCompany[companyId].push(newGroup);
     console.log(`Added new group to company ${companyId}:`, newGroup);
     res.status(201).json(newGroup);
