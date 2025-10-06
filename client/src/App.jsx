@@ -5,7 +5,6 @@ import Selection from './pages/Selection';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Processes from './pages/Processes';
-import Departments from './pages/Departments';
 import Groups from './pages/Groups';
 import Monitoring from './pages/Monitoring';
 import Escalation from './pages/Escalation';
@@ -30,7 +29,6 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/users" element={<Users />} />
         <Route path="/processes" element={<Processes />} />
-        <Route path="/departments" element={<Departments />} />
         <Route path="/groups" element={<Groups />} />
         <Route path="/monitoring" element={<Monitoring />} />
         <Route path="/escalation" element={<Escalation />} />
