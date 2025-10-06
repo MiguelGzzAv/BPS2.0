@@ -27,17 +27,22 @@ const createGroup = (req, res) => {
         return res.status(400).json({ error: 'Group ID and name are required' });
     }
 
+    const numericId = parseInt(id, 10);
+    if (isNaN(numericId)) {
+        return res.status(400).json({ error: 'Group ID must be a valid number.' });
+    }
+
     if (!groupsByCompany[companyId]) {
         groupsByCompany[companyId] = [];
     }
 
     // Check if group with the same ID already exists for this company
-    const existingGroup = groupsByCompany[companyId].find(g => g.id === id);
+    const existingGroup = groupsByCompany[companyId].find(g => g.id === numericId);
     if (existingGroup) {
-        return res.status(409).json({ error: `Group with ID ${id} already exists in this company.` });
+        return res.status(409).json({ error: `Group with ID ${numericId} already exists in this company.` });
     }
 
-    const newGroup = { id, name };
+    const newGroup = { id: numericId, name };
     groupsByCompany[companyId].push(newGroup);
     console.log(`Added new group to company ${companyId}:`, newGroup);
     res.status(201).json(newGroup);
