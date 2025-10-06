@@ -47,8 +47,8 @@ function Selection() {
     const handleConfirmAccess = (companyToAccess) => {
         const company = companyToAccess || selectedCompany;
         if (!company) return;
-        sessionStorage.setItem('selectedCompanyId', company.id);
-        sessionStorage.setItem('selectedCompanyName', company.name);
+        // Use the new centralized method from AuthContext
+        auth.selectCompany(company.id, company.name);
         navigate('/dashboard');
     };
 

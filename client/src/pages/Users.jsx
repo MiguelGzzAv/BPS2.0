@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
 import UserFormModal from '../components/UserFormModal';
 import GroupManagement from '../components/GroupManagement';
+import PermissionsManagement from '../components/PermissionsManagement';
 
 function Users() {
     const { user } = useAuth();
@@ -110,6 +111,11 @@ function Users() {
                         Groups
                     </button>
                 </li>
+                <li className="nav-item">
+                    <button className={`nav-link ${activeTab === 'permissions' ? 'active' : ''}`} onClick={() => setActiveTab('permissions')}>
+                        Permissions
+                    </button>
+                </li>
             </ul>
 
             <div className="tab-content pt-3">
@@ -145,6 +151,7 @@ function Users() {
                     </div>
                 )}
                 {activeTab === 'groups' && <GroupManagement />}
+                {activeTab === 'permissions' && <PermissionsManagement />}
             </div>
         </div>
     );

@@ -55,7 +55,7 @@ const processesByCompany = {
 };
 const users = [
     { id: 1, name: 'Super Admin', username: 'superadmin', password: 'password123', role: 'superadmin' },
-    { id: 2, name: 'Admin Banorte', username: 'admin_banorte', password: 'password123', role: 'admin', companyId: 1 },
+    { id: 2, name: 'Admin Banorte', username: 'admin_banorte', password: 'password123', role: 'admin', companyId: 1, groupIds: [1] },
     { id: 3, name: 'Operator Banorte', username: 'operator_banorte', password: 'password123', role: 'operator', companyId: 1 },
     { id: 4, name: 'Reader Banorte', username: 'reader_banorte', password: 'password123', role: 'reader', companyId: 1 },
     { id: 5, name: 'Admin Banamex', username: 'admin_banamex', password: 'password123', role: 'admin', companyId: 2 },
@@ -70,6 +70,12 @@ const groupsByCompany = {
 };
 const registrationsByCompany = {};
 const escalationsByCompany = {};
+const permissionsByCompany = {
+    '1': {
+        // Example: Group with ID 1 can access dashboard and users pages
+        '1': ['dashboard', 'users']
+    }
+};
 
 module.exports = {
     companies,
@@ -77,5 +83,6 @@ module.exports = {
     users,
     groupsByCompany,
     registrationsByCompany,
-    escalationsByCompany
+    escalationsByCompany,
+    permissionsByCompany
 };

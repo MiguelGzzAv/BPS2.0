@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 function MainLayout() {
-    const { logout } = useAuth();
+    const { logout, userPermissions } = useAuth();
     const navigate = useNavigate();
     const companyName = sessionStorage.getItem('selectedCompanyName');
 
@@ -56,24 +56,36 @@ function MainLayout() {
                 </div>
                 <div className="offcanvas-body">
                     <ul className="nav nav-pills flex-column mb-auto">
-                        <li className="nav-item">
-                            <NavLink to="/dashboard" className="nav-link text-white" onClick={handleLinkClick}>Dashboard</NavLink>
-                        </li>
-                        <li>
-                            <NavLink to="/users" className="nav-link text-white" onClick={handleLinkClick}>Users</NavLink>
-                        </li>
-                        <li>
-                            <NavLink to="/selection" className="nav-link text-white" onClick={handleLinkClick}>Companies</NavLink>
-                        </li>
-                        <li>
-                            <NavLink to="/processes" className="nav-link text-white" onClick={handleLinkClick}>Processes</NavLink>
-                        </li>
-                        <li>
-                            <NavLink to="/monitoring" className="nav-link text-white" onClick={handleLinkClick}>Monitoring</NavLink>
-                        </li>
-                        <li>
-                            <NavLink to="/escalation" className="nav-link text-white" onClick={handleLinkClick}>Escalation</NavLink>
-                        </li>
+                        {userPermissions.has('dashboard') && (
+                            <li className="nav-item">
+                                <NavLink to="/dashboard" className="nav-link text-white" onClick={handleLinkClick}>Dashboard</NavLink>
+                            </li>
+                        )}
+                        {userPermissions.has('users') && (
+                            <li>
+                                <NavLink to="/users" className="nav-link text-white" onClick={handleLinkClick}>Users & Groups</NavLink>
+                            </li>
+                        )}
+                        {userPermissions.has('selection') && (
+                             <li>
+                                <NavLink to="/selection" className="nav-link text-white" onClick={handleLinkClick}>Companies</NavLink>
+                            </li>
+                        )}
+                        {userPermissions.has('processes') && (
+                            <li>
+                                <NavLink to="/processes" className="nav-link text-white" onClick={handleLinkClick}>Processes</NavLink>
+                            </li>
+                        )}
+                        {userPermissions.has('monitoring') && (
+                            <li>
+                                <NavLink to="/monitoring" className="nav-link text-white" onClick={handleLinkClick}>Monitoring</NavLink>
+                            </li>
+                        )}
+                        {userPermissions.has('escalation') && (
+                            <li>
+                                <NavLink to="/escalation" className="nav-link text-white" onClick={handleLinkClick}>Escalation</NavLink>
+                            </li>
+                        )}
                     </ul>
                 </div>
             </div>

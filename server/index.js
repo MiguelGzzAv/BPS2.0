@@ -10,6 +10,7 @@ const groupRoutes = require('./routes/group.routes');
 const escalationRoutes = require('./routes/escalation.routes');
 const registrationRoutes = require('./routes/registration.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const permissionsRoutes = require('./routes/permissions.routes');
 
 const app = express();
 const port = 3000;
@@ -61,6 +62,7 @@ app.use('/api/groups', authAndAuthzMiddleware, groupRoutes);
 app.use('/api/escalations', authAndAuthzMiddleware, escalationRoutes);
 app.use('/api/registrations', authAndAuthzMiddleware, registrationRoutes);
 app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
+app.use('/api/permissions', authAndAuthzMiddleware, permissionsRoutes);
 
 // --- Login Route (Unprotected) ---
 app.post('/api/login', (req, res) => {
