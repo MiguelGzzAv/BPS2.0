@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchWithAuth } from '../api';
 
 const Profile = () => {
     const { user, login } = useAuth();

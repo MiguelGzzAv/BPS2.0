@@ -70,16 +70,28 @@ const calculateAllProcessStates = (processes, allRegistrations, forDate) => {
 
 
 const getProcesses = (req, res) => {
-    const companyId = req.user.role === 'superadmin' ? (req.query.companyId || req.user.companyId) : req.user.companyId;
-    if (!hasPermission(req.user.role, 'processes', 'read', companyId)) {
-        return res.status(403).json({ error: 'Forbidden: You do not have permission to view processes.' });
+    let companyId;
+    if (req.user.role === 'superadmin') {
+        companyId = req.query.companyId;
+    } else {
+        companyId = req.user.companyId;
     }
+
     if (!companyId) {
         return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
+
+    if (!hasPermission(req.user.role, 'processes', 'read', companyId)) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to view processes.' });
+    }
+
+    const { date } = req.query;
+    const forDate = date ? new Date(`${date}T00:00:00Z`) : new Date();
+    if (!date) forDate.setUTCHours(0, 0, 0, 0);
+
     const processes = processesByCompany[companyId] || [];
     const registrations = registrationsByCompany[companyId] || [];
-    const states = calculateAllProcessStates(processes, registrations);
+    const states = calculateAllProcessStates(processes, registrations, forDate);
     const processesWithStatus = processes.map(p => ({
         ...p,
         status: states.get(p.id) || 'sin ejecucion'
