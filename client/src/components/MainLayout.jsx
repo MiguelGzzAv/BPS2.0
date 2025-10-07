@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 function MainLayout() {
-    const { logout, pagePermissions } = useAuth();
+    const { user, logout, pagePermissions } = useAuth();
     const navigate = useNavigate();
     const companyName = sessionStorage.getItem('selectedCompanyName');
 
@@ -43,7 +43,16 @@ function MainLayout() {
                         <span className="navbar-text me-3 text-white-50">
                             Company: {companyName || 'N/A'}
                         </span>
-                        <button onClick={logout} className="btn btn-outline-danger">Logout</button>
+                        <div className="dropdown">
+                            <button className="btn btn-outline-light dropdown-toggle" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                {user?.name || 'User'}
+                            </button>
+                            <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+                                <li><NavLink className="dropdown-item" to="/profile">My Profile</NavLink></li>
+                                <li><hr className="dropdown-divider" /></li>
+                                <li><button onClick={logout} className="dropdown-item text-danger">Logout</button></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </nav>

@@ -8,6 +8,7 @@ import Processes from './pages/Processes';
 import Groups from './pages/Groups';
 import Monitoring from './pages/Monitoring';
 import Escalation from './pages/Escalation';
+import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -32,6 +33,7 @@ function App() {
         <Route path="/groups" element={<Groups />} />
         <Route path="/monitoring" element={<Monitoring />} />
         <Route path="/escalation" element={<Escalation />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
 
       {/* Default route handler */}
