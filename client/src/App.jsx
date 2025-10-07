@@ -9,12 +9,24 @@ import Groups from './pages/Groups';
 import Monitoring from './pages/Monitoring';
 import Escalation from './pages/Escalation';
 import Profile from './pages/Profile';
+import Configuration from './pages/Configuration';
+import Maintenance from './pages/Maintenance';
+import Messaging from './pages/Messaging';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
 
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, maintenanceStatus } = useAuth();
+
+  // A wrapper to protect routes with maintenance mode
+  const MaintenanceWrapper = ({ pageName, children }) => {
+    // Superadmin can always access pages, even in maintenance mode
+    if (user?.role !== 'superadmin' && maintenanceStatus[pageName]) {
+      return <Maintenance />;
+    }
+    return children;
+  };
 
   return (
     <Routes>
@@ -26,14 +38,19 @@ function App() {
 
       {/* All routes inside ProtectedRoute require authentication */}
       <Route element={<ProtectedRoute />}>
+        {/* These pages are not under maintenance mode */}
         <Route path="/selection" element={<Selection />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="/processes" element={<Processes />} />
-        <Route path="/groups" element={<Groups />} />
-        <Route path="/monitoring" element={<Monitoring />} />
-        <Route path="/escalation" element={<Escalation />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/configuration" element={<Configuration />} />
+        <Route path="/messaging" element={<Messaging />} />
+
+        {/* These pages can be under maintenance */}
+        <Route path="/dashboard" element={<MaintenanceWrapper pageName="dashboard"><Dashboard /></MaintenanceWrapper>} />
+        <Route path="/users" element={<MaintenanceWrapper pageName="users"><Users /></MaintenanceWrapper>} />
+        <Route path="/processes" element={<MaintenanceWrapper pageName="processes"><Processes /></MaintenanceWrapper>} />
+        <Route path="/groups" element={<MaintenanceWrapper pageName="groups"><Groups /></MaintenanceWrapper>} />
+        <Route path="/monitoring" element={<MaintenanceWrapper pageName="monitoring"><Monitoring /></MaintenanceWrapper>} />
+        <Route path="/escalation" element={<MaintenanceWrapper pageName="escalation"><Escalation /></MaintenanceWrapper>} />
       </Route>
 
       {/* Default route handler */}

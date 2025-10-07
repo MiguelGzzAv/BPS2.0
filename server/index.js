@@ -12,6 +12,8 @@ const registrationRoutes = require('./routes/registration.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const permissionsRoutes = require('./routes/permissions.routes');
 const rolePermissionsRoutes = require('./routes/rolePermissions.routes');
+const maintenanceRoutes = require('./routes/maintenance.routes');
+const messagingRoutes = require('./routes/messaging.routes');
 
 const app = express();
 const port = 3000;
@@ -69,6 +71,8 @@ app.use('/api/registrations', authAndAuthzMiddleware, registrationRoutes);
 app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
 app.use('/api/permissions', authAndAuthzMiddleware, permissionsRoutes);
 app.use('/api/role-permissions', authAndAuthzMiddleware, rolePermissionsRoutes);
+app.use('/api/maintenance', authAndAuthzMiddleware, maintenanceRoutes);
+app.use('/api/messaging', authAndAuthzMiddleware, messagingRoutes);
 
 // --- Login Route (Unprotected) ---
 app.post('/api/login', (req, res) => {

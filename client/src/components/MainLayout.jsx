@@ -1,11 +1,57 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchWithAuth } from '../api';
 
 function MainLayout() {
     const { user, logout, pagePermissions } = useAuth();
     const navigate = useNavigate();
     const companyName = sessionStorage.getItem('selectedCompanyName');
+    const [latestMessage, setLatestMessage] = useState(null);
+    const [lastShownMessageId, setLastShownMessageId] = useState(null);
+
+    // Effect to fetch the latest message periodically
+    useEffect(() => {
+        if (!user) return; // Don't fetch if not logged in
+
+        const fetchMessage = async () => {
+            try {
+                const response = await fetchWithAuth('/api/messaging/latest');
+                if (!response.ok) return;
+
+                const message = await response.json();
+                // Show message if it exists and hasn't been shown/dismissed before
+                if (message && message.id !== lastShownMessageId) {
+                    setLatestMessage(message);
+                }
+            } catch (error) {
+                console.error('Failed to fetch global message:', error);
+            }
+        };
+
+        fetchMessage(); // Initial fetch
+        const intervalId = setInterval(fetchMessage, 30000); // Poll every 30 seconds
+
+        return () => clearInterval(intervalId);
+    }, [user, lastShownMessageId]);
+
+    // Effect to display the toast when a new message arrives
+    useEffect(() => {
+        if (latestMessage) {
+            const toastElement = document.getElementById('globalToast');
+            if (toastElement) {
+                const toast = bootstrap.Toast.getOrCreateInstance(toastElement);
+
+                const onHidden = () => {
+                    // When the toast is dismissed, mark it as "shown"
+                    setLastShownMessageId(latestMessage.id);
+                };
+
+                toastElement.addEventListener('hidden.bs.toast', onHidden, { once: true });
+                toast.show();
+            }
+        }
+    }, [latestMessage]);
 
     useEffect(() => {
         if (!companyName) {
@@ -95,6 +141,17 @@ function MainLayout() {
                                 <NavLink to="/escalation" className="nav-link text-white" onClick={handleLinkClick}>Escalation</NavLink>
                             </li>
                         )}
+                        {user?.role === 'superadmin' && (
+                            <>
+                                <hr className="border-secondary" />
+                                <li>
+                                    <NavLink to="/configuration" className="nav-link text-white" onClick={handleLinkClick}>Configuration</NavLink>
+                                </li>
+                                <li>
+                                    <NavLink to="/messaging" className="nav-link text-white" onClick={handleLinkClick}>Messaging</NavLink>
+                                </li>
+                            </>
+                        )}
                     </ul>
                 </div>
             </div>
@@ -103,6 +160,23 @@ function MainLayout() {
             <main className="container-fluid page-container flex-grow-1">
                 <Outlet />
             </main>
+
+            {/* Global Toast Container */}
+            <div className="toast-container position-fixed top-0 end-0 p-3">
+                {latestMessage && (
+                    <div id="globalToast" className="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
+                        <div className="toast-header">
+                            <i className="bi bi-broadcast rounded me-2"></i>
+                            <strong className="me-auto">Global Broadcast</strong>
+                            <small>{new Date(latestMessage.timestamp).toLocaleTimeString()}</small>
+                            <button type="button" className="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div className="toast-body">
+                            {latestMessage.text}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

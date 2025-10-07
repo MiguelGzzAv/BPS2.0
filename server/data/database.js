@@ -97,6 +97,17 @@ const rolePermissionsByCompany = {
     }
 };
 
+const maintenanceStatus = {
+    dashboard: false,
+    users: false,
+    groups: false,
+    processes: false,
+    monitoring: false,
+    escalation: false,
+};
+
+const globalMessages = [];
+
 module.exports = {
     companies,
     processesByCompany,
@@ -105,5 +116,7 @@ module.exports = {
     registrationsByCompany,
     escalationsByCompany,
     permissionsByCompany,
-    rolePermissionsByCompany
+    rolePermissionsByCompany,
+    maintenanceStatus,
+    globalMessages,
 };

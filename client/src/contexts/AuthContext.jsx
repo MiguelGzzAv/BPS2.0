@@ -7,6 +7,19 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [pagePermissions, setPagePermissions] = useState(new Set());
     const [actionPermissions, setActionPermissions] = useState({});
+    const [maintenanceStatus, setMaintenanceStatus] = useState({});
+
+    const loadMaintenanceStatus = async () => {
+        try {
+            const res = await fetchWithAuth('/api/maintenance');
+            if (res.ok) {
+                const data = await res.json();
+                setMaintenanceStatus(data);
+            }
+        } catch (error) {
+            console.error("Failed to load maintenance status:", error);
+        }
+    };
 
     const loadAllPermissions = async (currentUser, companyId) => {
         if (!currentUser || !companyId) {
@@ -62,15 +75,21 @@ export const AuthProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        const storedUserJSON = localStorage.getItem('user');
-        if (storedUserJSON) {
-            const storedUser = JSON.parse(storedUserJSON);
-            setUser(storedUser);
-            const storedCompanyId = sessionStorage.getItem('selectedCompanyId');
-            if (storedCompanyId) {
-                loadAllPermissions(storedUser, storedCompanyId);
+        const initAuth = async () => {
+            // Fetch maintenance status on initial load
+            await loadMaintenanceStatus();
+
+            const storedUserJSON = localStorage.getItem('user');
+            if (storedUserJSON) {
+                const storedUser = JSON.parse(storedUserJSON);
+                setUser(storedUser);
+                const storedCompanyId = sessionStorage.getItem('selectedCompanyId');
+                if (storedCompanyId) {
+                    await loadAllPermissions(storedUser, storedCompanyId);
+                }
             }
-        }
+        };
+        initAuth();
     }, []);
 
     const login = (userData) => {
@@ -109,6 +128,8 @@ export const AuthProvider = ({ children }) => {
         pagePermissions,
         can, // Expose the 'can' function
         isAuthenticated: !!user,
+        maintenanceStatus,
+        loadMaintenanceStatus, // Expose the function to reload status if needed
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
