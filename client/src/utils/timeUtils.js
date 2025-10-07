@@ -6,7 +6,7 @@
  */
 export const getProcessTimeStatus = (process, now) => {
     if (!process.startTime || !process.endTime) {
-        return { isButtonEnabled: false, spinnerClass: '' };
+        return { isButtonEnabled: false, spinnerClass: 'text-secondary' };
     }
 
     const today = now.toISOString().split('T')[0];
@@ -14,7 +14,7 @@ export const getProcessTimeStatus = (process, now) => {
     const endTime = new Date(`${today}T${process.endTime}:00`);
 
     if (now < startTime || now > endTime) {
-        return { isButtonEnabled: false, spinnerClass: '' };
+        return { isButtonEnabled: false, spinnerClass: 'text-secondary' };
     }
 
     const totalDuration = endTime.getTime() - startTime.getTime();

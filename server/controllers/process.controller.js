@@ -91,12 +91,33 @@ const getProcesses = (req, res) => {
 
     const processes = processesByCompany[companyId] || [];
     const registrations = registrationsByCompany[companyId] || [];
+
+    // Calculate lock status based on the last 24 hours
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+
+    const lastRegistrationMap = new Map();
+    (registrations || []).forEach(reg => {
+        const regTimestamp = new Date(reg.timestamp);
+        if (!lastRegistrationMap.has(reg.processId) || regTimestamp > lastRegistrationMap.get(reg.processId)) {
+            lastRegistrationMap.set(reg.processId, regTimestamp);
+        }
+    });
+
     const states = calculateAllProcessStates(processes, registrations, forDate);
-    const processesWithStatus = processes.map(p => ({
-        ...p,
-        status: states.get(p.id) || 'sin ejecucion'
-    }));
-    res.json(processesWithStatus);
+
+    const processesWithStatusAndLock = processes.map(p => {
+        const lastRegTime = lastRegistrationMap.get(p.id);
+        const isLocked = lastRegTime ? lastRegTime > twentyFourHoursAgo : false;
+
+        return {
+            ...p,
+            status: states.get(p.id) || 'sin ejecucion',
+            isLocked: isLocked
+        };
+    });
+
+    res.json(processesWithStatusAndLock);
 };
 
 const createProcess = (req, res) => {

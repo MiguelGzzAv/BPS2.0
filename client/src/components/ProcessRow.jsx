@@ -73,13 +73,19 @@ const ProcessRow = ({ process, level = 0, processMap, onRegister, currentTime })
                 <td><span className="badge bg-secondary">{process.criticidad || 'Baja'}</span></td>
                 <td>
                     {showRegisterButton && (
-                        <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => onRegister(process)}
-                            disabled={!ownStatus.isButtonEnabled}
-                        >
-                            Registrar
-                        </button>
+                        process.isLocked ? (
+                            <button className="btn btn-secondary btn-sm" disabled>
+                                Terminado
+                            </button>
+                        ) : (
+                            <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => onRegister(process)}
+                                disabled={!ownStatus.isButtonEnabled}
+                            >
+                                Registrar
+                            </button>
+                        )
                     )}
                 </td>
             </tr>
