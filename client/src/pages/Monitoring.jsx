@@ -12,6 +12,7 @@ const Monitoring = () => {
     const [error, setError] = useState(null);
     const [filters, setFilters] = useState({ name: '', status: '' });
     const [sortOrder, setSortOrder] = useState(null);
+    const [currentTime, setCurrentTime] = useState(new Date());
 
     // Modal State
     const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
@@ -54,9 +55,15 @@ const Monitoring = () => {
     };
 
     useEffect(() => {
+        // Fetch data initially and then set up intervals
         fetchAllData();
-        const interval = setInterval(fetchAllData, 60000);
-        return () => clearInterval(interval);
+        const dataFetchInterval = setInterval(fetchAllData, 60000); // Refresh data every minute
+        const timeUpdateInterval = setInterval(() => setCurrentTime(new Date()), 1000); // Update time every second
+
+        return () => {
+            clearInterval(dataFetchInterval);
+            clearInterval(timeUpdateInterval);
+        };
     }, []);
 
     const handleFilterChange = (e) => {
@@ -159,6 +166,7 @@ const Monitoring = () => {
                             <th>INICIO</th>
                             <th>FIN</th>
                             <th>ESTATUS</th>
+                            <th>PROGRESO</th>
                             <th>URGENCIA</th>
                             <th>ACCIONES</th>
                         </tr>
@@ -171,10 +179,11 @@ const Monitoring = () => {
                                     process={proc}
                                     processMap={processMap}
                                     onRegister={handleRegisterClick}
+                                    currentTime={currentTime}
                                 />
                             ))
                         ) : (
-                            <tr><td colSpan="6" className="text-center">No processes found.</td></tr>
+                            <tr><td colSpan="7" className="text-center">No processes found.</td></tr>
                         )}
                     </tbody>
                 </table>
