@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { fetchWithAuth } from '../api';
-import RolePermissionManager from '../components/RolePermissionManager';
 
 function MaintenanceModeSettings() {
     const [status, setStatus] = useState({});
@@ -121,9 +120,6 @@ function Configuration() {
                 <li className="nav-item" role="presentation">
                     <button className="nav-link" id="maintenance-tab" data-bs-toggle="tab" data-bs-target="#maintenance" type="button" role="tab" aria-controls="maintenance" aria-selected="false">Maintenance Mode</button>
                 </li>
-                <li className="nav-item" role="presentation">
-                    <button className="nav-link" id="permissions-tab" data-bs-toggle="tab" data-bs-target="#permissions" type="button" role="tab" aria-controls="permissions" aria-selected="false">Roles & Permissions</button>
-                </li>
             </ul>
 
             <div className="tab-content pt-3" id="configTabsContent">
@@ -172,9 +168,6 @@ function Configuration() {
                 </div>
                 <div className="tab-pane fade" id="maintenance" role="tabpanel" aria-labelledby="maintenance-tab">
                     <MaintenanceModeSettings />
-                </div>
-                <div className="tab-pane fade" id="permissions" role="tabpanel" aria-labelledby="permissions-tab">
-                    <RolePermissionManager />
                 </div>
             </div>
         </div>

@@ -174,25 +174,39 @@ const updateProcess = (req, res) => {
 
 const deleteProcess = (req, res) => {
     const { id } = req.params;
-    const companyId = req.user.companyId; // Non-superadmins can only delete from their own company
+    let companyId;
+
+    // Superadmins must pass companyId in the query string, other users use their own companyId
+    if (req.user.role === 'superadmin') {
+        companyId = req.query.companyId;
+    } else {
+        companyId = req.user.companyId;
+    }
+
+    if (!companyId) {
+        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+    }
 
     if (!hasPermission(req.user.role, 'processes', 'delete', companyId)) {
         return res.status(403).json({ error: 'Forbidden: You do not have permission to delete processes.' });
     }
-    if (!companyId) {
-        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
-    }
+
     const processes = processesByCompany[companyId] || [];
     const processIndex = processes.findIndex(p => p.id === id);
+
     if (processIndex === -1) {
-        return res.status(404).json({ error: 'Process not found' });
+        return res.status(404).json({ error: 'Process not found in the specified company' });
     }
+
     processes.splice(processIndex, 1);
+
+    // Also remove the deleted process from any childProcess arrays
     processes.forEach(p => {
         if (p.childProcesses) {
             p.childProcesses = p.childProcesses.filter(child => child.id !== id);
         }
     });
+
     res.status(204).send();
 };
 
