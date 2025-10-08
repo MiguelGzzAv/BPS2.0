@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
-const { users, companies } = require('./data/database');
+const db = require('./db');
+const seed = require('./seed');
 
 // --- Route Imports ---
 const companyRoutes = require('./routes/company.routes');
@@ -23,42 +24,48 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // --- Authentication & Authorization Middleware ---
-const authAndAuthzMiddleware = (req, res, next) => {
+const authAndAuthzMiddleware = async (req, res, next) => {
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Authentication required. Please provide x-user-id header.' });
   }
 
-  const user = users.find(u => u.id === parseInt(userId));
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid user.' });
-  }
+  try {
+    const { rows } = await db.query('SELECT *, company_id AS "companyId" FROM users WHERE id = $1', [userId]);
+    const user = rows[0];
 
-  req.user = user;
-
-  if (user.role === 'superadmin') return next();
-
-  let requestedCompanyId = req.query.companyId;
-  if (req.method !== 'GET' && req.body && req.body.companyId) {
-      requestedCompanyId = requestedCompanyId || req.body.companyId;
-  }
-
-  if (requestedCompanyId && parseInt(requestedCompanyId) !== user.companyId) {
-    return res.status(403).json({ error: "Forbidden: You cannot access another company's data." });
-  }
-
-  if (user.role === 'reader' && req.method !== 'GET') {
-    return res.status(403).json({ error: 'Forbidden: Readers can only view data.' });
-  }
-
-  if (user.role === 'operator') {
-    const allowedPostPaths = ['/registrations', '/escalations'];
-    if (req.method !== 'GET' && !(req.method === 'POST' && allowedPostPaths.includes(req.path))) {
-      return res.status(403).json({ error: 'Forbidden: Operators can only view data and create operational records.' });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid user.' });
     }
-  }
 
-  next();
+    req.user = user;
+
+    if (user.role === 'superadmin') return next();
+
+    let requestedCompanyId = req.query.companyId;
+    if (req.method !== 'GET' && req.body && req.body.companyId) {
+        requestedCompanyId = requestedCompanyId || req.body.companyId;
+    }
+
+    if (requestedCompanyId && parseInt(requestedCompanyId) !== user.companyId) {
+      return res.status(403).json({ error: "Forbidden: You cannot access another company's data." });
+    }
+
+    if (user.role === 'reader' && req.method !== 'GET') {
+      return res.status(403).json({ error: 'Forbidden: Readers can only view data.' });
+    }
+
+    if (user.role === 'operator') {
+      const allowedPostPaths = ['/registrations', '/escalations'];
+      if (req.method !== 'GET' && !(req.method === 'POST' && allowedPostPaths.includes(req.path))) {
+        return res.status(403).json({ error: 'Forbidden: Operators can only view data and create operational records.' });
+      }
+    }
+    next();
+  } catch (error) {
+      console.error('Auth middleware error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+  }
 };
 
 // --- API Routes ---
@@ -75,24 +82,34 @@ app.use('/api/maintenance', authAndAuthzMiddleware, maintenanceRoutes);
 app.use('/api/messaging', authAndAuthzMiddleware, messagingRoutes);
 
 // --- Login Route (Unprotected) ---
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  const user = users.find(u => u.username === username && u.password === password);
-  if (user) {
-    const userToSend = { ...user };
-    delete userToSend.password;
+  try {
+    const userResult = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
 
-    // If the user belongs to a company, find the company name and add it
-    if (user.companyId) {
-        const company = companies.find(c => c.id === user.companyId);
-        if (company) {
-            userToSend.companyName = company.name;
+    if (userResult.rows.length > 0) {
+        const user = userResult.rows[0];
+        const userToSend = { ...user };
+        delete userToSend.password;
+
+        if (user.company_id) {
+            const companyResult = await db.query('SELECT name FROM companies WHERE id = $1', [user.company_id]);
+            if (companyResult.rows.length > 0) {
+                userToSend.companyName = companyResult.rows[0].name;
+            }
+            userToSend.companyId = user.company_id;
+            delete userToSend.company_id;
+            userToSend.groupIds = user.group_ids;
+            delete userToSend.group_ids;
         }
-    }
 
-    res.json({ success: true, user: userToSend });
-  } else {
-    res.status(401).json({ success: false, message: 'Invalid username or password' });
+        res.json({ success: true, user: userToSend });
+    } else {
+        res.status(401).json({ success: false, message: 'Invalid username or password' });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -110,6 +127,18 @@ app.use((err, req, res, next) => {
 });
 
 // --- Server Start ---
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
+const startServer = async () => {
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('Running in development mode. Seeding database...');
+        await seed();
+    }
+
+    app.listen(port, () => {
+        console.log(`Server listening at http://localhost:${port}`);
+    });
+};
+
+startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
 });

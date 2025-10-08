@@ -1,46 +1,56 @@
-const { registrationsByCompany } = require('../data/database');
+const db = require('../db');
 
-const getCompanyId = (req) => {
-    if (req.user.role === 'superadmin') {
-        return req.query.companyId || req.body.companyId;
+const getRegistrations = async (req, res) => {
+    try {
+        const companyId = req.user.role === 'superadmin' ? req.query.companyId : req.user.companyId;
+        if (!companyId) {
+            return res.status(400).json({ error: 'A companyId must be provided for this request.' });
+        }
+
+        const { rows } = await db.query(
+            'SELECT process_id AS "processId", "timestamp", "values", phase FROM registrations WHERE company_id = $1',
+            [companyId]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching registrations:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-    return req.user.companyId;
 };
 
-const getRegistrations = (req, res) => {
-    const companyId = getCompanyId(req);
-    if (!companyId) {
-        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
-    }
-    const registrations = registrationsByCompany[companyId] || [];
-    res.json(registrations);
-};
+const createRegistration = async (req, res) => {
+    try {
+        const companyId = req.user.role === 'superadmin' ? req.body.companyId : req.user.companyId;
+        if (!companyId) {
+            return res.status(400).json({ error: 'A companyId must be provided to create a registration.' });
+        }
 
-const createRegistration = (req, res) => {
-    const companyId = getCompanyId(req);
-    if (!companyId) {
-        return res.status(400).json({ error: 'A companyId must be provided for this request.' });
-    }
-    const { processId, timestamp, values, phase } = req.body;
-    if (!processId || !timestamp || !values) {
-        return res.status(400).json({ error: 'processId, timestamp, and values are required' });
-    }
+        const { processId, timestamp, values, phase } = req.body;
+        if (!processId || !timestamp || !values) {
+            return res.status(400).json({ error: 'processId, timestamp, and values are required' });
+        }
 
-    if (!registrationsByCompany[companyId]) {
-        registrationsByCompany[companyId] = [];
+        const query = `
+            INSERT INTO registrations (company_id, process_id, user_id, "timestamp", "values", phase)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, process_id AS "processId", "timestamp", "values", phase;
+        `;
+        const params = [
+            companyId,
+            processId,
+            req.user.id,
+            timestamp,
+            JSON.stringify(values), // Ensure values are stringified for JSONB
+            phase || 'default'
+        ];
+
+        const { rows } = await db.query(query, params);
+        res.status(201).json(rows[0]);
+
+    } catch (error) {
+        console.error('Error creating registration:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    const newRegistration = {
-        id: Date.now(),
-        processId,
-        timestamp,
-        values,
-        phase: phase || 'default'
-    };
-
-    registrationsByCompany[companyId].push(newRegistration);
-    console.log(`Added new registration to company ${companyId}:`, newRegistration);
-    res.status(201).json(newRegistration);
 };
 
 module.exports = {

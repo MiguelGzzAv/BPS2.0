@@ -1,69 +1,93 @@
-const { companies } = require('../data/database');
+const db = require('../db');
 
-const getCompanies = (req, res) => {
-    if (req.user.role === 'superadmin') {
-        res.json(companies);
-    } else {
-        const userCompany = companies.find(c => c.id === req.user.companyId);
-        res.json(userCompany ? [userCompany] : []);
+const getCompanies = async (req, res) => {
+    try {
+        if (req.user.role === 'superadmin') {
+            const { rows } = await db.query('SELECT * FROM companies ORDER BY name');
+            res.json(rows);
+        } else {
+            const { rows } = await db.query('SELECT * FROM companies WHERE id = $1', [req.user.companyId]);
+            res.json(rows);
+        }
+    } catch (error) {
+        console.error('Error fetching companies:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 };
 
-const getCompanyById = (req, res) => {
-    const { id } = req.params;
-    if (req.user.role !== 'superadmin' && req.user.companyId !== parseInt(id)) {
-        return res.status(403).json({ error: 'Forbidden: You can only view your own company.' });
-    }
-    const company = companies.find(c => c.id === parseInt(id));
-    if (company) {
-        res.json(company);
-    } else {
-        res.status(404).json({ error: 'Company not found' });
+const getCompanyById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (req.user.role !== 'superadmin' && req.user.companyId !== parseInt(id)) {
+            return res.status(403).json({ error: 'Forbidden: You can only view your own company.' });
+        }
+        const { rows } = await db.query('SELECT * FROM companies WHERE id = $1', [id]);
+        if (rows.length > 0) {
+            res.json(rows[0]);
+        } else {
+            res.status(404).json({ error: 'Company not found' });
+        }
+    } catch (error) {
+        console.error(`Error fetching company ${req.params.id}:`, error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 };
 
-const createCompany = (req, res) => {
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Forbidden: Only superadmins can create companies.' });
+const createCompany = async (req, res) => {
+    try {
+        if (req.user.role !== 'superadmin') {
+            return res.status(403).json({ error: 'Forbidden: Only superadmins can create companies.' });
+        }
+        const { name } = req.body;
+        if (!name) {
+            return res.status(400).json({ error: 'Company name is required' });
+        }
+        const { rows } = await db.query('INSERT INTO companies (name) VALUES ($1) RETURNING *', [name]);
+        res.status(201).json(rows[0]);
+    } catch (error) {
+        console.error('Error creating company:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-    const { name } = req.body;
-    if (!name) {
-        return res.status(400).json({ error: 'Company name is required' });
-    }
-    const newId = companies.length > 0 ? Math.max(...companies.map(c => c.id)) + 1 : 1;
-    const newCompany = { id: newId, name };
-    companies.push(newCompany);
-    res.status(201).json(newCompany);
 };
 
-const updateCompany = (req, res) => {
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Forbidden: Only superadmins can update companies.' });
+const updateCompany = async (req, res) => {
+    try {
+        if (req.user.role !== 'superadmin') {
+            return res.status(403).json({ error: 'Forbidden: Only superadmins can update companies.' });
+        }
+        const { id } = req.params;
+        const { name } = req.body;
+        if (!name) {
+            return res.status(400).json({ error: 'Company name is required' });
+        }
+        const { rows } = await db.query('UPDATE companies SET name = $1 WHERE id = $2 RETURNING *', [name, id]);
+        if (rows.length > 0) {
+            res.json(rows[0]);
+        } else {
+            res.status(404).json({ error: 'Company not found' });
+        }
+    } catch (error) {
+        console.error(`Error updating company ${req.params.id}:`, error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-    const { id } = req.params;
-    const { name } = req.body;
-    const company = companies.find(c => c.id === parseInt(id));
-    if (!company) {
-        return res.status(404).json({ error: 'Company not found' });
-    }
-    if (!name) {
-        return res.status(400).json({ error: 'Company name is required' });
-    }
-    company.name = name;
-    res.json(company);
 };
 
-const deleteCompany = (req, res) => {
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Forbidden: Only superadmins can delete companies.' });
+const deleteCompany = async (req, res) => {
+    try {
+        if (req.user.role !== 'superadmin') {
+            return res.status(403).json({ error: 'Forbidden: Only superadmins can delete companies.' });
+        }
+        const { id } = req.params;
+        const result = await db.query('DELETE FROM companies WHERE id = $1', [id]);
+        if (result.rowCount > 0) {
+            res.status(204).send();
+        } else {
+            res.status(404).json({ error: 'Company not found' });
+        }
+    } catch (error) {
+        console.error(`Error deleting company ${req.params.id}:`, error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-    const { id } = req.params;
-    const companyIndex = companies.findIndex(c => c.id === parseInt(id));
-    if (companyIndex === -1) {
-        return res.status(404).json({ error: 'Company not found' });
-    }
-    companies.splice(companyIndex, 1);
-    res.status(204).send();
 };
 
 module.exports = {
