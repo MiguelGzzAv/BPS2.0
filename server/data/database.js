@@ -7,20 +7,6 @@ const companies = [
 const processesByCompany = {
     '1': [
         {
-            id: 'PRO7032',
-            name: 'PROCESO NOCTURNO BANORTE',
-            criticidad: 'Alta',
-            startTime: '21:00',
-            endTime: '23:00',
-            frequency: 'Diario',
-            days: [],
-            mode: 'Individual',
-            internalPhases: [
-                { name: 'default', fields: [{ name: 'Status', type: 'status' }, {name: 'Comentarios', type: 'text'}] }
-            ],
-            childProcesses: [{ id: 'PRO7033', dependency: true }]
-        },
-        {
             id: 'PRO7033',
             name: 'REPORTE DIARIO',
             criticidad: 'Media',
@@ -33,6 +19,20 @@ const processesByCompany = {
                 { name: 'default', fields: [{ name: 'Status', type: 'status' }] }
             ],
             childProcesses: []
+        },
+        {
+            id: 'PRO7032',
+            name: 'PROCESO NOCTURNO BANORTE',
+            criticidad: 'Alta',
+            startTime: '21:00',
+            endTime: '23:00',
+            frequency: 'Diario',
+            days: [],
+            mode: 'Individual',
+            internalPhases: [
+                { name: 'default', fields: [{ name: 'Status', type: 'status' }, {name: 'Comentarios', type: 'text'}] }
+            ],
+            childProcesses: [{ id: 'PRO7033', dependency: true }]
         },
         {
             id: 'PRO7034',
