@@ -1,0 +1,22 @@
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore Node dependencies, they should be installed within the container
+node_modules
+client/node_modules
+server/node_modules
+
+# Ignore environment files, they will be provided by Docker Compose
+.env
+.env.*
+!/.env.example
+
+# Ignore logs
+npm-debug.log*
+vite.log
+*.log
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
