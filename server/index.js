@@ -3,6 +3,7 @@ const path = require('path');
 const { users, companies } = require('./data/database');
 
 // --- Route Imports ---
+const auditRoutes = require('./routes/audit.routes');
 const companyRoutes = require('./routes/company.routes');
 const processRoutes = require('./routes/process.routes');
 const userRoutes = require('./routes/user.routes');
@@ -61,7 +62,16 @@ const authAndAuthzMiddleware = (req, res, next) => {
   next();
 };
 
+// --- Authorization Middleware for Superadmins ---
+const superadminOnly = (req, res, next) => {
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Forbidden: Access restricted to superadmins.' });
+    }
+    next();
+};
+
 // --- API Routes ---
+app.use('/api/audit-logs', authAndAuthzMiddleware, superadminOnly, auditRoutes);
 app.use('/api/companies', authAndAuthzMiddleware, companyRoutes);
 app.use('/api/processes', authAndAuthzMiddleware, processRoutes);
 app.use('/api/users', authAndAuthzMiddleware, userRoutes);

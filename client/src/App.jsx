@@ -9,6 +9,7 @@ import Groups from './pages/Groups';
 import Monitoring from './pages/Monitoring';
 import Escalation from './pages/Escalation';
 import Profile from './pages/Profile';
+import SuperAdminMonitor from './pages/SuperAdminMonitor';
 import Configuration from './pages/Configuration';
 import Maintenance from './pages/Maintenance';
 import Messaging from './pages/Messaging';
@@ -43,6 +44,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/configuration" element={<Configuration />} />
         <Route path="/messaging" element={<Messaging />} />
+        <Route path="/superadmin-monitoring" element={<SuperAdminMonitor />} />
 
         {/* These pages can be under maintenance */}
         <Route path="/dashboard" element={<MaintenanceWrapper pageName="dashboard"><Dashboard /></MaintenanceWrapper>} />

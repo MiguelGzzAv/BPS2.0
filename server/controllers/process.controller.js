@@ -1,5 +1,6 @@
 const { processesByCompany, registrationsByCompany } = require('../data/database');
 const { hasPermission } = require('../utils/permissionUtils');
+const { logChange } = require('../utils/auditLogger.js');
 
 // --- Status Calculation Logic (remains unchanged) ---
 const calculateAllProcessStates = (processes, allRegistrations, forDate) => {
@@ -145,6 +146,13 @@ const createProcess = (req, res) => {
         escalationLevels: processData.escalationLevels || 5,
     };
     processesByCompany[companyId].push(newProcess);
+
+    logChange(req.user.id, 'CREATE_PROCESS', {
+        processId: newProcess.id,
+        processName: newProcess.name,
+        companyId: companyId,
+    });
+
     res.status(201).json(newProcess);
 };
 
@@ -169,6 +177,13 @@ const updateProcess = (req, res) => {
     }
     const updatedProcess = { ...processes[processIndex], ...processData };
     processes[processIndex] = updatedProcess;
+
+    logChange(req.user.id, 'UPDATE_PROCESS', {
+        processId: id,
+        processName: updatedProcess.name,
+        companyId: companyId,
+    });
+
     res.json(updatedProcess);
 };
 
@@ -198,6 +213,7 @@ const deleteProcess = (req, res) => {
         return res.status(404).json({ error: 'Process not found in the specified company' });
     }
 
+    const deletedProcessName = processes[processIndex].name; // Capture name before deleting
     processes.splice(processIndex, 1);
 
     // Also remove the deleted process from any childProcess arrays
@@ -205,6 +221,12 @@ const deleteProcess = (req, res) => {
         if (p.childProcesses) {
             p.childProcesses = p.childProcesses.filter(child => child.id !== id);
         }
+    });
+
+    logChange(req.user.id, 'DELETE_PROCESS', {
+        processId: id,
+        processName: deletedProcessName,
+        companyId: companyId,
     });
 
     res.status(204).send();

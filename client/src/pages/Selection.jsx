@@ -29,6 +29,11 @@ function Selection() {
     };
 
     useEffect(() => {
+        // When the user lands on the selection page, clear any active company context.
+        // This prevents the menu from a previous company from showing.
+        sessionStorage.removeItem('selectedCompanyId');
+        sessionStorage.removeItem('selectedCompanyName');
+
         if (auth.isAuthenticated) {
             fetchCompanies();
         }

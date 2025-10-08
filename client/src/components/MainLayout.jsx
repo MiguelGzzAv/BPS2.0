@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
 
 function MainLayout() {
     const { user, logout, pagePermissions } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const companyName = sessionStorage.getItem('selectedCompanyName');
     const [latestMessage, setLatestMessage] = useState(null);
     const [lastShownMessageId, setLastShownMessageId] = useState(null);
@@ -54,11 +55,15 @@ function MainLayout() {
     }, [latestMessage]);
 
     useEffect(() => {
-        if (!companyName) {
-            console.warn("No company selected, redirecting to /selection");
+        // Define routes that are accessible without a company context
+        const companylessRoutes = ['/selection', '/profile', '/configuration', '/messaging', '/superadmin-monitoring'];
+
+        // If we are on a page that requires a company, but we don't have one, redirect.
+        if (!companyName && !companylessRoutes.includes(location.pathname)) {
+            console.warn(`No company selected, redirecting from ${location.pathname} to /selection`);
             navigate('/selection');
         }
-    }, [companyName, navigate]);
+    }, [companyName, navigate, location.pathname]);
 
     const handleLinkClick = () => {
         const offcanvasElement = document.getElementById('offcanvasMenu');
@@ -144,6 +149,9 @@ function MainLayout() {
                         {user?.role === 'superadmin' && (
                             <>
                                 <hr className="border-secondary" />
+                                <li>
+                                    <NavLink to="/superadmin-monitoring" className="nav-link text-white" onClick={handleLinkClick}>Monitoreo</NavLink>
+                                </li>
                                 <li>
                                     <NavLink to="/configuration" className="nav-link text-white" onClick={handleLinkClick}>Configuration</NavLink>
                                 </li>

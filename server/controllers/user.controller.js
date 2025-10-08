@@ -1,5 +1,6 @@
 const { users, companies } = require('../data/database');
 const { hasPermission } = require('../utils/permissionUtils');
+const { logChange } = require('../utils/auditLogger.js');
 
 const getUsers = (req, res) => {
     const companyId = req.user.role === 'superadmin' ? (req.query.companyId || req.user.companyId) : req.user.companyId;
@@ -57,8 +58,15 @@ const createUser = (req, res) => {
     };
 
     users.push(userToSave);
-    console.log(`Added new user:`, userToSave);
     const { password, ...userWithoutPassword } = userToSave;
+
+    logChange(req.user.id, 'CREATE_USER', {
+        createdUserId: userToSave.id,
+        createdUserName: userToSave.name,
+        companyId: userToSave.companyId,
+    });
+
+    console.log(`Added new user:`, userToSave);
     res.status(201).json(userWithoutPassword);
 };
 
@@ -90,9 +98,15 @@ const updateUser = (req, res) => {
     }
 
     users[userIndex] = updatedUser;
+    const { password: _, ...userWithoutPassword } = updatedUser;
+
+    logChange(req.user.id, 'UPDATE_USER', {
+        updatedUserId: userIdToUpdate,
+        updatedFields: Object.keys(safeUpdates),
+        companyId: updatedUser.companyId,
+    });
 
     console.log(`Updated user ${userIdToUpdate}:`, updatedUser);
-    const { password: _, ...userWithoutPassword } = updatedUser;
     res.json(userWithoutPassword);
 };
 
@@ -115,7 +129,15 @@ const deleteUser = (req, res) => {
         return res.status(403).json({ error: 'Forbidden: You cannot delete yourself.' });
     }
 
+    const deletedUserName = userToDelete.name; // Capture name before deleting
     users.splice(userIndex, 1);
+
+    logChange(req.user.id, 'DELETE_USER', {
+        deletedUserId: userIdToDelete,
+        deletedUserName: deletedUserName,
+        companyId: companyId,
+    });
+
     console.log(`Deleted user ${userIdToDelete}`);
     res.status(204).send();
 };
