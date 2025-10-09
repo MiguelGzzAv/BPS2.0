@@ -144,8 +144,16 @@ function MainLayout() {
                         {user?.role === 'superadmin' && (
                             <>
                                 <hr className="border-secondary" />
-                                <li>
-                                    <NavLink to="/configuration" className="nav-link text-white" onClick={handleLinkClick}>Configuration</NavLink>
+                                <li className="nav-item dropdown">
+                                    <a className="nav-link dropdown-toggle text-white" href="#" id="configDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Configuration
+                                    </a>
+                                    <ul className="dropdown-menu dropdown-menu-dark" aria-labelledby="configDropdown">
+                                        <li><NavLink to="/configuration/companies" className="dropdown-item" onClick={handleLinkClick}>Companies</NavLink></li>
+                                        <li><NavLink to="/configuration/roles" className="dropdown-item" onClick={handleLinkClick}>System Roles</NavLink></li>
+                                        <li><NavLink to="/configuration/maintenance" className="dropdown-item" onClick={handleLinkClick}>Maintenance</NavLink></li>
+                                        <li><NavLink to="/configuration/database" className="dropdown-item" onClick={handleLinkClick}>Database</NavLink></li>
+                                    </ul>
                                 </li>
                                 <li>
                                     <NavLink to="/messaging" className="nav-link text-white" onClick={handleLinkClick}>Messaging</NavLink>
