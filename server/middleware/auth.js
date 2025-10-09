@@ -7,13 +7,13 @@ const authAndAuthzMiddleware = async (req, res, next) => {
   }
 
   try {
-    // Join with roles to get role_name and determine if the user is a superadmin in a single query
+    // The query now directly selects the is_superadmin flag from the users table.
+    // It still joins with roles to get the role_name for non-superadmin users.
     const query = `
       SELECT
         u.*,
         u.company_id AS "companyId",
-        r.name AS role_name,
-        (r.name = 'superadmin' AND r.is_system_role = true) AS is_superadmin
+        r.name AS role_name
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
       WHERE u.id = $1
@@ -25,14 +25,15 @@ const authAndAuthzMiddleware = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid user.' });
     }
 
-    req.user = user; // Attach the user object (with role_name and is_superadmin) to the request
+    // The user object from the DB now contains the definitive is_superadmin flag.
+    req.user = user;
 
-    // If the user is a superadmin, they have universal access and bypass further checks
+    // The check for superadmin is now direct and robust, no longer dependent on a role name.
     if (user.is_superadmin) {
       return next();
     }
 
-    // For non-superadmins, verify they are not accessing another company's data
+    // For non-superadmins, verify they are not accessing another company's data.
     let requestedCompanyId = req.query.companyId;
     if (req.method !== 'GET' && req.body && req.body.companyId) {
         requestedCompanyId = requestedCompanyId || req.body.companyId;
@@ -42,7 +43,7 @@ const authAndAuthzMiddleware = async (req, res, next) => {
       return res.status(403).json({ error: "Forbidden: You cannot access another company's data." });
     }
 
-    // Specific permissions will be checked by the `checkPermission` middleware on each route.
+    // Specific permissions for non-superadmins are handled by the checkPermission middleware.
     next();
   } catch (error) {
       console.error('Auth middleware error:', error);

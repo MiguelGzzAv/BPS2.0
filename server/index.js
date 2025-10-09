@@ -51,6 +51,7 @@ app.use('/api/configuration', authAndAuthzMiddleware, checkPermission('configura
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
+    // The user table now contains the is_superadmin flag directly.
     const userResult = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
 
     if (userResult.rows.length > 0) {
@@ -58,14 +59,16 @@ app.post('/api/login', async (req, res) => {
         const userToSend = { ...user };
         delete userToSend.password;
 
-        if (user.role_id) {
-            const roleResult = await db.query('SELECT name, is_system_role FROM roles WHERE id = $1', [user.role_id]);
+        // If the user is not a superadmin and has a role, fetch the role name.
+        if (!user.is_superadmin && user.role_id) {
+            const roleResult = await db.query('SELECT name FROM roles WHERE id = $1', [user.role_id]);
             if (roleResult.rows.length > 0) {
-                const role = roleResult.rows[0];
-                userToSend.role_name = role.name;
-                userToSend.is_superadmin = (role.name === 'superadmin' && role.is_system_role);
+                userToSend.role_name = roleResult.rows[0].name;
             }
         }
+
+        // The is_superadmin flag is already on the userToSend object from the initial query.
+        // No need to calculate it.
 
         if (user.company_id) {
             const companyResult = await db.query('SELECT name FROM companies WHERE id = $1', [user.company_id]);
@@ -103,8 +106,6 @@ app.use((err, req, res, next) => {
 
 // --- Server Start ---
 const startServer = async () => {
-    // Always seed the database on startup for this development environment
-    // to ensure the schema is correctly initialized every time.
     console.log('Initializing and seeding database...');
     const seed = require('./seed');
     await seed();

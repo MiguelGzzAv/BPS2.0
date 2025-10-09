@@ -6,11 +6,8 @@ const companies = [
     { id: 3, name: 'Santander' }
 ];
 
-// Define roles. System roles have a null company_id.
+// Define roles. The superadmin is no longer a role, but a flag on the user.
 const roles = [
-    // System Roles
-    { id: 1, name: 'superadmin', is_system_role: true, company_id: null },
-
     // Company 1 (Banorte) Roles
     { id: 2, name: 'admin', is_system_role: false, company_id: 1 },
     { id: 3, name: 'operator', is_system_role: false, company_id: 1 },
@@ -23,14 +20,16 @@ const roles = [
 ];
 
 const users = [
-    // Note: 'role' is replaced with 'role_id'
-    { id: 1, name: 'Super Admin', username: 'superadmin', password: 'password123', role_id: 1, companyId: null, groupIds: [] },
-    { id: 2, name: 'Admin Banorte', username: 'admin_banorte', password: 'password123', role_id: 2, companyId: 1, groupIds: [1] },
-    { id: 3, name: 'Operator Banorte', username: 'operator_banorte', password: 'password123', role_id: 3, companyId: 1, groupIds: [] },
-    { id: 4, name: 'Reader Banorte', username: 'reader_banorte', password: 'password123', role_id: 4, companyId: 1, groupIds: [] },
-    { id: 5, name: 'Admin Banamex', username: 'admin_banamex', password: 'password123', role_id: 5, companyId: 2, groupIds: [] },
-    { id: 6, name: 'Operator Banamex', username: 'operator_banamex', password: 'password123', role_id: 6, companyId: 2, groupIds: [] },
-    { id: 7, name: 'Reader Banamex', username: 'reader_banamex', password: 'password123', role_id: 7, companyId: 2, groupIds: [] },
+    // Superadmin now has an explicit flag and no role_id.
+    { id: 1, name: 'Super Admin', username: 'superadmin', password: 'password123', is_superadmin: true, role_id: null, companyId: null, groupIds: [] },
+
+    // Other users have roles as before.
+    { id: 2, name: 'Admin Banorte', username: 'admin_banorte', password: 'password123', is_superadmin: false, role_id: 2, companyId: 1, groupIds: [1] },
+    { id: 3, name: 'Operator Banorte', username: 'operator_banorte', password: 'password123', is_superadmin: false, role_id: 3, companyId: 1, groupIds: [] },
+    { id: 4, name: 'Reader Banorte', username: 'reader_banorte', password: 'password123', is_superadmin: false, role_id: 4, companyId: 1, groupIds: [] },
+    { id: 5, name: 'Admin Banamex', username: 'admin_banamex', password: 'password123', is_superadmin: false, role_id: 5, companyId: 2, groupIds: [] },
+    { id: 6, name: 'Operator Banamex', username: 'operator_banamex', password: 'password123', is_superadmin: false, role_id: 6, companyId: 2, groupIds: [] },
+    { id: 7, name: 'Reader Banamex', username: 'reader_banamex', password: 'password123', is_superadmin: false, role_id: 7, companyId: 2, groupIds: [] },
 ];
 
 const groupsByCompany = {
@@ -40,7 +39,7 @@ const groupsByCompany = {
     ]
 };
 
-// Permissions are now keyed by role_id
+// Permissions are keyed by role_id. Superadmin permissions are now implicit in the code.
 const rolePermissions = {
     // Banorte Admin (role_id: 2)
     '2': {
@@ -62,22 +61,6 @@ const rolePermissions = {
         'users': { read: true },
         'groups': { read: true },
     },
-    // Superadmin (role_id: 1) gets all permissions implicitly by middleware,
-    // but we can define them here for completeness if needed elsewhere.
-    '1': {
-        'users': { create: true, read: true, update: true, delete: true },
-        'groups': { create: true, read: true, update: true, delete: true },
-        'processes': { create: true, read: true, update: true, delete: true },
-        'permissions': { create: true, read: true, update: true, delete: true },
-        'role-permissions': { create: true, read: true, update: true, delete: true },
-        'roles': { create: true, read: true, update: true, delete: true },
-        'maintenance': { create: true, read: true, update: true, delete: true },
-        'messaging': { create: true, read: true, update: true, delete: true },
-        'database': { create: true, read: true, update: true, delete: true },
-        'configuration': { create: true, read: true, update: true, delete: true },
-        'registrations': { create: true, read: true, update: true, delete: true },
-        'escalations': { create: true, read: true, update: true, delete: true },
-    }
 };
 
 const processesByCompany = {
@@ -86,18 +69,6 @@ const processesByCompany = {
             id: 'PRO7033', name: 'REPORTE DIARIO', criticidad: 'Media', startTime: '22:00', endTime: '22:30', frequency: 'Diario', days: [], mode: 'Individual',
             internalPhases: [{ name: 'default', fields: [{ name: 'Status', type: 'status' }] }], childProcesses: []
         },
-        {
-            id: 'PRO7032', name: 'PROCESO NOCTURNO BANORTE', criticidad: 'Alta', startTime: '21:00', endTime: '23:00', frequency: 'Diario', days: [], mode: 'Individual',
-            internalPhases: [{ name: 'default', fields: [{ name: 'Status', type: 'status' }, {name: 'Comentarios', type: 'text'}] }], childProcesses: [{ id: 'PRO7033', dependency: true }]
-        },
-        {
-            id: 'PRO7034', name: 'PROCESO DE FACTURACION', criticidad: 'Baja', startTime: '10:00', endTime: '12:00', frequency: 'Diario', days: [], mode: 'Multiple',
-            internalPhases: [
-                { name: 'Generar Facturas', fields: [{ name: 'Status', type: 'status' }, { name: 'Facturas Generadas', type: 'number' }] },
-                { name: 'Enviar a Clientes', fields: [{ name: 'Status', type: 'status' }, { name: 'Correos Enviados', type: 'number' }] },
-                { name: 'Confirmar Recepcion', fields: [{ name: 'Status', type: 'status' }] }
-            ], childProcesses: []
-        }
     ],
     '2': []
 };
@@ -115,10 +86,10 @@ const maintenanceStatus = {
 
 module.exports = {
     companies,
-    roles, // Export new roles data
+    roles,
     users,
     groupsByCompany,
-    rolePermissions, // Export new rolePermissions data
+    rolePermissions,
     processesByCompany,
     permissionsByCompany,
     maintenanceStatus,

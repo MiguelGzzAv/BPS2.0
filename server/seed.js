@@ -10,7 +10,6 @@ async function seed() {
 
         console.log('--- Executing init.sql statements ---');
         for (const statement of statements) {
-            // Log each statement before executing it for better debugging
             console.log('Executing:', statement.substring(0, 100).replace(/\n/g, ' ') + '...');
             await db.query(statement);
         }
@@ -32,11 +31,11 @@ async function seed() {
         }
         console.log('Roles seeded.');
 
-        // 3. Seed Users (now with role_id)
+        // 3. Seed Users (now with is_superadmin flag)
         for (const user of mockData.users) {
             await db.query(
-                'INSERT INTO users (id, name, username, password, role_id, company_id, group_ids) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
-                [user.id, user.name, user.username, user.password, user.role_id, user.companyId, user.groupIds]
+                'INSERT INTO users (id, name, username, password, is_superadmin, role_id, company_id, group_ids) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING',
+                [user.id, user.name, user.username, user.password, user.is_superadmin || false, user.role_id, user.companyId, user.groupIds]
             );
         }
         console.log('Users seeded.');
@@ -78,18 +77,9 @@ async function seed() {
                         }
                     }
                 }
-
-                if (process.childProcesses) {
-                    for (const child of process.childProcesses) {
-                        await db.query(
-                            'INSERT INTO process_dependencies (parent_process_id, child_process_id, dependency) VALUES ($1, $2, $3) ON CONFLICT (parent_process_id, child_process_id) DO NOTHING',
-                            [process.id, child.id, child.dependency]
-                        );
-                    }
-                }
             }
         }
-        console.log('Processes, phases, and dependencies seeded.');
+        console.log('Processes and phases seeded.');
 
         // 6. Seed Group-based Page Permissions
         for (const companyId in mockData.permissionsByCompany) {
@@ -107,7 +97,7 @@ async function seed() {
         }
         console.log('Page permissions seeded.');
 
-        // 7. Seed Role Permissions (now using role_id)
+        // 7. Seed Role Permissions
         for (const roleId in mockData.rolePermissions) {
             for (const resource in mockData.rolePermissions[roleId]) {
                 const permissions = mockData.rolePermissions[roleId][resource];
@@ -135,7 +125,6 @@ async function seed() {
     }
 }
 
-// Run the seed function if the script is executed directly
 if (require.main === module) {
     seed();
 }

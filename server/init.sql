@@ -10,7 +10,7 @@ CREATE TABLE companies (
 -- Table for Roles
 CREATE TABLE roles (
     id SERIAL PRIMARY KEY,
-    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, -- Can be NULL for global roles if needed, though we removed the superadmin role
     name VARCHAR(255) NOT NULL,
     is_system_role BOOLEAN DEFAULT false, -- To protect default roles from being deleted/edited
     UNIQUE (company_id, name)
@@ -22,7 +22,8 @@ CREATE TABLE users (
     name VARCHAR(255) NOT NULL,
     username VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    role_id INTEGER REFERENCES roles(id), -- Can be NULL if user has no role
+    is_superadmin BOOLEAN DEFAULT false, -- Explicit flag for superadmin status
+    role_id INTEGER REFERENCES roles(id), -- Can be NULL if user has no role (like superadmin)
     company_id INTEGER REFERENCES companies(id),
     group_ids INTEGER[]
 );
