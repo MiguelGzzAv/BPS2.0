@@ -5,9 +5,15 @@ const mockData = require('./data/database');
 
 async function seed() {
     try {
-        // Read and execute the init.sql script to create/reset tables
+        // Read the SQL file and split it into individual commands
         const initSQL = fs.readFileSync(path.join(__dirname, 'init.sql')).toString();
-        await db.query(initSQL);
+        // Split by semicolon and filter out any empty statements
+        const statements = initSQL.split(';').filter(statement => statement.trim() !== '');
+
+        // Execute each statement one by one to ensure all tables are created
+        for (const statement of statements) {
+            await db.query(statement);
+        }
         console.log('Tables created successfully.');
 
         // 1. Seed Companies
