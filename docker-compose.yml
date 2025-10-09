@@ -47,15 +47,20 @@ services:
       - DB_PORT=5432
       - NODE_ENV=development
 
-  # Frontend React/Vite Service
+  # Frontend React/Vite Service (in Development Mode)
   client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    container_name: monitoring_client
+    image: node:18-alpine
+    container_name: monitoring_client_dev
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "5173:5173"
+    working_dir: /app
+    volumes:
+      # Mount source code for hot-reloading
+      - ./client:/app
+      # Anonymous volume to prevent node_modules from being overwritten by the host
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev"
     depends_on:
       - server
 
