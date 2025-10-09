@@ -60,7 +60,6 @@ const Processes = () => {
             const url = isEditing ? `/api/processes/${editingProcess.id}` : '/api/processes';
             const method = isEditing ? 'PUT' : 'POST';
 
-            // Corrected: Pass the object directly, fetchWithAuth handles stringify
             const response = await fetchWithAuth(url, {
                 method: method,
                 body: { processData, companyId },
@@ -156,8 +155,12 @@ const Processes = () => {
                                         <td>{process.startTime}</td>
                                         <td>{process.endTime}</td>
                                         <td>
-                                            <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(process)} disabled={!can('processes', 'update')}>Edit</button>
-                                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(process.id)} disabled={!can('processes', 'delete')}>Delete</button>
+                                            {can('processes', 'update') && (
+                                                <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(process)}>Edit</button>
+                                            )}
+                                            {can('processes', 'delete') && (
+                                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(process.id)}>Delete</button>
+                                            )}
                                         </td>
                                     </tr>
                                 );

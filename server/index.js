@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const db = require('./db');
 const seed = require('./seed');
+const checkPermission = require('./middleware/checkPermission');
 
 // --- Route Imports ---
 const companyRoutes = require('./routes/company.routes');
@@ -14,6 +15,7 @@ const registrationRoutes = require('./routes/registration.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const permissionsRoutes = require('./routes/permissions.routes');
 const rolePermissionsRoutes = require('./routes/rolePermissions.routes');
+const roleRoutes = require('./routes/role.routes');
 const maintenanceRoutes = require('./routes/maintenance.routes');
 const messagingRoutes = require('./routes/messaging.routes');
 const databaseRoutes = require('./routes/database.routes');
@@ -34,17 +36,32 @@ const authAndAuthzMiddleware = async (req, res, next) => {
   }
 
   try {
-    const { rows } = await db.query('SELECT *, company_id AS "companyId" FROM users WHERE id = $1', [userId]);
+    // Join with roles to get role_name and determine if the user is a superadmin in a single query
+    const query = `
+      SELECT
+        u.*,
+        u.company_id AS "companyId",
+        r.name AS role_name,
+        (r.name = 'superadmin' AND r.is_system_role = true) AS is_superadmin
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.id = $1
+    `;
+    const { rows } = await db.query(query, [userId]);
     const user = rows[0];
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid user.' });
     }
 
-    req.user = user;
+    req.user = user; // Attach the user object (with role_name and is_superadmin) to the request
 
-    if (user.role === 'superadmin') return next();
+    // If the user is a superadmin, they have universal access and bypass further checks
+    if (user.is_superadmin) {
+      return next();
+    }
 
+    // For non-superadmins, verify they are not accessing another company's data
     let requestedCompanyId = req.query.companyId;
     if (req.method !== 'GET' && req.body && req.body.companyId) {
         requestedCompanyId = requestedCompanyId || req.body.companyId;
@@ -54,16 +71,8 @@ const authAndAuthzMiddleware = async (req, res, next) => {
       return res.status(403).json({ error: "Forbidden: You cannot access another company's data." });
     }
 
-    if (user.role === 'reader' && req.method !== 'GET') {
-      return res.status(403).json({ error: 'Forbidden: Readers can only view data.' });
-    }
-
-    if (user.role === 'operator') {
-      const allowedPostPaths = ['/registrations', '/escalations'];
-      if (req.method !== 'GET' && !(req.method === 'POST' && allowedPostPaths.includes(req.path))) {
-        return res.status(403).json({ error: 'Forbidden: Operators can only view data and create operational records.' });
-      }
-    }
+    // The old, hardcoded role logic is now removed.
+    // Specific permissions will be checked by the `checkPermission` middleware on each route.
     next();
   } catch (error) {
       console.error('Auth middleware error:', error);
@@ -72,19 +81,31 @@ const authAndAuthzMiddleware = async (req, res, next) => {
 };
 
 // --- API Routes ---
-app.use('/api/companies', authAndAuthzMiddleware, companyRoutes);
-app.use('/api/processes', authAndAuthzMiddleware, processRoutes);
-app.use('/api/users', authAndAuthzMiddleware, userRoutes);
-app.use('/api/groups', authAndAuthzMiddleware, groupRoutes);
-app.use('/api/escalations', authAndAuthzMiddleware, escalationRoutes);
-app.use('/api/registrations', authAndAuthzMiddleware, registrationRoutes);
-app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
-app.use('/api/permissions', authAndAuthzMiddleware, permissionsRoutes);
-app.use('/api/role-permissions', authAndAuthzMiddleware, rolePermissionsRoutes);
-app.use('/api/maintenance', authAndAuthzMiddleware, maintenanceRoutes);
-app.use('/api/messaging', authAndAuthzMiddleware, messagingRoutes);
-app.use('/api/database', authAndAuthzMiddleware, databaseRoutes);
-app.use('/api/configuration', authAndAuthzMiddleware, configurationRoutes);
+// The `authAndAuthzMiddleware` is applied to all routes to ensure the user is authenticated.
+// The `checkPermission` middleware is then applied to specific resource routes to enforce CRUD permissions.
+
+// Unprotected or lightly protected routes
+app.use('/api/companies', authAndAuthzMiddleware, companyRoutes); // Often just needs auth, not granular permissions
+app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes); // Permissions might be handled inside controllers
+
+// Granular permission-protected routes
+app.use('/api/processes', authAndAuthzMiddleware, checkPermission('processes'), processRoutes);
+app.use('/api/users', authAndAuthzMiddleware, checkPermission('users'), userRoutes);
+app.use('/api/groups', authAndAuthzMiddleware, checkPermission('groups'), groupRoutes);
+app.use('/api/escalations', authAndAuthzMiddleware, checkPermission('escalations'), escalationRoutes);
+app.use('/api/registrations', authAndAuthzMiddleware, checkPermission('registrations'), registrationRoutes);
+
+// Configuration and Permissions routes - these should probably be restricted to superadmins
+// or users with specific 'configuration' permissions. For now, we protect them generally.
+// A 'configuration' resource could be added to role_permissions for more granular control.
+app.use('/api/permissions', authAndAuthzMiddleware, checkPermission('permissions'), permissionsRoutes);
+app.use('/api/role-permissions', authAndAuthzMiddleware, checkPermission('role-permissions'), rolePermissionsRoutes);
+app.use('/api/roles', authAndAuthzMiddleware, checkPermission('roles'), roleRoutes);
+app.use('/api/maintenance', authAndAuthzMiddleware, checkPermission('maintenance'), maintenanceRoutes);
+app.use('/api/messaging', authAndAuthzMiddleware, checkPermission('messaging'), messagingRoutes);
+app.use('/api/database', authAndAuthzMiddleware, checkPermission('database'), databaseRoutes);
+app.use('/api/configuration', authAndAuthzMiddleware, checkPermission('configuration'), configurationRoutes);
+
 
 // --- Login Route (Unprotected) ---
 app.post('/api/login', async (req, res) => {
@@ -96,6 +117,16 @@ app.post('/api/login', async (req, res) => {
         const user = userResult.rows[0];
         const userToSend = { ...user };
         delete userToSend.password;
+
+        // Fetch role name and check for superadmin status
+        if (user.role_id) {
+            const roleResult = await db.query('SELECT name, is_system_role FROM roles WHERE id = $1', [user.role_id]);
+            if (roleResult.rows.length > 0) {
+                const role = roleResult.rows[0];
+                userToSend.role_name = role.name;
+                userToSend.is_superadmin = (role.name === 'superadmin' && role.is_system_role);
+            }
+        }
 
         if (user.company_id) {
             const companyResult = await db.query('SELECT name FROM companies WHERE id = $1', [user.company_id]);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { fetchWithAuth } from '../api';
+import RolePermissionsManager from '../components/RolePermissionsManager'; // Import the new component
 
 function DatabaseConnectionSettings() {
     const [dbStatus, setDbStatus] = useState(null);
@@ -208,7 +209,6 @@ function MaintenanceModeSettings() {
             if (!response.ok) {
                 throw new Error('Failed to save changes.');
             }
-            // Optionally, show a success message to the user
             alert('Settings saved successfully!');
         } catch (err) {
             setError(err.message);
@@ -257,13 +257,11 @@ function MaintenanceModeSettings() {
     );
 }
 
-
 function Configuration() {
     const { user } = useAuth();
 
-    // This is an extra layer of protection.
-    // The main protection is in the route and the nav link.
-    if (user?.role !== 'superadmin') {
+    // Updated protection to check role_name
+    if (user?.role_name !== 'superadmin') {
         return <Navigate to="/dashboard" replace />;
     }
 
@@ -274,7 +272,7 @@ function Configuration() {
 
             <ul className="nav nav-tabs mt-4" id="configTabs" role="tablist">
                 <li className="nav-item" role="presentation">
-                    <button className="nav-link active" id="timezone-tab" data-bs-toggle="tab" data-bs-target="#timezone" type="button" role="tab" aria-controls="timezone" aria-selected="true">Timezone</button>
+                    <button className="nav-link active" id="roles-tab" data-bs-toggle="tab" data-bs-target="#roles" type="button" role="tab" aria-controls="roles" aria-selected="true">Roles & Permissions</button>
                 </li>
                 <li className="nav-item" role="presentation">
                     <button className="nav-link" id="db-connection-tab" data-bs-toggle="tab" data-bs-target="#db-connection" type="button" role="tab" aria-controls="db-connection" aria-selected="false">Database Connection</button>
@@ -285,10 +283,25 @@ function Configuration() {
                 <li className="nav-item" role="presentation">
                     <button className="nav-link" id="env-guide-tab" data-bs-toggle="tab" data-bs-target="#env-guide" type="button" role="tab" aria-controls="env-guide" aria-selected="false">Environment Guide</button>
                 </li>
+                <li className="nav-item" role="presentation">
+                    <button className="nav-link" id="timezone-tab" data-bs-toggle="tab" data-bs-target="#timezone" type="button" role="tab" aria-controls="timezone" aria-selected="false">Timezone</button>
+                </li>
             </ul>
 
             <div className="tab-content pt-3" id="configTabsContent">
-                <div className="tab-pane fade show active" id="timezone" role="tabpanel" aria-labelledby="timezone-tab">
+                <div className="tab-pane fade show active" id="roles" role="tabpanel" aria-labelledby="roles-tab">
+                    <RolePermissionsManager />
+                </div>
+                <div className="tab-pane fade" id="db-connection" role="tabpanel" aria-labelledby="db-connection-tab">
+                    <DatabaseConnectionSettings />
+                </div>
+                <div className="tab-pane fade" id="maintenance" role="tabpanel" aria-labelledby="maintenance-tab">
+                    <MaintenanceModeSettings />
+                </div>
+                <div className="tab-pane fade" id="env-guide" role="tabpanel" aria-labelledby="env-guide-tab">
+                    <EnvironmentGuide />
+                </div>
+                <div className="tab-pane fade" id="timezone" role="tabpanel" aria-labelledby="timezone-tab">
                     <h4>Timezone Settings</h4>
                     <p>Configure the application's default timezone. (This is a visual placeholder and is not functional).</p>
                     <div className="row">
@@ -302,15 +315,6 @@ function Configuration() {
                             <button className="btn btn-primary mt-3" disabled>Save Timezone</button>
                         </div>
                     </div>
-                </div>
-                <div className="tab-pane fade" id="db-connection" role="tabpanel" aria-labelledby="db-connection-tab">
-                    <DatabaseConnectionSettings />
-                </div>
-                <div className="tab-pane fade" id="maintenance" role="tabpanel" aria-labelledby="maintenance-tab">
-                    <MaintenanceModeSettings />
-                </div>
-                <div className="tab-pane fade" id="env-guide" role="tabpanel" aria-labelledby="env-guide-tab">
-                    <EnvironmentGuide />
                 </div>
             </div>
         </div>

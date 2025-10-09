@@ -6,64 +6,49 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
     const { user } = useAuth();
     const [formData, setFormData] = useState({
         name: '', email: '', phone: '', username: '',
-        password: '', role: 'reader', companyId: '', groupIds: []
+        password: '', role_id: '', companyId: '', groupIds: []
     });
     const [companies, setCompanies] = useState([]);
     const [groups, setGroups] = useState([]);
+    const [roles, setRoles] = useState([]); // State to store available roles
     const [error, setError] = useState('');
 
     const isEditing = !!userToEdit;
 
+    // Effect to reset and populate form when modal opens or userToEdit changes
     useEffect(() => {
         if (show) {
             if (isEditing) {
-                // If editing, populate the form with the user's data
                 setFormData({
                     name: userToEdit.name || '',
                     email: userToEdit.email || '',
                     phone: userToEdit.phone || '',
                     username: userToEdit.username || '',
                     password: '', // Always clear password for security
-                    role: userToEdit.role || 'reader',
+                    role_id: userToEdit.role_id || '', // Use role_id
                     companyId: userToEdit.companyId || '',
                     groupIds: userToEdit.groupIds || []
                 });
             } else {
-                // If creating a new user, reset the form completely
+                // Reset form for a new user
                 setFormData({
                     name: '', email: '', phone: '', username: '',
-                    password: '', role: 'reader', companyId: '', groupIds: []
+                    password: '', role_id: '', companyId: '', groupIds: []
                 });
             }
         }
     }, [userToEdit, show, isEditing]);
 
+    // Effect to fetch companies if the user is a superadmin
     useEffect(() => {
-        const companyIdToFetch = user.role === 'superadmin' ? formData.companyId : sessionStorage.getItem('selectedCompanyId');
-
-        if (show && companyIdToFetch) {
-            const fetchGroups = async () => {
-                try {
-                    const response = await fetchWithAuth(`/api/groups?companyId=${companyIdToFetch}`);
-                    if (!response.ok) throw new Error('Failed to fetch groups.');
-                    const data = await response.json();
-                    setGroups(data);
-                } catch (err) {
-                    console.error("Failed to fetch groups", err);
-                }
-            };
-            fetchGroups();
-        }
-    }, [show, formData.companyId, user.role]);
-
-    useEffect(() => {
-        if (user.role === 'superadmin' && show) {
+        if (user.is_superadmin && show) {
             const fetchCompanies = async () => {
                 try {
                     const response = await fetchWithAuth('/api/companies');
                     const data = await response.json();
                     setCompanies(data);
                     if (data.length > 0 && !isEditing) {
+                        // Default to the first company when creating a new user
                         setFormData(prev => ({ ...prev, companyId: data[0].id }));
                     }
                 } catch (err) {
@@ -72,7 +57,43 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
             };
             fetchCompanies();
         }
-    }, [user.role, show, isEditing]);
+    }, [user.is_superadmin, show, isEditing]);
+
+    // Effect to fetch groups and roles based on the selected company
+    useEffect(() => {
+        const companyIdToFetch = user.is_superadmin ? formData.companyId : sessionStorage.getItem('selectedCompanyId');
+
+        if (show && companyIdToFetch) {
+            const fetchGroupsAndRoles = async () => {
+                try {
+                    // Fetch both in parallel
+                    const [groupsResponse, rolesResponse] = await Promise.all([
+                        fetchWithAuth(`/api/groups?companyId=${companyIdToFetch}`),
+                        fetchWithAuth(`/api/roles?companyId=${companyIdToFetch}`)
+                    ]);
+
+                    if (!groupsResponse.ok) throw new Error('Failed to fetch groups.');
+                    const groupsData = await groupsResponse.json();
+                    setGroups(groupsData);
+
+                    if (!rolesResponse.ok) throw new Error('Failed to fetch roles.');
+                    const rolesData = await rolesResponse.json();
+                    setRoles(rolesData);
+
+                    // If creating a new user, default to the first role if available
+                    if (!isEditing && rolesData.length > 0) {
+                        setFormData(prev => ({ ...prev, role_id: rolesData[0].id }));
+                    }
+
+                } catch (err) {
+                    console.error("Failed to fetch groups or roles", err);
+                    setError("Could not load necessary data for this company.");
+                }
+            };
+            fetchGroupsAndRoles();
+        }
+    }, [show, formData.companyId, user.is_superadmin, isEditing]);
+
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -83,10 +104,8 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
         setFormData(prev => {
             const currentGroupIds = prev.groupIds || [];
             if (isChecked) {
-                // Add the group ID if it's not already there
                 return { ...prev, groupIds: [...new Set([...currentGroupIds, groupId])] };
             } else {
-                // Remove the group ID
                 return { ...prev, groupIds: currentGroupIds.filter(id => id !== groupId) };
             }
         });
@@ -98,18 +117,19 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
 
         const url = isEditing ? `/api/users/${userToEdit.id}` : '/api/users';
         const method = isEditing ? 'PUT' : 'POST';
+
         const payload = { ...formData };
-        if (user.role !== 'superadmin') {
+        if (!user.is_superadmin) {
             payload.companyId = sessionStorage.getItem('selectedCompanyId');
         }
         if (isEditing && !payload.password) {
-            delete payload.password;
+            delete payload.password; // Don't send empty password on edit
         }
 
         try {
             const response = await fetchWithAuth(url, {
                 method: method,
-                body: JSON.stringify(payload),
+                body: payload, // fetchWithAuth handles stringification
             });
             if (!response.ok) {
                 const errData = await response.json();
@@ -122,7 +142,6 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
         }
     };
 
-    const availableRoles = user.role === 'superadmin' ? ['admin', 'operator', 'reader', 'superadmin'] : ['operator', 'reader'];
     if (!show) return null;
 
     return (
@@ -136,10 +155,11 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                         </div>
                         <div className="modal-body">
                             {error && <div className="alert alert-danger">{error}</div>}
-                            {user.role === 'superadmin' && (
+                            {user.is_superadmin && (
                                 <div className="mb-3">
                                     <label htmlFor="companyId" className="form-label">Company</label>
                                     <select name="companyId" id="companyId" className="form-select" value={formData.companyId} onChange={handleChange} required>
+                                        <option value="">Select a company...</option>
                                         {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
                                 </div>
@@ -161,9 +181,10 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                                 </div>
                             </div>
                             <div className="mb-3">
-                                <label htmlFor="role" className="form-label">Role</label>
-                                <select name="role" id="role" className="form-select" value={formData.role} onChange={handleChange} required disabled={user.role !== 'superadmin' && isEditing}>
-                                    {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                                <label htmlFor="role_id" className="form-label">Role</label>
+                                <select name="role_id" id="role_id" className="form-select" value={formData.role_id} onChange={handleChange} required>
+                                    <option value="">Select a role...</option>
+                                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                 </select>
                             </div>
                             <div className="mb-3">

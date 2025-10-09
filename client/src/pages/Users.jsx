@@ -17,14 +17,16 @@ function Users() {
     const companyId = sessionStorage.getItem('selectedCompanyId');
 
     const fetchUsers = async () => {
-        if (user.role !== 'superadmin' && !companyId) {
+        // A non-superadmin must have a company selected.
+        if (!user.is_superadmin && !companyId) {
             setError("Please select a company first.");
             setLoading(false);
             return;
         }
         setLoading(true);
         try {
-            const url = user.role === 'superadmin' ? '/api/users' : `/api/users?companyId=${companyId}`;
+            // Superadmin fetches all users; others fetch users for their company.
+            const url = user.is_superadmin ? '/api/users' : `/api/users?companyId=${companyId}`;
             const response = await fetchWithAuth(url);
             if (!response.ok) throw new Error('Failed to fetch users.');
             const data = await response.json();
@@ -38,10 +40,10 @@ function Users() {
 
     useEffect(() => {
         fetchUsers();
-    }, [user.role, companyId]);
+    }, [user.is_superadmin, companyId]); // Depends on superadmin status and selected company
 
     const handleSave = () => {
-        fetchUsers(); // Refresh the list
+        fetchUsers(); // Refresh the list after saving
     };
 
     const handleCreate = () => {
@@ -62,7 +64,7 @@ function Users() {
                     const errData = await response.json();
                     throw new Error(errData.error || 'Failed to delete user.');
                 }
-                fetchUsers(); // Refresh list
+                fetchUsers(); // Refresh list after deleting
             } catch (err) {
                 setError(err.message);
             }
@@ -125,7 +127,7 @@ function Users() {
                                     <th>Email</th>
                                     <th>Username</th>
                                     <th>Role</th>
-                                    {user.role === 'superadmin' && <th>Company</th>}
+                                    {user.is_superadmin && <th>Company</th>}
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -135,11 +137,15 @@ function Users() {
                                         <td>{u.name}</td>
                                         <td>{u.email || ''}</td>
                                         <td>{u.username}</td>
-                                        <td>{u.role}</td>
-                                        {user.role === 'superadmin' && <td>{u.companyName || 'N/A'}</td>}
+                                        <td>{u.role_name}</td>
+                                        {user.is_superadmin && <td>{u.companyName || 'N/A'}</td>}
                                         <td>
-                                            <button className="btn btn-sm btn-warning" onClick={() => handleEdit(u)} disabled={!can('users', 'update')}>Edit</button>
-                                            <button className="btn btn-sm btn-danger ms-2" onClick={() => handleDelete(u.id)} disabled={!can('users', 'delete') || u.id === user.id}>Delete</button>
+                                            {can('users', 'update') && (
+                                                <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(u)}>Edit</button>
+                                            )}
+                                            {can('users', 'delete') && (
+                                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(u.id)} disabled={u.id === user.id}>Delete</button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

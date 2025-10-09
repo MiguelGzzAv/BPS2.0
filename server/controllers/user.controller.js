@@ -1,30 +1,35 @@
 const db = require('../db');
-const { hasPermission } = require('../utils/permissionUtils');
+// The hasPermission utility is no longer needed, as permissions are handled by the checkPermission middleware.
 
 const getUsers = async (req, res) => {
     try {
-        const companyId = req.user.role === 'superadmin' ? (req.query.companyId || req.user.companyId) : req.user.companyId;
-
-        if (!await hasPermission(req.user.role, 'users', 'read', companyId)) {
-            return res.status(403).json({ error: 'Forbidden: You do not have permission to view users.' });
-        }
+        // Superadmin can query for a specific company or all companies.
+        // Regular users can only see users from their own company.
+        const companyId = req.user.is_superadmin ? req.query.companyId : req.user.companyId;
 
         let query;
         const params = [];
-        if (req.user.role === 'superadmin' && !req.query.companyId) {
-            query = `
-                SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
-                FROM users u
-                LEFT JOIN companies c ON u.company_id = c.id
-            `;
-        } else {
-            query = `
-                SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
-                FROM users u
-                LEFT JOIN companies c ON u.company_id = c.id
-                WHERE u.company_id = $1
-            `;
+
+        // Base query with join to get role and company names
+        let baseQuery = `
+            SELECT
+                u.id, u.name, u.username, u.role_id, u.company_id AS "companyId",
+                u.group_ids AS "groupIds", c.name AS "companyName", r.name AS "role_name"
+            FROM users u
+            LEFT JOIN companies c ON u.company_id = c.id
+            LEFT JOIN roles r ON u.role_id = r.id
+        `;
+
+        if (companyId) {
+            // Filter by a specific company if a companyId is provided
+            query = `${baseQuery} WHERE u.company_id = $1`;
             params.push(companyId);
+        } else if (req.user.is_superadmin) {
+            // Superadmin with no companyId specified gets all users
+            query = baseQuery;
+        } else {
+            // Non-superadmin without a company context sees no users.
+            return res.json([]);
         }
 
         const { rows } = await db.query(query, params);
@@ -40,33 +45,35 @@ const createUser = async (req, res) => {
         const newUser = req.body;
         let companyIdForNewUser;
 
-        if (req.user.role === 'superadmin') {
+        // Determine the company for the new user
+        if (req.user.is_superadmin) {
             companyIdForNewUser = newUser.companyId;
-            if (newUser.role !== 'superadmin' && !companyIdForNewUser) {
-                return res.status(400).json({ error: 'Superadmin must specify a companyId for non-superadmin users' });
+            // A company must be assigned unless the new user is also a superadmin
+            if (!companyIdForNewUser) {
+                 const roleCheck = await db.query('SELECT name FROM roles WHERE id = $1', [newUser.role_id]);
+                 if (roleCheck.rows.length === 0 || roleCheck.rows[0].name !== 'superadmin') {
+                    return res.status(400).json({ error: 'Superadmin must specify a companyId for non-superadmin users.' });
+                 }
             }
         } else {
             companyIdForNewUser = req.user.companyId;
         }
 
-        if (!await hasPermission(req.user.role, 'users', 'create', companyIdForNewUser)) {
-            return res.status(403).json({ error: 'Forbidden: You do not have permission to create users.' });
-        }
-
-        if (!newUser.username || !newUser.name || !newUser.role || !newUser.password) {
-            return res.status(400).json({ error: 'Username, name, password, and role are required' });
+        // Validate required fields
+        if (!newUser.username || !newUser.name || !newUser.role_id || !newUser.password) {
+            return res.status(400).json({ error: 'Username, name, password, and role are required.' });
         }
 
         const query = `
-            INSERT INTO users (name, username, password, role, company_id, group_ids)
+            INSERT INTO users (name, username, password, role_id, company_id, group_ids)
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, name, username, role, company_id AS "companyId", group_ids AS "groupIds"
+            RETURNING id, name, username, role_id, company_id AS "companyId", group_ids AS "groupIds"
         `;
         const params = [
             newUser.name,
             newUser.username,
-            newUser.password, // In a real app, hash this password!
-            newUser.role,
+            newUser.password, // In a real app, this should be hashed!
+            newUser.role_id,
             companyIdForNewUser,
             newUser.groupIds || []
         ];
@@ -84,21 +91,9 @@ const updateUser = async (req, res) => {
         const userIdToUpdate = parseInt(req.params.id);
         const updates = req.body;
 
-        // First, get the user to check for existence and permissions
-        const userResult = await db.query('SELECT * FROM users WHERE id = $1', [userIdToUpdate]);
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        const userToUpdate = userResult.rows[0];
-        const companyId = userToUpdate.company_id;
-
-        if (!await hasPermission(req.user.role, 'users', 'update', companyId)) {
-            return res.status(403).json({ error: 'Forbidden: You do not have permission to update users.' });
-        }
-
-        // Prevent role escalation by non-superadmins
-        if (updates.role && updates.role !== userToUpdate.role && req.user.role !== 'superadmin') {
-           return res.status(403).json({ error: 'Forbidden: You do not have permission to change user roles.'});
+        // Prevent non-superadmins from updating their own role
+        if (updates.role_id && userIdToUpdate === req.user.id && !req.user.is_superadmin) {
+           return res.status(403).json({ error: 'Forbidden: You cannot change your own role.' });
         }
 
         // Dynamically build the update query
@@ -109,7 +104,7 @@ const updateUser = async (req, res) => {
         const fieldMapping = {
             name: 'name',
             username: 'username',
-            role: 'role',
+            role_id: 'role_id',
             companyId: 'company_id',
             groupIds: 'group_ids',
             password: 'password'
@@ -126,14 +121,9 @@ const updateUser = async (req, res) => {
         }
 
         if (queryParts.length === 0) {
-            // If nothing to update, just return the user data without the password
-            const { password, ...userWithoutPassword } = userToUpdate;
-            // Map snake_case from DB to camelCase for the response
-            userWithoutPassword.companyId = userWithoutPassword.company_id;
-            userWithoutPassword.groupIds = userWithoutPassword.group_ids;
-            delete userWithoutPassword.company_id;
-            delete userWithoutPassword.group_ids;
-            return res.json(userWithoutPassword);
+            // Nothing to update, return the current user data
+            const userResult = await db.query('SELECT id, name, username, role_id, company_id AS "companyId", group_ids AS "groupIds" FROM users WHERE id = $1', [userIdToUpdate]);
+            return res.json(userResult.rows[0]);
         }
 
         queryParams.push(userIdToUpdate);
@@ -142,7 +132,7 @@ const updateUser = async (req, res) => {
             UPDATE users
             SET ${queryParts.join(', ')}
             WHERE id = $${paramIndex}
-            RETURNING id, name, username, role, company_id AS "companyId", group_ids AS "groupIds"
+            RETURNING id, name, username, role_id, company_id AS "companyId", group_ids AS "groupIds"
         `;
 
         const { rows } = await db.query(query, queryParams);
@@ -158,25 +148,11 @@ const deleteUser = async (req, res) => {
     try {
         const userIdToDelete = parseInt(req.params.id);
 
-        // First, get the user to check for existence and permissions
-        const userResult = await db.query('SELECT * FROM users WHERE id = $1', [userIdToDelete]);
-        if (userResult.rows.length === 0) {
-            // No need to send error if user not found, deletion is idempotent
-            return res.status(204).send();
-        }
-        const userToDelete = userResult.rows[0];
-        const companyId = userToDelete.company_id;
-
-        if (!await hasPermission(req.user.role, 'users', 'delete', companyId)) {
-            return res.status(403).json({ error: 'Forbidden: You do not have permission to delete users.' });
-        }
-
-        if (userToDelete.id === req.user.id) {
+        if (userIdToDelete === req.user.id) {
             return res.status(403).json({ error: 'Forbidden: You cannot delete yourself.' });
         }
 
         await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
-        console.log(`Deleted user ${userIdToDelete}`);
         res.status(204).send();
 
     } catch (error) {
