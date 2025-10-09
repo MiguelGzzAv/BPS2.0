@@ -107,6 +107,64 @@ function DatabaseConnectionSettings() {
     );
 }
 
+function EnvironmentGuide() {
+    const [guideContent, setGuideContent] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchGuide = async () => {
+            try {
+                setIsLoading(true);
+                const response = await fetchWithAuth('/api/configuration/env-example');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch the environment guide.');
+                }
+                const data = await response.json();
+                setGuideContent(data.content);
+                setError(null);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchGuide();
+    }, []);
+
+    if (isLoading) {
+        return <p>Loading guide...</p>;
+    }
+
+    if (error) {
+        return <div className="alert alert-danger">Error: {error}</div>;
+    }
+
+    return (
+        <div>
+            <h4>Environment Configuration Guide</h4>
+            <p>
+                This guide shows the content of the <code>.env.example</code> file. Use it as a reference to create or modify your own <code>.env</code> file in the root of the project.
+            </p>
+            <div className="alert alert-info">
+                <strong>How to apply changes:</strong>
+                <ol className="mb-0">
+                    <li>Create or edit the <code>.env</code> file in the project's root directory.</li>
+                    <li>Modify the variables as needed.</li>
+                    <li>Stop the running containers by pressing <code>Ctrl + C</code> in the terminal and running <code>docker-compose down</code>.</li>
+                    <li>Restart the application with <code>docker-compose up --build</code> to apply the new configuration.</li>
+                </ol>
+            </div>
+            <h5><code>.env.example</code> Content:</h5>
+            <pre className="bg-light p-3 rounded">
+                <code>
+                    {guideContent}
+                </code>
+            </pre>
+        </div>
+    );
+}
+
 function MaintenanceModeSettings() {
     const [status, setStatus] = useState({});
     const [isLoading, setIsLoading] = useState(true);
@@ -224,6 +282,9 @@ function Configuration() {
                 <li className="nav-item" role="presentation">
                     <button className="nav-link" id="maintenance-tab" data-bs-toggle="tab" data-bs-target="#maintenance" type="button" role="tab" aria-controls="maintenance" aria-selected="false">Maintenance Mode</button>
                 </li>
+                <li className="nav-item" role="presentation">
+                    <button className="nav-link" id="env-guide-tab" data-bs-toggle="tab" data-bs-target="#env-guide" type="button" role="tab" aria-controls="env-guide" aria-selected="false">Environment Guide</button>
+                </li>
             </ul>
 
             <div className="tab-content pt-3" id="configTabsContent">
@@ -247,6 +308,9 @@ function Configuration() {
                 </div>
                 <div className="tab-pane fade" id="maintenance" role="tabpanel" aria-labelledby="maintenance-tab">
                     <MaintenanceModeSettings />
+                </div>
+                <div className="tab-pane fade" id="env-guide" role="tabpanel" aria-labelledby="env-guide-tab">
+                    <EnvironmentGuide />
                 </div>
             </div>
         </div>

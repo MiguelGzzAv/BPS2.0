@@ -17,6 +17,7 @@ const rolePermissionsRoutes = require('./routes/rolePermissions.routes');
 const maintenanceRoutes = require('./routes/maintenance.routes');
 const messagingRoutes = require('./routes/messaging.routes');
 const databaseRoutes = require('./routes/database.routes');
+const configurationRoutes = require('./routes/configuration.routes');
 
 const app = express();
 const port = 3000;
@@ -83,6 +84,7 @@ app.use('/api/role-permissions', authAndAuthzMiddleware, rolePermissionsRoutes);
 app.use('/api/maintenance', authAndAuthzMiddleware, maintenanceRoutes);
 app.use('/api/messaging', authAndAuthzMiddleware, messagingRoutes);
 app.use('/api/database', authAndAuthzMiddleware, databaseRoutes);
+app.use('/api/configuration', authAndAuthzMiddleware, configurationRoutes);
 
 // --- Login Route (Unprotected) ---
 app.post('/api/login', async (req, res) => {
