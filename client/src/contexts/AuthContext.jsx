@@ -9,17 +9,13 @@ export const AuthProvider = ({ children }) => {
     const [actionPermissions, setActionPermissions] = useState({});
     const [maintenanceStatus, setMaintenanceStatus] = useState({});
 
-    // This function can be called before a user is logged in.
-    // It should use a standard fetch call that does not require authentication.
     const loadMaintenanceStatus = async () => {
         try {
-            // Use standard fetch because this endpoint is now public
             const res = await fetch('/api/maintenance');
             if (res.ok) {
                 const data = await res.json();
                 setMaintenanceStatus(data);
             } else {
-                // Don't throw an error that stops the app, just log it.
                 console.error("Could not load maintenance status:", res.statusText);
             }
         } catch (error) {
@@ -34,14 +30,11 @@ export const AuthProvider = ({ children }) => {
             return;
         }
 
-        if (currentUser.is_superadmin) {
-            const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection', 'configuration', 'groups', 'messaging']);
-            setPagePermissions(allPages);
-        }
-
+        // This logic is for regular users when they select a company.
+        // Superadmin permissions are handled at login.
         try {
             const [pagePermsRes, rolePermsRes] = await Promise.all([
-                currentUser.is_superadmin ? Promise.resolve(null) : fetchWithAuth(`/api/permissions?companyId=${companyId}`),
+                fetchWithAuth(`/api/permissions?companyId=${companyId}`),
                 fetchWithAuth(`/api/role-permissions?companyId=${companyId}`)
             ]);
 
@@ -76,9 +69,15 @@ export const AuthProvider = ({ children }) => {
             if (storedUserJSON) {
                 const storedUser = JSON.parse(storedUserJSON);
                 setUser(storedUser);
-                const storedCompanyId = sessionStorage.getItem('selectedCompanyId');
-                if (storedCompanyId) {
-                    await loadAllPermissions(storedUser, storedCompanyId);
+                // On initial load, if user is superadmin, grant all permissions.
+                if (storedUser.is_superadmin) {
+                    const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection', 'configuration', 'groups', 'messaging']);
+                    setPagePermissions(allPages);
+                } else {
+                    const storedCompanyId = sessionStorage.getItem('selectedCompanyId');
+                    if (storedCompanyId) {
+                        await loadAllPermissions(storedUser, storedCompanyId);
+                    }
                 }
             }
         };
@@ -88,8 +87,18 @@ export const AuthProvider = ({ children }) => {
     const login = (userData) => {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
-        setPagePermissions(new Set());
-        setActionPermissions({});
+
+        // If the user is a superadmin, grant all page permissions immediately on login.
+        // This ensures the UI (nav links, etc.) renders correctly without needing to select a company.
+        if (userData.is_superadmin) {
+            const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection', 'configuration', 'groups', 'messaging']);
+            setPagePermissions(allPages);
+            setActionPermissions({}); // Superadmin `can()` check doesn't use this.
+        } else {
+            // For regular users, reset permissions. They will be loaded on company selection.
+            setPagePermissions(new Set());
+            setActionPermissions({});
+        }
     };
 
     const logout = () => {
