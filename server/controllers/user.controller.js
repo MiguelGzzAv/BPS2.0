@@ -1,17 +1,13 @@
 const db = require('../db');
-// The hasPermission utility is no longer needed, as permissions are handled by the checkPermission middleware.
 
 const getUsers = async (req, res) => {
     try {
-        // Superadmin can query for a specific company or all companies.
-        // Regular users can only see users from their own company.
         const companyId = req.user.is_superadmin ? req.query.companyId : req.user.companyId;
 
         let query;
         const params = [];
 
-        // Base query with join to get role and company names
-        let baseQuery = `
+        const baseQuery = `
             SELECT
                 u.id, u.name, u.username, u.role_id, u.company_id AS "companyId",
                 u.group_ids AS "groupIds", c.name AS "companyName", r.name AS "role_name"
@@ -20,15 +16,19 @@ const getUsers = async (req, res) => {
             LEFT JOIN roles r ON u.role_id = r.id
         `;
 
-        if (companyId) {
-            // Filter by a specific company if a companyId is provided
+        // Attempt to parse the companyId to ensure it's a valid integer.
+        // This prevents "undefined" or other invalid strings from being passed to the query.
+        const companyIdAsInt = parseInt(companyId, 10);
+
+        if (!isNaN(companyIdAsInt) && companyIdAsInt > 0) {
+            // If a valid companyId is present, filter by it.
             query = `${baseQuery} WHERE u.company_id = $1`;
-            params.push(companyId);
+            params.push(companyIdAsInt);
         } else if (req.user.is_superadmin) {
-            // Superadmin with no companyId specified gets all users
+            // If the user is a superadmin and no valid companyId is provided, fetch all users.
             query = baseQuery;
         } else {
-            // Non-superadmin without a company context sees no users.
+            // A regular user without a valid company context should see no users.
             return res.json([]);
         }
 
@@ -45,10 +45,8 @@ const createUser = async (req, res) => {
         const newUser = req.body;
         let companyIdForNewUser;
 
-        // Determine the company for the new user
         if (req.user.is_superadmin) {
             companyIdForNewUser = newUser.companyId;
-            // A company must be assigned unless the new user is also a superadmin
             if (!companyIdForNewUser) {
                  const roleCheck = await db.query('SELECT name FROM roles WHERE id = $1', [newUser.role_id]);
                  if (roleCheck.rows.length === 0 || roleCheck.rows[0].name !== 'superadmin') {
@@ -59,7 +57,6 @@ const createUser = async (req, res) => {
             companyIdForNewUser = req.user.companyId;
         }
 
-        // Validate required fields
         if (!newUser.username || !newUser.name || !newUser.role_id || !newUser.password) {
             return res.status(400).json({ error: 'Username, name, password, and role are required.' });
         }
@@ -72,7 +69,7 @@ const createUser = async (req, res) => {
         const params = [
             newUser.name,
             newUser.username,
-            newUser.password, // In a real app, this should be hashed!
+            newUser.password,
             newUser.role_id,
             companyIdForNewUser,
             newUser.groupIds || []
@@ -91,12 +88,10 @@ const updateUser = async (req, res) => {
         const userIdToUpdate = parseInt(req.params.id);
         const updates = req.body;
 
-        // Prevent non-superadmins from updating their own role
         if (updates.role_id && userIdToUpdate === req.user.id && !req.user.is_superadmin) {
            return res.status(403).json({ error: 'Forbidden: You cannot change your own role.' });
         }
 
-        // Dynamically build the update query
         const queryParts = [];
         const queryParams = [];
         let paramIndex = 1;
@@ -112,7 +107,6 @@ const updateUser = async (req, res) => {
 
         for (const key in updates) {
             if (fieldMapping[key] && updates[key] !== undefined) {
-                // Special handling for password, which shouldn't be updated if empty string
                 if (key === 'password' && !updates.password) continue;
 
                 queryParts.push(`${fieldMapping[key]} = $${paramIndex++}`);
@@ -121,7 +115,6 @@ const updateUser = async (req, res) => {
         }
 
         if (queryParts.length === 0) {
-            // Nothing to update, return the current user data
             const userResult = await db.query('SELECT id, name, username, role_id, company_id AS "companyId", group_ids AS "groupIds" FROM users WHERE id = $1', [userIdToUpdate]);
             return res.json(userResult.rows[0]);
         }
