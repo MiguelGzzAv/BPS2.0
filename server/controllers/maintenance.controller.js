@@ -3,13 +3,10 @@ const db = require('../db');
 const getMaintenanceStatus = async (req, res) => {
     try {
         const { rows } = await db.query('SELECT page, is_under_maintenance FROM maintenance_status');
-
-        // Transform the flat array from DB into the key-value object the frontend expects
         const statusObject = rows.reduce((acc, row) => {
             acc[row.page] = row.is_under_maintenance;
             return acc;
         }, {});
-
         res.status(200).json(statusObject);
     } catch (error) {
         console.error('Error fetching maintenance status:', error);
@@ -18,10 +15,8 @@ const getMaintenanceStatus = async (req, res) => {
 };
 
 const updateMaintenanceStatus = async (req, res) => {
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Forbidden: You do not have permission to perform this action.' });
-    }
-
+    // Permission is now handled by the checkPermission('maintenance') middleware in the route.
+    // No additional manual check is needed here, which makes the controller cleaner and respects the RBAC system.
     const newStatus = req.body;
     if (typeof newStatus !== 'object' || newStatus === null) {
         return res.status(400).json({ error: 'Invalid payload. Expected an object.' });
@@ -33,7 +28,6 @@ const updateMaintenanceStatus = async (req, res) => {
 
         let updated = false;
         for (const page in newStatus) {
-            // Check if the page is a valid one to prevent arbitrary updates
             const pageExistsResult = await client.query('SELECT 1 FROM maintenance_status WHERE page = $1', [page]);
             if (pageExistsResult.rows.length > 0) {
                  await client.query(
@@ -51,7 +45,6 @@ const updateMaintenanceStatus = async (req, res) => {
 
         await client.query('COMMIT');
 
-        // Fetch the updated status to return it
         const { rows } = await db.query('SELECT page, is_under_maintenance FROM maintenance_status');
         const updatedStatusObject = rows.reduce((acc, row) => {
             acc[row.page] = row.is_under_maintenance;
