@@ -3,8 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
 import UserFormModal from '../components/UserFormModal';
 import GroupManagement from '../components/GroupManagement';
-import PermissionsManagement from '../components/PermissionsManagement';
-import RolePermissionsManagement from '../components/RolePermissionsManagement';
 
 function Users() {
     const { user, can } = useAuth();
@@ -17,7 +15,6 @@ function Users() {
     const companyId = sessionStorage.getItem('selectedCompanyId');
 
     const fetchUsers = async () => {
-        // A non-superadmin must have a company selected.
         if (!user.is_superadmin && !companyId) {
             setError("Please select a company first.");
             setLoading(false);
@@ -25,7 +22,6 @@ function Users() {
         }
         setLoading(true);
         try {
-            // Superadmin fetches all users; others fetch users for their company.
             const url = user.is_superadmin ? '/api/users' : `/api/users?companyId=${companyId}`;
             const response = await fetchWithAuth(url);
             if (!response.ok) throw new Error('Failed to fetch users.');
@@ -40,10 +36,10 @@ function Users() {
 
     useEffect(() => {
         fetchUsers();
-    }, [user.is_superadmin, companyId]); // Depends on superadmin status and selected company
+    }, [user.is_superadmin, companyId]);
 
     const handleSave = () => {
-        fetchUsers(); // Refresh the list after saving
+        fetchUsers();
     };
 
     const handleCreate = () => {
@@ -64,7 +60,7 @@ function Users() {
                     const errData = await response.json();
                     throw new Error(errData.error || 'Failed to delete user.');
                 }
-                fetchUsers(); // Refresh list after deleting
+                fetchUsers();
             } catch (err) {
                 setError(err.message);
             }
@@ -81,9 +77,7 @@ function Users() {
             <header className="d-flex justify-content-between align-items-center mb-4">
                 <h1>User and Group Management</h1>
                 {can('users', 'create') && (
-                    <button className="btn btn-primary" onClick={handleCreate}>
-                        Add User
-                    </button>
+                    <button className="btn btn-primary" onClick={handleCreate}>Add User</button>
                 )}
             </header>
 
@@ -96,24 +90,10 @@ function Users() {
 
             <ul className="nav nav-tabs">
                 <li className="nav-item">
-                    <button className={`nav-link ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-                        Users
-                    </button>
+                    <button className={`nav-link ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>Users</button>
                 </li>
                 <li className="nav-item">
-                    <button className={`nav-link ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => setActiveTab('groups')}>
-                        Groups
-                    </button>
-                </li>
-                <li className="nav-item">
-                    <button className={`nav-link ${activeTab === 'permissions' ? 'active' : ''}`} onClick={() => setActiveTab('permissions')}>
-                        Page Access
-                    </button>
-                </li>
-                <li className="nav-item">
-                    <button className={`nav-link ${activeTab === 'role-permissions' ? 'active' : ''}`} onClick={() => setActiveTab('role-permissions')}>
-                        Role Permissions
-                    </button>
+                    <button className={`nav-link ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => setActiveTab('groups')}>Groups</button>
                 </li>
             </ul>
 
@@ -124,7 +104,6 @@ function Users() {
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Email</th>
                                     <th>Username</th>
                                     <th>Role</th>
                                     {user.is_superadmin && <th>Company</th>}
@@ -135,16 +114,15 @@ function Users() {
                                 {users.map(u => (
                                     <tr key={u.id}>
                                         <td>{u.name}</td>
-                                        <td>{u.email || ''}</td>
                                         <td>{u.username}</td>
-                                        <td>{u.role_name}</td>
+                                        <td>{u.is_superadmin ? 'Super Admin' : u.role_name}</td>
                                         {user.is_superadmin && <td>{u.companyName || 'N/A'}</td>}
                                         <td>
                                             {can('users', 'update') && (
                                                 <button className="btn btn-sm btn-warning me-2" onClick={() => handleEdit(u)}>Edit</button>
                                             )}
-                                            {can('users', 'delete') && (
-                                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(u.id)} disabled={u.id === user.id}>Delete</button>
+                                            {can('users', 'delete') && u.id !== user.id && (
+                                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(u.id)}>Delete</button>
                                             )}
                                         </td>
                                     </tr>
@@ -154,8 +132,6 @@ function Users() {
                     </div>
                 )}
                 {activeTab === 'groups' && <GroupManagement />}
-                {activeTab === 'permissions' && <PermissionsManagement />}
-                {activeTab === 'role-permissions' && <RolePermissionsManagement />}
             </div>
         </div>
     );

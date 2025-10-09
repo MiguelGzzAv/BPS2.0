@@ -30,7 +30,6 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                     groupIds: userToEdit.groupIds || []
                 });
             } else {
-                // Reset form for a new user
                 setFormData({
                     name: '', email: '', phone: '', username: '',
                     password: '', role_id: '', companyId: '', groupIds: []
@@ -48,7 +47,6 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                     const data = await response.json();
                     setCompanies(data);
                     if (data.length > 0 && !isEditing) {
-                        // Default to the first company when creating a new user
                         setFormData(prev => ({ ...prev, companyId: data[0].id }));
                     }
                 } catch (err) {
@@ -66,7 +64,6 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
         if (show && companyIdToFetch) {
             const fetchGroupsAndRoles = async () => {
                 try {
-                    // Fetch both in parallel
                     const [groupsResponse, rolesResponse] = await Promise.all([
                         fetchWithAuth(`/api/groups?companyId=${companyIdToFetch}`),
                         fetchWithAuth(`/api/roles?companyId=${companyIdToFetch}`)
@@ -80,7 +77,6 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                     const rolesData = await rolesResponse.json();
                     setRoles(rolesData);
 
-                    // If creating a new user, default to the first role if available
                     if (!isEditing && rolesData.length > 0) {
                         setFormData(prev => ({ ...prev, role_id: rolesData[0].id }));
                     }
@@ -123,13 +119,13 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
             payload.companyId = sessionStorage.getItem('selectedCompanyId');
         }
         if (isEditing && !payload.password) {
-            delete payload.password; // Don't send empty password on edit
+            delete payload.password;
         }
 
         try {
             const response = await fetchWithAuth(url, {
                 method: method,
-                body: payload, // fetchWithAuth handles stringification
+                body: payload,
             });
             if (!response.ok) {
                 const errData = await response.json();
@@ -168,10 +164,6 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                                 <label htmlFor="name" className="form-label">Full Name</label>
                                 <input type="text" name="name" id="name" className="form-control" value={formData.name} onChange={handleChange} required />
                             </div>
-                            <div className="row">
-                                <div className="col-md-6 mb-3"><label htmlFor="email" className="form-label">Email</label><input type="email" name="email" id="email" className="form-control" value={formData.email} onChange={handleChange} /></div>
-                                <div className="col-md-6 mb-3"><label htmlFor="phone" className="form-label">Phone</label><input type="tel" name="phone" id="phone" className="form-control" value={formData.phone} onChange={handleChange} /></div>
-                            </div>
                             <hr />
                             <div className="row">
                                 <div className="col-md-6 mb-3"><label htmlFor="username" className="form-label">Username</label><input type="text" name="username" id="username" className="form-control" value={formData.username} onChange={handleChange} required /></div>
@@ -192,16 +184,8 @@ function UserFormModal({ show, onHide, onSave, userToEdit }) {
                                 <div className="border rounded p-2" style={{ maxHeight: '150px', overflowY: 'auto' }}>
                                     {groups.length > 0 ? groups.map(g => (
                                         <div key={g.id} className="form-check">
-                                            <input
-                                                className="form-check-input"
-                                                type="checkbox"
-                                                id={`group-${g.id}`}
-                                                checked={formData.groupIds.includes(g.id)}
-                                                onChange={(e) => handleGroupChange(g.id, e.target.checked)}
-                                            />
-                                            <label className="form-check-label" htmlFor={`group-${g.id}`}>
-                                                {g.name}
-                                            </label>
+                                            <input className="form-check-input" type="checkbox" id={`group-${g.id}`} checked={formData.groupIds.includes(g.id)} onChange={(e) => handleGroupChange(g.id, e.target.checked)} />
+                                            <label className="form-check-label" htmlFor={`group-${g.id}`}>{g.name}</label>
                                         </div>
                                     )) : <p className="text-muted small mb-0">No groups available for this company.</p>}
                                 </div>

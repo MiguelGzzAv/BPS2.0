@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
 
     const loadMaintenanceStatus = async () => {
         try {
+            // This endpoint is now public, so we don't need fetchWithAuth
             const res = await fetch('/api/maintenance');
             if (res.ok) {
                 const data = await res.json();
@@ -24,32 +25,28 @@ export const AuthProvider = ({ children }) => {
     };
 
     const loadAllPermissions = async (currentUser, companyId) => {
-        if (!currentUser || !companyId) {
-            setPagePermissions(new Set());
+        if (!currentUser || !companyId || currentUser.is_superadmin) {
+            setPagePermissions(new Set(['selection'])); // Superadmin permissions are global, not company-specific
             setActionPermissions({});
             return;
         }
 
-        // This logic is for regular users when they select a company.
-        // Superadmin permissions are handled at login.
         try {
             const [pagePermsRes, rolePermsRes] = await Promise.all([
                 fetchWithAuth(`/api/permissions?companyId=${companyId}`),
                 fetchWithAuth(`/api/role-permissions?companyId=${companyId}`)
             ]);
 
-            if (pagePermsRes) {
-                if (!pagePermsRes.ok) throw new Error('Failed to fetch page permissions.');
-                const companyPagePermissions = await pagePermsRes.json();
-                const userGroups = currentUser.groupIds || [];
-                const allowedPages = new Set();
-                userGroups.forEach(groupId => {
-                    const groupPermissions = companyPagePermissions[String(groupId)] || [];
-                    groupPermissions.forEach(page => allowedPages.add(page));
-                });
-                allowedPages.add('selection');
-                setPagePermissions(allowedPages);
-            }
+            if (!pagePermsRes.ok) throw new Error('Failed to fetch page permissions.');
+            const companyPagePermissions = await pagePermsRes.json();
+            const userGroups = currentUser.groupIds || [];
+            const allowedPages = new Set();
+            userGroups.forEach(groupId => {
+                const groupPermissions = companyPagePermissions[String(groupId)] || [];
+                groupPermissions.forEach(page => allowedPages.add(page));
+            });
+            allowedPages.add('selection');
+            setPagePermissions(allowedPages);
 
             if (!rolePermsRes.ok) throw new Error('Failed to fetch role permissions.');
             const companyRolePermissions = await rolePermsRes.json();
@@ -69,7 +66,6 @@ export const AuthProvider = ({ children }) => {
             if (storedUserJSON) {
                 const storedUser = JSON.parse(storedUserJSON);
                 setUser(storedUser);
-                // On initial load, if user is superadmin, grant all permissions.
                 if (storedUser.is_superadmin) {
                     const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection', 'configuration', 'groups', 'messaging']);
                     setPagePermissions(allPages);
@@ -87,15 +83,11 @@ export const AuthProvider = ({ children }) => {
     const login = (userData) => {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
-
-        // If the user is a superadmin, grant all page permissions immediately on login.
-        // This ensures the UI (nav links, etc.) renders correctly without needing to select a company.
         if (userData.is_superadmin) {
             const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection', 'configuration', 'groups', 'messaging']);
             setPagePermissions(allPages);
-            setActionPermissions({}); // Superadmin `can()` check doesn't use this.
+            setActionPermissions({});
         } else {
-            // For regular users, reset permissions. They will be loaded on company selection.
             setPagePermissions(new Set());
             setActionPermissions({});
         }

@@ -1,13 +1,12 @@
 const db = require('../db');
 
-// Get all roles for a company
+// Get all roles for a specific company
 const getRoles = async (req, res) => {
     try {
-        const companyId = req.user.companyId;
+        const companyId = req.user.is_superadmin ? req.query.companyId : req.user.companyId;
         if (!companyId) {
             return res.status(400).json({ error: 'Company ID is required.' });
         }
-
         const { rows } = await db.query('SELECT id, name, is_system_role FROM roles WHERE company_id = $1 ORDER BY name', [companyId]);
         res.json(rows);
     } catch (error) {
@@ -16,14 +15,14 @@ const getRoles = async (req, res) => {
     }
 };
 
-// Create a new role
+// Create a new role for a company
 const createRole = async (req, res) => {
     try {
         const { name } = req.body;
-        const companyId = req.user.companyId;
+        const companyId = req.user.is_superadmin ? req.body.companyId : req.user.companyId;
 
-        if (!name) {
-            return res.status(400).json({ error: 'Role name is required.' });
+        if (!name || !companyId) {
+            return res.status(400).json({ error: 'Role name and company ID are required.' });
         }
 
         const { rows } = await db.query(
@@ -32,20 +31,20 @@ const createRole = async (req, res) => {
         );
         res.status(201).json(rows[0]);
     } catch (error) {
-        if (error.code === '23505') { // Unique constraint violation
-            return res.status(409).json({ error: 'A role with this name already exists for the company.' });
+        if (error.code === '23505') { // unique_violation
+            return res.status(409).json({ error: 'A role with this name already exists for this company.' });
         }
         console.error('Error creating role:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 };
 
-// Update a role
+// Update a role's name
 const updateRole = async (req, res) => {
     try {
         const { id } = req.params;
         const { name } = req.body;
-        const companyId = req.user.companyId;
+        const companyId = req.user.is_superadmin ? req.body.companyId : req.user.companyId;
 
         if (!name) {
             return res.status(400).json({ error: 'Role name is required.' });
@@ -57,13 +56,12 @@ const updateRole = async (req, res) => {
         );
 
         if (rows.length === 0) {
-            return res.status(404).json({ error: 'Role not found, it is a system role, or you do not have permission to update it.' });
+            return res.status(404).json({ error: 'Role not found or it is a system role that cannot be edited.' });
         }
-
         res.json(rows[0]);
     } catch (error) {
         if (error.code === '23505') {
-            return res.status(409).json({ error: 'A role with this name already exists for the company.' });
+            return res.status(409).json({ error: 'A role with this name already exists for this company.' });
         }
         console.error('Error updating role:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -76,10 +74,10 @@ const deleteRole = async (req, res) => {
         const { id } = req.params;
         const companyId = req.user.companyId;
 
-        // Before deleting, check if any users are assigned to this role
-        const userCheck = await db.query('SELECT COUNT(*) FROM users WHERE role_id = $1 AND company_id = $2', [id, companyId]);
+        // Check if any users are assigned to this role
+        const userCheck = await db.query('SELECT COUNT(*) FROM users WHERE role_id = $1', [id]);
         if (parseInt(userCheck.rows[0].count, 10) > 0) {
-            return res.status(400).json({ error: 'Cannot delete role as it is currently assigned to one or more users.' });
+            return res.status(400).json({ error: 'Cannot delete role, it is currently assigned to users.' });
         }
 
         const { rowCount } = await db.query(
@@ -88,10 +86,9 @@ const deleteRole = async (req, res) => {
         );
 
         if (rowCount === 0) {
-            return res.status(404).json({ error: 'Role not found, it is a system role, or you do not have permission to delete it.' });
+            return res.status(404).json({ error: 'Role not found or it is a system role that cannot be deleted.' });
         }
-
-        res.status(204).send(); // No content
+        res.status(204).send();
     } catch (error) {
         console.error('Error deleting role:', error);
         res.status(500).json({ error: 'Internal Server Error' });

@@ -2,17 +2,15 @@ const db = require('../db');
 
 const getRolePermissions = async (req, res) => {
     try {
-        // Superadmin can specify a companyId, otherwise it's taken from the user's token
         const companyId = req.user.is_superadmin ? req.query.companyId : req.user.companyId;
         if (!companyId) {
             return res.status(400).json({ error: 'A companyId must be provided.' });
         }
 
-        // We join with the roles table to filter by company_id and get role names
+        // Join with roles table to filter by company
         const query = `
             SELECT
                 rp.role_id,
-                r.name AS role_name,
                 rp.resource,
                 rp.create,
                 rp.read,
@@ -25,11 +23,9 @@ const getRolePermissions = async (req, res) => {
             WHERE
                 r.company_id = $1
         `;
-
         const { rows } = await db.query(query, [companyId]);
 
-        // Aggregate flat results into the nested object structure expected by the frontend
-        // The structure will be { role_id: { resource: { permissions } } }
+        // Aggregate results into a nested object keyed by role_id
         const permissions = rows.reduce((acc, row) => {
             const { role_id, resource, create, read, update, "delete": del } = row;
             if (!acc[role_id]) {
@@ -54,7 +50,6 @@ const updateRolePermissions = async (req, res) => {
             return res.status(400).json({ error: 'A companyId must be provided.' });
         }
 
-        // The frontend will now send permissions keyed by role_id
         const permissionsByRoleId = req.body.permissions;
         if (typeof permissionsByRoleId !== 'object' || permissionsByRoleId === null) {
             return res.status(400).json({ error: 'Invalid permissions data format.' });
@@ -62,17 +57,18 @@ const updateRolePermissions = async (req, res) => {
 
         await client.query('BEGIN');
 
-        // First, delete all existing role permissions for the roles of this company.
+        // Delete all existing permissions for roles associated with the company
         await client.query(
             'DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE company_id = $1)',
             [companyId]
         );
 
-        // Then, insert the new permissions
+        // Insert the new permissions from the payload
         for (const roleId in permissionsByRoleId) {
+            // Verify the role belongs to the company before inserting
             const roleCheck = await client.query('SELECT id FROM roles WHERE id = $1 AND company_id = $2', [roleId, companyId]);
             if (roleCheck.rows.length === 0) {
-                console.warn(`Attempted to update permissions for role ${roleId} which does not belong to company ${companyId}. Skipping.`);
+                // This prevents cross-company pollution of permissions
                 continue;
             }
 

@@ -7,12 +7,12 @@ CREATE TABLE companies (
     name VARCHAR(255) NOT NULL
 );
 
--- Table for Roles
+-- Table for Roles (company-specific)
 CREATE TABLE roles (
     id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    is_system_role BOOLEAN DEFAULT false,
+    is_system_role BOOLEAN DEFAULT false, -- To protect default roles
     UNIQUE (company_id, name)
 );
 
@@ -22,9 +22,9 @@ CREATE TABLE users (
     name VARCHAR(255) NOT NULL,
     username VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    is_superadmin BOOLEAN DEFAULT false,
-    role_id INTEGER REFERENCES roles(id),
-    company_id INTEGER REFERENCES companies(id),
+    is_superadmin BOOLEAN DEFAULT false, -- Explicit flag for superadmin
+    role_id INTEGER REFERENCES roles(id), -- A user can have one role
+    company_id INTEGER REFERENCES companies(id), -- Superadmin can have a null company_id
     group_ids INTEGER[]
 );
 
@@ -65,7 +65,7 @@ CREATE TABLE phase_fields (
     field_order INTEGER NOT NULL
 );
 
--- Table for Process Dependencies (Child Processes)
+-- Table for Process Dependencies
 CREATE TABLE process_dependencies (
     parent_process_id VARCHAR(255) NOT NULL REFERENCES processes(id) ON DELETE CASCADE,
     child_process_id VARCHAR(255) NOT NULL REFERENCES processes(id) ON DELETE CASCADE,

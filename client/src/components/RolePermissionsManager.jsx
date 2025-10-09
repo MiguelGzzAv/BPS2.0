@@ -6,7 +6,6 @@ const RolePermissionsManager = () => {
     const { user, can } = useAuth();
     const [roles, setRoles] = useState([]);
     const [permissions, setPermissions] = useState({});
-    // Define the resources that can have permissions assigned to them
     const [resources] = useState([
         'processes', 'users', 'groups', 'escalations', 'registrations',
         'permissions', 'role-permissions', 'roles', 'maintenance', 'messaging',
@@ -16,11 +15,9 @@ const RolePermissionsManager = () => {
     const [error, setError] = useState(null);
     const [selectedRole, setSelectedRole] = useState(null);
 
-    // State for creating a new role
+    // State for creating/editing roles
     const [isCreating, setIsCreating] = useState(false);
     const [newRoleName, setNewRoleName] = useState('');
-
-    // State for editing a role name
     const [editingRoleId, setEditingRoleId] = useState(null);
     const [editingRoleName, setEditingRoleName] = useState('');
 
@@ -29,7 +26,7 @@ const RolePermissionsManager = () => {
     const fetchRolesAndPermissions = async () => {
         if (!companyId) {
             setIsLoading(false);
-            setError("A company must be selected to manage roles.");
+            setError("Please select a company to manage roles.");
             return;
         }
         setIsLoading(true);
@@ -61,12 +58,12 @@ const RolePermissionsManager = () => {
 
     const handleRoleSelect = (role) => {
         setSelectedRole(role);
-        setEditingRoleId(null); // Exit editing mode when selecting another role
+        setEditingRoleId(null);
     };
 
     const handlePermissionChange = (roleId, resource, action) => {
         setPermissions(prev => {
-            const newPermissions = JSON.parse(JSON.stringify(prev));
+            const newPermissions = { ...prev };
             if (!newPermissions[roleId]) newPermissions[roleId] = {};
             if (!newPermissions[roleId][resource]) {
                 newPermissions[roleId][resource] = { create: false, read: false, update: false, delete: false };
@@ -90,7 +87,6 @@ const RolePermissionsManager = () => {
             if (!response.ok) throw new Error(data.error || 'Failed to save permissions.');
             alert('Permissions saved successfully!');
         } catch (err) {
-            setError(err.message);
             alert(`Error saving permissions: ${err.message}`);
         }
     };
@@ -113,20 +109,10 @@ const RolePermissionsManager = () => {
         }
     };
 
-    const handleDeleteRole = async (roleId) => {
-        if (window.confirm('Are you sure you want to delete this role? This cannot be undone.')) {
-            try {
-                const response = await fetchWithAuth(`/api/roles/${roleId}`, { method: 'DELETE' });
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.error || 'Failed to delete role.');
-                }
-                setRoles(roles.filter(r => r.id !== roleId));
-                if (selectedRole?.id === roleId) setSelectedRole(null);
-            } catch (err) {
-                alert(`Error: ${err.message}`);
-            }
-        }
+    const startEditing = (role) => {
+        setEditingRoleId(role.id);
+        setEditingRoleName(role.name);
+        setSelectedRole(role);
     };
 
     const handleUpdateRoleName = async (e) => {
@@ -149,35 +135,36 @@ const RolePermissionsManager = () => {
         }
     };
 
-    const startEditing = (role) => {
-        setEditingRoleId(role.id);
-        setEditingRoleName(role.name);
-        setSelectedRole(role); // Also select the role being edited
+    const handleDeleteRole = async (roleId) => {
+        if (window.confirm('Are you sure you want to delete this role?')) {
+            try {
+                const response = await fetchWithAuth(`/api/roles/${roleId}`, { method: 'DELETE' });
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Failed to delete role.');
+                }
+                setRoles(roles.filter(r => r.id !== roleId));
+                if (selectedRole?.id === roleId) setSelectedRole(null);
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
     };
 
-    if (isLoading) return <p>Loading roles and permissions...</p>;
-    if (error) return <div className="alert alert-danger">Error: {error}</div>;
+    if (isLoading) return <p>Loading...</p>;
+    if (error) return <div className="alert alert-danger">{error}</div>;
 
     return (
         <div className="row">
             <div className="col-md-4">
                 <div className="d-flex justify-content-between align-items-center mb-2">
                     <h4 className="mb-0">Roles</h4>
-                    {can('roles', 'create') && (
-                        <button className="btn btn-sm btn-success" onClick={() => setIsCreating(true)}>New</button>
-                    )}
+                    {can('roles', 'create') && <button className="btn btn-sm btn-success" onClick={() => setIsCreating(true)}>New</button>}
                 </div>
 
                 {isCreating && (
                     <form onSubmit={handleCreateRole} className="d-flex mb-2">
-                        <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="New role name"
-                            value={newRoleName}
-                            onChange={(e) => setNewRoleName(e.target.value)}
-                            autoFocus
-                        />
+                        <input type="text" className="form-control form-control-sm" value={newRoleName} onChange={(e) => setNewRoleName(e.target.value)} autoFocus />
                         <button type="submit" className="btn btn-sm btn-primary ms-2">Save</button>
                         <button type="button" className="btn btn-sm btn-secondary ms-1" onClick={() => setIsCreating(false)}>X</button>
                     </form>
@@ -188,13 +175,7 @@ const RolePermissionsManager = () => {
                         <div key={role.id} className={`list-group-item list-group-item-action ${selectedRole?.id === role.id ? 'active' : ''}`}>
                             {editingRoleId === role.id ? (
                                 <form onSubmit={handleUpdateRoleName} className="d-flex align-items-center">
-                                    <input
-                                        type="text"
-                                        className="form-control form-control-sm"
-                                        value={editingRoleName}
-                                        onChange={(e) => setEditingRoleName(e.target.value)}
-                                        autoFocus
-                                    />
+                                    <input type="text" className="form-control form-control-sm" value={editingRoleName} onChange={(e) => setEditingRoleName(e.target.value)} autoFocus />
                                     <button type="submit" className="btn btn-sm btn-primary ms-2">Save</button>
                                     <button type="button" className="btn btn-sm btn-secondary ms-1" onClick={() => setEditingRoleId(null)}>Cancel</button>
                                 </form>
@@ -252,11 +233,7 @@ const RolePermissionsManager = () => {
                             </tbody>
                         </table>
                         {can('role-permissions', 'update') && (
-                            <button
-                                className="btn btn-primary"
-                                onClick={handleSavePermissions}
-                                disabled={selectedRole.is_system_role}
-                            >
+                            <button className="btn btn-primary" onClick={handleSavePermissions} disabled={selectedRole.is_system_role}>
                                 Save Permissions for {selectedRole.name}
                             </button>
                         )}

@@ -3,32 +3,26 @@ const db = require('../db');
 const getUsers = async (req, res) => {
     try {
         const companyId = req.user.is_superadmin ? req.query.companyId : req.user.companyId;
+        const companyIdAsInt = parseInt(companyId, 10);
 
         let query;
         const params = [];
 
         const baseQuery = `
             SELECT
-                u.id, u.name, u.username, u.role_id, u.company_id AS "companyId",
+                u.id, u.name, u.username, u.is_superadmin, u.role_id, u.company_id AS "companyId",
                 u.group_ids AS "groupIds", c.name AS "companyName", r.name AS "role_name"
             FROM users u
             LEFT JOIN companies c ON u.company_id = c.id
             LEFT JOIN roles r ON u.role_id = r.id
         `;
 
-        // Attempt to parse the companyId to ensure it's a valid integer.
-        // This prevents "undefined" or other invalid strings from being passed to the query.
-        const companyIdAsInt = parseInt(companyId, 10);
-
         if (!isNaN(companyIdAsInt) && companyIdAsInt > 0) {
-            // If a valid companyId is present, filter by it.
-            query = `${baseQuery} WHERE u.company_id = $1`;
+            query = `${baseQuery} WHERE u.company_id = $1 ORDER BY u.name`;
             params.push(companyIdAsInt);
         } else if (req.user.is_superadmin) {
-            // If the user is a superadmin and no valid companyId is provided, fetch all users.
-            query = baseQuery;
+            query = `${baseQuery} ORDER BY u.name`;
         } else {
-            // A regular user without a valid company context should see no users.
             return res.json([]);
         }
 
@@ -43,35 +37,24 @@ const getUsers = async (req, res) => {
 const createUser = async (req, res) => {
     try {
         const newUser = req.body;
-        let companyIdForNewUser;
+        const companyId = req.user.is_superadmin ? newUser.companyId : req.user.companyId;
 
-        if (req.user.is_superadmin) {
-            companyIdForNewUser = newUser.companyId;
-            if (!companyIdForNewUser) {
-                 const roleCheck = await db.query('SELECT name FROM roles WHERE id = $1', [newUser.role_id]);
-                 if (roleCheck.rows.length === 0 || roleCheck.rows[0].name !== 'superadmin') {
-                    return res.status(400).json({ error: 'Superadmin must specify a companyId for non-superadmin users.' });
-                 }
-            }
-        } else {
-            companyIdForNewUser = req.user.companyId;
-        }
-
-        if (!newUser.username || !newUser.name || !newUser.role_id || !newUser.password) {
+        if (!newUser.username || !newUser.name || !newUser.password || !newUser.role_id) {
             return res.status(400).json({ error: 'Username, name, password, and role are required.' });
         }
 
         const query = `
-            INSERT INTO users (name, username, password, role_id, company_id, group_ids)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, name, username, role_id, company_id AS "companyId", group_ids AS "groupIds"
+            INSERT INTO users (name, username, password, is_superadmin, role_id, company_id, group_ids)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, name, username, is_superadmin, role_id, company_id AS "companyId", group_ids AS "groupIds"
         `;
         const params = [
             newUser.name,
             newUser.username,
-            newUser.password,
+            newUser.password, // This should be hashed in a real app
+            newUser.is_superadmin || false,
             newUser.role_id,
-            companyIdForNewUser,
+            companyId,
             newUser.groupIds || []
         ];
 
@@ -108,7 +91,6 @@ const updateUser = async (req, res) => {
         for (const key in updates) {
             if (fieldMapping[key] && updates[key] !== undefined) {
                 if (key === 'password' && !updates.password) continue;
-
                 queryParts.push(`${fieldMapping[key]} = $${paramIndex++}`);
                 queryParams.push(updates[key]);
             }
@@ -130,7 +112,6 @@ const updateUser = async (req, res) => {
 
         const { rows } = await db.query(query, queryParams);
         res.json(rows[0]);
-
     } catch (error) {
         console.error('Error updating user:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -147,7 +128,6 @@ const deleteUser = async (req, res) => {
 
         await db.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
         res.status(204).send();
-
     } catch (error) {
         console.error('Error deleting user:', error);
         res.status(500).json({ error: 'Internal Server Error' });

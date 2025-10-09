@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const db = require('./db'); // db.js now exposes an initialization function
+const db = require('./db'); // db.js now exposes ensureInitialized
 
 // --- Middleware Imports ---
 const authAndAuthzMiddleware = require('./middleware/auth');
@@ -70,11 +70,11 @@ app.post('/api/login', async (req, res) => {
             if (companyResult.rows.length > 0) {
                 userToSend.companyName = companyResult.rows[0].name;
             }
-            userToSend.companyId = user.company_id;
-            delete userToSend.company_id;
-            userToSend.groupIds = user.group_ids;
-            delete userToSend.group_ids;
         }
+        userToSend.companyId = user.company_id;
+        delete userToSend.company_id;
+        userToSend.groupIds = user.group_ids;
+        delete userToSend.group_ids;
 
         res.json({ success: true, user: userToSend });
     } else {
@@ -116,5 +116,4 @@ const startServer = async () => {
     }
 };
 
-// Start the server.
 startServer();
