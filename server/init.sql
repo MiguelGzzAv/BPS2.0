@@ -1,5 +1,5 @@
 -- Drop tables if they exist to ensure a clean slate
-DROP TABLE IF EXISTS process_dependencies, phase_fields, internal_phases, processes, permissions, role_permissions, groups, users, roles, companies, registrations, escalations, maintenance_status, global_messages CASCADE;
+DROP TABLE IF EXISTS process_dependencies, phase_fields, internal_phases, processes, permissions, role_permissions, groups, users, roles, companies, registrations, escalation_rules, escalation_events, maintenance_status, global_messages CASCADE;
 
 -- Table for Companies
 CREATE TABLE companies (
@@ -10,9 +10,9 @@ CREATE TABLE companies (
 -- Table for Roles
 CREATE TABLE roles (
     id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, -- Can be NULL for global roles if needed, though we removed the superadmin role
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    is_system_role BOOLEAN DEFAULT false, -- To protect default roles from being deleted/edited
+    is_system_role BOOLEAN DEFAULT false,
     UNIQUE (company_id, name)
 );
 
@@ -22,8 +22,8 @@ CREATE TABLE users (
     name VARCHAR(255) NOT NULL,
     username VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    is_superadmin BOOLEAN DEFAULT false, -- Explicit flag for superadmin status
-    role_id INTEGER REFERENCES roles(id), -- Can be NULL if user has no role (like superadmin)
+    is_superadmin BOOLEAN DEFAULT false,
+    role_id INTEGER REFERENCES roles(id),
     company_id INTEGER REFERENCES companies(id),
     group_ids INTEGER[]
 );
@@ -103,8 +103,7 @@ CREATE TABLE registrations (
     "timestamp" TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Table for Escalations
--- Table for Escalation Rules (defines what to do when a process fails)
+-- Table for Escalation Rules
 CREATE TABLE escalation_rules (
     id SERIAL PRIMARY KEY,
     company_id INTEGER NOT NULL REFERENCES companies(id),
@@ -112,7 +111,7 @@ CREATE TABLE escalation_rules (
     config JSONB
 );
 
--- Table for Escalation Events (logs when an escalation occurs)
+-- Table for Escalation Events
 CREATE TABLE escalation_events (
     id SERIAL PRIMARY KEY,
     process_id VARCHAR(255) NOT NULL REFERENCES processes(id),
