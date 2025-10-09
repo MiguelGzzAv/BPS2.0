@@ -9,15 +9,21 @@ export const AuthProvider = ({ children }) => {
     const [actionPermissions, setActionPermissions] = useState({});
     const [maintenanceStatus, setMaintenanceStatus] = useState({});
 
+    // This function can be called before a user is logged in.
+    // It should use a standard fetch call that does not require authentication.
     const loadMaintenanceStatus = async () => {
         try {
-            const res = await fetchWithAuth('/api/maintenance');
+            // Use standard fetch because this endpoint is now public
+            const res = await fetch('/api/maintenance');
             if (res.ok) {
                 const data = await res.json();
                 setMaintenanceStatus(data);
+            } else {
+                // Don't throw an error that stops the app, just log it.
+                console.error("Could not load maintenance status:", res.statusText);
             }
         } catch (error) {
-            console.error("Failed to load maintenance status:", error);
+            console.error("Failed to fetch maintenance status:", error);
         }
     };
 
@@ -28,25 +34,17 @@ export const AuthProvider = ({ children }) => {
             return;
         }
 
-        // If the user is a superadmin, they don't belong to a specific company's permission set
-        // but have global permissions. Their permissions are fetched from the role-permissions endpoint.
         if (currentUser.is_superadmin) {
-            // For superadmin, we can grant all page permissions on the frontend for simplicity,
-            // as the backend is the ultimate guard.
             const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection', 'configuration', 'groups', 'messaging']);
             setPagePermissions(allPages);
         }
 
         try {
-            // Fetch both page and role permissions concurrently.
             const [pagePermsRes, rolePermsRes] = await Promise.all([
-                // Page permissions are tied to groups, which superadmin might not have.
                 currentUser.is_superadmin ? Promise.resolve(null) : fetchWithAuth(`/api/permissions?companyId=${companyId}`),
-                // Role permissions are fetched for the user's role_id.
                 fetchWithAuth(`/api/role-permissions?companyId=${companyId}`)
             ]);
 
-            // Handle Page Permissions
             if (pagePermsRes) {
                 if (!pagePermsRes.ok) throw new Error('Failed to fetch page permissions.');
                 const companyPagePermissions = await pagePermsRes.json();
@@ -56,22 +54,16 @@ export const AuthProvider = ({ children }) => {
                     const groupPermissions = companyPagePermissions[String(groupId)] || [];
                     groupPermissions.forEach(page => allowedPages.add(page));
                 });
-                allowedPages.add('selection'); // All users can see the selection page
+                allowedPages.add('selection');
                 setPagePermissions(allowedPages);
             }
 
-
-            // Handle Action (CRUD) Permissions
             if (!rolePermsRes.ok) throw new Error('Failed to fetch role permissions.');
             const companyRolePermissions = await rolePermsRes.json();
-
-            // Set the action permissions based on the current user's role_id.
-            // The new user object from the login API contains `role_id`.
             setActionPermissions(companyRolePermissions[currentUser.role_id] || {});
 
         } catch (error) {
             console.error("Failed to load permissions:", error);
-            // On failure, default to minimal permissions.
             setPagePermissions(new Set(['selection']));
             setActionPermissions({});
         }
@@ -79,15 +71,12 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const initAuth = async () => {
-            // Fetch maintenance status on initial load
             await loadMaintenanceStatus();
-
             const storedUserJSON = localStorage.getItem('user');
             if (storedUserJSON) {
                 const storedUser = JSON.parse(storedUserJSON);
                 setUser(storedUser);
                 const storedCompanyId = sessionStorage.getItem('selectedCompanyId');
-                // Load permissions if a company was previously selected.
                 if (storedCompanyId) {
                     await loadAllPermissions(storedUser, storedCompanyId);
                 }
@@ -99,7 +88,6 @@ export const AuthProvider = ({ children }) => {
     const login = (userData) => {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
-        // Reset permissions on login; they will be loaded upon company selection.
         setPagePermissions(new Set());
         setActionPermissions({});
     };
@@ -116,16 +104,11 @@ export const AuthProvider = ({ children }) => {
     const selectCompany = async (companyId, companyName) => {
         sessionStorage.setItem('selectedCompanyId', companyId);
         sessionStorage.setItem('selectedCompanyName', companyName);
-        // Load all permissions for the newly selected company.
         await loadAllPermissions(user, companyId);
     };
 
-    // The 'can' function now relies solely on the actionPermissions state.
-    // The special check for superadmin is removed, simplifying the logic.
     const can = (resource, action) => {
-        // If the user is a superadmin, always return true.
         if (user?.is_superadmin) return true;
-        // Otherwise, check the permissions object.
         return actionPermissions[resource]?.[action] === true;
     };
 
@@ -135,10 +118,10 @@ export const AuthProvider = ({ children }) => {
         logout,
         selectCompany,
         pagePermissions,
-        can, // Expose the 'can' function
+        can,
         isAuthenticated: !!user,
         maintenanceStatus,
-        loadMaintenanceStatus, // Expose the function to reload status if needed
+        loadMaintenanceStatus,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

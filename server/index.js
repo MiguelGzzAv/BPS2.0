@@ -3,6 +3,9 @@ const express = require('express');
 const path = require('path');
 const db = require('./db');
 const seed = require('./seed');
+
+// --- Middleware Imports ---
+const authAndAuthzMiddleware = require('./middleware/auth');
 const checkPermission = require('./middleware/checkPermission');
 
 // --- Route Imports ---
@@ -28,65 +31,16 @@ const port = 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// --- Authentication & Authorization Middleware ---
-const authAndAuthzMiddleware = async (req, res, next) => {
-  const userId = req.headers['x-user-id'];
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required. Please provide x-user-id header.' });
-  }
-
-  try {
-    // Join with roles to get role_name and determine if the user is a superadmin in a single query
-    const query = `
-      SELECT
-        u.*,
-        u.company_id AS "companyId",
-        r.name AS role_name,
-        (r.name = 'superadmin' AND r.is_system_role = true) AS is_superadmin
-      FROM users u
-      LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.id = $1
-    `;
-    const { rows } = await db.query(query, [userId]);
-    const user = rows[0];
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid user.' });
-    }
-
-    req.user = user; // Attach the user object (with role_name and is_superadmin) to the request
-
-    // If the user is a superadmin, they have universal access and bypass further checks
-    if (user.is_superadmin) {
-      return next();
-    }
-
-    // For non-superadmins, verify they are not accessing another company's data
-    let requestedCompanyId = req.query.companyId;
-    if (req.method !== 'GET' && req.body && req.body.companyId) {
-        requestedCompanyId = requestedCompanyId || req.body.companyId;
-    }
-
-    if (requestedCompanyId && parseInt(requestedCompanyId) !== user.companyId) {
-      return res.status(403).json({ error: "Forbidden: You cannot access another company's data." });
-    }
-
-    // The old, hardcoded role logic is now removed.
-    // Specific permissions will be checked by the `checkPermission` middleware on each route.
-    next();
-  } catch (error) {
-      console.error('Auth middleware error:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
-  }
-};
-
 // --- API Routes ---
-// The `authAndAuthzMiddleware` is applied to all routes to ensure the user is authenticated.
+// The `authAndAuthzMiddleware` is applied to all protected routes.
 // The `checkPermission` middleware is then applied to specific resource routes to enforce CRUD permissions.
 
+// Maintenance route is handled separately to allow public GET
+app.use('/api/maintenance', maintenanceRoutes);
+
 // Unprotected or lightly protected routes
-app.use('/api/companies', authAndAuthzMiddleware, companyRoutes); // Often just needs auth, not granular permissions
-app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes); // Permissions might be handled inside controllers
+app.use('/api/companies', authAndAuthzMiddleware, companyRoutes);
+app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
 
 // Granular permission-protected routes
 app.use('/api/processes', authAndAuthzMiddleware, checkPermission('processes'), processRoutes);
@@ -94,14 +48,9 @@ app.use('/api/users', authAndAuthzMiddleware, checkPermission('users'), userRout
 app.use('/api/groups', authAndAuthzMiddleware, checkPermission('groups'), groupRoutes);
 app.use('/api/escalations', authAndAuthzMiddleware, checkPermission('escalations'), escalationRoutes);
 app.use('/api/registrations', authAndAuthzMiddleware, checkPermission('registrations'), registrationRoutes);
-
-// Configuration and Permissions routes - these should probably be restricted to superadmins
-// or users with specific 'configuration' permissions. For now, we protect them generally.
-// A 'configuration' resource could be added to role_permissions for more granular control.
 app.use('/api/permissions', authAndAuthzMiddleware, checkPermission('permissions'), permissionsRoutes);
 app.use('/api/role-permissions', authAndAuthzMiddleware, checkPermission('role-permissions'), rolePermissionsRoutes);
 app.use('/api/roles', authAndAuthzMiddleware, checkPermission('roles'), roleRoutes);
-app.use('/api/maintenance', authAndAuthzMiddleware, checkPermission('maintenance'), maintenanceRoutes);
 app.use('/api/messaging', authAndAuthzMiddleware, checkPermission('messaging'), messagingRoutes);
 app.use('/api/database', authAndAuthzMiddleware, checkPermission('database'), databaseRoutes);
 app.use('/api/configuration', authAndAuthzMiddleware, checkPermission('configuration'), configurationRoutes);
@@ -166,6 +115,7 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
     if (process.env.NODE_ENV !== 'production') {
         console.log('Running in development mode. Seeding database...');
+        const seed = require('./seed');
         await seed();
     }
 
