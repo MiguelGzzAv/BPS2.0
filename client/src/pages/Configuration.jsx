@@ -3,6 +3,92 @@ import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { fetchWithAuth } from '../api';
 
+function DatabaseConnectionSettings() {
+    const [dbStatus, setDbStatus] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchDbStatus = async () => {
+            try {
+                setIsLoading(true);
+                const response = await fetchWithAuth('/api/database/status');
+                const data = await response.json();
+                setDbStatus(data);
+                if (!response.ok) {
+                    setError(data.error || 'Failed to connect to the database.');
+                } else {
+                    setError(null);
+                }
+            } catch (err) {
+                setError('An unexpected network error occurred while fetching the status.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchDbStatus();
+    }, []);
+
+    if (isLoading) {
+        return <p>Checking database connection...</p>;
+    }
+
+    if (!dbStatus) {
+        return <div className="alert alert-danger">Error: {error}</div>;
+    }
+
+    const config = dbStatus.connected ? dbStatus : dbStatus.details;
+
+    return (
+        <div>
+            <h4>Database Connection</h4>
+            <p>Live status of the database connection configured for the application.</p>
+
+            <div className="mt-3">
+                <div className="mb-3">
+                    <strong>Status: </strong>
+                    {dbStatus.connected ? (
+                        <span className="badge bg-success fs-6">Connected</span>
+                    ) : (
+                        <span className="badge bg-danger fs-6">Disconnected</span>
+                    )}
+                </div>
+
+                {!dbStatus.connected && (
+                    <div className="alert alert-warning">
+                        <p className="mb-0"><strong>Error:</strong> {error || 'Could not connect to the database.'} Please check the server logs and ensure the database container is running correctly.</p>
+                    </div>
+                )}
+
+                <div className="row mt-4">
+                    <div className="col-md-6">
+                        <h5>Configuration Details</h5>
+                        <p className="text-muted small">These values are read from the environment variables on the server.</p>
+                        <form>
+                            <div className="mb-3">
+                                <label htmlFor="db-host" className="form-label">Host</label>
+                                <input type="text" id="db-host" className="form-control" value={config?.host || 'N/A'} disabled />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="db-port" className="form-label">Port</label>
+                                <input type="text" id="db-port" className="form-control" value={config?.port || 'N/A'} disabled />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="db-user" className="form-label">Username</label>
+                                <input type="text" id="db-user" className="form-control" value={config?.user || 'N/A'} disabled />
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="db-name" className="form-label">Database Name</label>
+                                <input type="text" id="db-name" className="form-control" value={config?.database || 'N/A'} disabled />
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function MaintenanceModeSettings() {
     const [status, setStatus] = useState({});
     const [isLoading, setIsLoading] = useState(true);
@@ -139,32 +225,7 @@ function Configuration() {
                     </div>
                 </div>
                 <div className="tab-pane fade" id="db-connection" role="tabpanel" aria-labelledby="db-connection-tab">
-                    <h4>Database Connection</h4>
-                    <p>Manage database connection details. (This is a visual placeholder and is not functional).</p>
-                    <div className="row">
-                        <div className="col-md-6">
-                            <form>
-                                <div className="mb-3">
-                                    <label htmlFor="db-host" className="form-label">Host</label>
-                                    <input type="text" id="db-host" className="form-control" value="localhost" disabled />
-                                </div>
-                                <div className="mb-3">
-                                    <label htmlFor="db-port" className="form-label">Port</label>
-                                    <input type="text" id="db-port" className="form-control" value="5432" disabled />
-                                </div>
-                                <div className="mb-3">
-                                    <label htmlFor="db-user" className="form-label">Username</label>
-                                    <input type="text" id="db-user" className="form-control" value="admin" disabled />
-                                </div>
-                                <div className="mb-3">
-                                    <label htmlFor="db-pass" className="form-label">Password</label>
-                                    <input type="password" id="db-pass" className="form-control" value="********" disabled />
-                                </div>
-                                <button type="submit" className="btn btn-primary me-2" disabled>Save Connection</button>
-                                <button type="button" className="btn btn-secondary" disabled>Test Connection</button>
-                            </form>
-                        </div>
-                    </div>
+                    <DatabaseConnectionSettings />
                 </div>
                 <div className="tab-pane fade" id="maintenance" role="tabpanel" aria-labelledby="maintenance-tab">
                     <MaintenanceModeSettings />
