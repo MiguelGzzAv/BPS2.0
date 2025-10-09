@@ -6,28 +6,39 @@ import { fetchWithAuth } from '../api';
 function DatabaseConnectionSettings() {
     const [dbStatus, setDbStatus] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isTesting, setIsTesting] = useState(false);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        const fetchDbStatus = async () => {
-            try {
-                setIsLoading(true);
-                const response = await fetchWithAuth('/api/database/status');
-                const data = await response.json();
-                setDbStatus(data);
-                if (!response.ok) {
-                    setError(data.error || 'Failed to connect to the database.');
-                } else {
-                    setError(null);
-                }
-            } catch (err) {
-                setError('An unexpected network error occurred while fetching the status.');
-            } finally {
-                setIsLoading(false);
+    const fetchDbStatus = async () => {
+        try {
+            const response = await fetchWithAuth('/api/database/status');
+            const data = await response.json();
+            setDbStatus(data);
+            if (!response.ok) {
+                setError(data.error || 'Failed to connect to the database.');
+            } else {
+                setError(null);
             }
+        } catch (err) {
+            setError('An unexpected network error occurred while fetching the status.');
+            setDbStatus(null); // Clear previous status on network error
+        }
+    };
+
+    useEffect(() => {
+        const initialFetch = async () => {
+            setIsLoading(true);
+            await fetchDbStatus();
+            setIsLoading(false);
         };
-        fetchDbStatus();
+        initialFetch();
     }, []);
+
+    const handleTestConnection = async () => {
+        setIsTesting(true);
+        await fetchDbStatus();
+        setIsTesting(false);
+    };
 
     if (isLoading) {
         return <p>Checking database connection...</p>;
@@ -45,13 +56,20 @@ function DatabaseConnectionSettings() {
             <p>Live status of the database connection configured for the application.</p>
 
             <div className="mt-3">
-                <div className="mb-3">
-                    <strong>Status: </strong>
+                <div className="mb-3 d-flex align-items-center">
+                    <strong className="me-2">Status:</strong>
                     {dbStatus.connected ? (
                         <span className="badge bg-success fs-6">Connected</span>
                     ) : (
                         <span className="badge bg-danger fs-6">Disconnected</span>
                     )}
+                    <button
+                        className="btn btn-sm btn-secondary ms-3"
+                        onClick={handleTestConnection}
+                        disabled={isTesting}
+                    >
+                        {isTesting ? 'Testing...' : 'Test Connection Again'}
+                    </button>
                 </div>
 
                 {!dbStatus.connected && (
