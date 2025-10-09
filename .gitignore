@@ -11,3 +11,8 @@ node_modules/
 
 # Jules scratchpad
 jules-scratch/
+
+# Environment variables
+.env
+.env.*
+!.env.example
