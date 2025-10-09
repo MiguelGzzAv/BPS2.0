@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const db = require('./db');
+const db = require('./db'); // db.js now exposes an initialization function
 
 // --- Middleware Imports ---
 const authAndAuthzMiddleware = require('./middleware/auth');
@@ -51,7 +51,6 @@ app.use('/api/configuration', authAndAuthzMiddleware, checkPermission('configura
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-    // The user table now contains the is_superadmin flag directly.
     const userResult = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
 
     if (userResult.rows.length > 0) {
@@ -59,16 +58,12 @@ app.post('/api/login', async (req, res) => {
         const userToSend = { ...user };
         delete userToSend.password;
 
-        // If the user is not a superadmin and has a role, fetch the role name.
         if (!user.is_superadmin && user.role_id) {
             const roleResult = await db.query('SELECT name FROM roles WHERE id = $1', [user.role_id]);
             if (roleResult.rows.length > 0) {
                 userToSend.role_name = roleResult.rows[0].name;
             }
         }
-
-        // The is_superadmin flag is already on the userToSend object from the initial query.
-        // No need to calculate it.
 
         if (user.company_id) {
             const companyResult = await db.query('SELECT name FROM companies WHERE id = $1', [user.company_id]);
@@ -106,16 +101,20 @@ app.use((err, req, res, next) => {
 
 // --- Server Start ---
 const startServer = async () => {
-    console.log('Initializing and seeding database...');
-    const seed = require('./seed');
-    await seed();
+    try {
+        // First, ensure the database is fully initialized and ready.
+        await db.ensureInitialized();
 
-    app.listen(port, () => {
-        console.log(`Server listening at http://localhost:${port}`);
-    });
+        // Only after the database is ready, start listening for HTTP requests.
+        app.listen(port, () => {
+            console.log(`Server listening at http://localhost:${port}`);
+            console.log('The application is now ready.');
+        });
+    } catch (error) {
+        console.error('--- FATAL: FAILED TO START SERVER ---', error);
+        process.exit(1);
+    }
 };
 
-startServer().catch(err => {
-    console.error('Failed to start server:', err);
-    process.exit(1);
-});
+// Start the server.
+startServer();
