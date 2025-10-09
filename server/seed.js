@@ -43,7 +43,46 @@ async function seed(client) {
         }
         console.log('[Seeding] Groups seeded.');
 
-        // 5. Seed Role Permissions
+        // 5. Seed Processes and related tables
+        for (const companyId in mockData.processesByCompany) {
+            for (const process of mockData.processesByCompany[companyId]) {
+                await query(
+                    'INSERT INTO processes (id, company_id, name, criticidad, start_time, end_time, frequency, days, mode) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
+                    [process.id, parseInt(companyId), process.name, process.criticidad, process.startTime, process.endTime, process.frequency, process.days, process.mode]
+                );
+
+                if (process.internalPhases) {
+                    for (const [phaseIndex, phase] of process.internalPhases.entries()) {
+                        const phaseResult = await query(
+                            'INSERT INTO internal_phases (process_id, name, phase_order) VALUES ($1, $2, $3) RETURNING id',
+                            [process.id, phase.name, phaseIndex]
+                        );
+                        const phaseId = phaseResult.rows[0].id;
+
+                        if (phase.fields) {
+                            for (const [fieldIndex, field] of phase.fields.entries()) {
+                                await query(
+                                    'INSERT INTO phase_fields (phase_id, name, type, field_order) VALUES ($1, $2, $3, $4)',
+                                    [phaseId, field.name, field.type, fieldIndex]
+                                );
+                            }
+                        }
+                    }
+                }
+
+                if (process.childProcesses) {
+                    for (const child of process.childProcesses) {
+                        await query(
+                            'INSERT INTO process_dependencies (parent_process_id, child_process_id, dependency) VALUES ($1, $2, $3) ON CONFLICT (parent_process_id, child_process_id) DO NOTHING',
+                            [process.id, child.id, child.dependency]
+                        );
+                    }
+                }
+            }
+        }
+        console.log('[Seeding] Processes, phases, and dependencies seeded.');
+
+        // 6. Seed Role Permissions
         for (const roleId in mockData.rolePermissions) {
             for (const resource in mockData.rolePermissions[roleId]) {
                 const permissions = mockData.rolePermissions[roleId][resource];
@@ -55,7 +94,7 @@ async function seed(client) {
         }
         console.log('[Seeding] Role permissions seeded.');
 
-        // 6. Seed Maintenance Status
+        // 7. Seed Maintenance Status
         for (const page in mockData.maintenanceStatus) {
             await query(
                 'INSERT INTO maintenance_status (page, is_under_maintenance) VALUES ($1, $2) ON CONFLICT (page) DO NOTHING',
