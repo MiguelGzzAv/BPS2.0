@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const db = require('./db');
-const seed = require('./seed');
 
 // --- Middleware Imports ---
 const authAndAuthzMiddleware = require('./middleware/auth');
@@ -32,17 +31,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // --- API Routes ---
-// The `authAndAuthzMiddleware` is applied to all protected routes.
-// The `checkPermission` middleware is then applied to specific resource routes to enforce CRUD permissions.
-
-// Maintenance route is handled separately to allow public GET
 app.use('/api/maintenance', maintenanceRoutes);
-
-// Unprotected or lightly protected routes
 app.use('/api/companies', authAndAuthzMiddleware, companyRoutes);
 app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
-
-// Granular permission-protected routes
 app.use('/api/processes', authAndAuthzMiddleware, checkPermission('processes'), processRoutes);
 app.use('/api/users', authAndAuthzMiddleware, checkPermission('users'), userRoutes);
 app.use('/api/groups', authAndAuthzMiddleware, checkPermission('groups'), groupRoutes);
@@ -67,7 +58,6 @@ app.post('/api/login', async (req, res) => {
         const userToSend = { ...user };
         delete userToSend.password;
 
-        // Fetch role name and check for superadmin status
         if (user.role_id) {
             const roleResult = await db.query('SELECT name, is_system_role FROM roles WHERE id = $1', [user.role_id]);
             if (roleResult.rows.length > 0) {
@@ -113,11 +103,11 @@ app.use((err, req, res, next) => {
 
 // --- Server Start ---
 const startServer = async () => {
-    if (process.env.NODE_ENV !== 'production') {
-        console.log('Running in development mode. Seeding database...');
-        const seed = require('./seed');
-        await seed();
-    }
+    // Always seed the database on startup for this development environment
+    // to ensure the schema is correctly initialized every time.
+    console.log('Initializing and seeding database...');
+    const seed = require('./seed');
+    await seed();
 
     app.listen(port, () => {
         console.log(`Server listening at http://localhost:${port}`);
