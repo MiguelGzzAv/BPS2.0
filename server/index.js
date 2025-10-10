@@ -52,6 +52,14 @@ const authAndAuthzMiddleware = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid user.' });
     }
 
+    // We need to fetch the role name for the user
+    if (user.role_id) {
+        const roleResult = await db.query('SELECT name FROM roles WHERE id = $1', [user.role_id]);
+        if (roleResult.rows.length > 0) {
+            user.role = roleResult.rows[0].name;
+        }
+    }
+
     req.user = user;
 
     if (user.role === 'superadmin') return next();
@@ -118,6 +126,15 @@ app.post('/api/login', async (req, res) => {
 
     if (userResult.rows.length > 0) {
         const user = userResult.rows[0];
+
+        // Fetch the role name
+        if (user.role_id) {
+            const roleResult = await db.query('SELECT name FROM roles WHERE id = $1', [user.role_id]);
+            if (roleResult.rows.length > 0) {
+                user.role = roleResult.rows[0].name;
+            }
+        }
+
         const userToSend = { ...user };
         delete userToSend.password;
 
