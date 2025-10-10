@@ -9,22 +9,22 @@ const db = require('../db');
  * @param {string|number} companyId - The ID of the company to check permissions for.
  * @returns {Promise<boolean>} - True if the user has permission, false otherwise.
  */
-const hasPermission = async (userRole, resource, action, roleId) => {
-    // Superadmins and admins have all permissions implicitly.
-    if (userRole === 'superadmin' || userRole === 'admin') {
+const hasPermission = async (role, resource, action, companyId) => {
+    // Superadmins have all permissions implicitly.
+    if (role === 'superadmin') {
         return true;
     }
 
-    if (!roleId) {
-        return false; // Cannot check permissions without a role context.
+    if (!companyId) {
+        return false; // Cannot check permissions without a company context.
     }
 
     try {
         const query = `
             SELECT "${action}" FROM role_permissions
-            WHERE role_id = $1 AND resource = $2
+            WHERE company_id = $1 AND role = $2 AND resource = $3
         `;
-        const params = [roleId, resource];
+        const params = [companyId, role, resource];
         const { rows } = await db.query(query, params);
 
         if (rows.length === 0) {

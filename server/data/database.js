@@ -53,16 +53,6 @@ const processesByCompany = {
     ],
     '2': []
 };
-const roles = [
-    { name: 'admin', companyId: 1, isSystemRole: false },
-    { name: 'operator', companyId: 1, isSystemRole: false },
-    { name: 'reader', companyId: 1, isSystemRole: false },
-    { name: 'admin', companyId: 2, isSystemRole: false },
-    { name: 'operator', companyId: 2, isSystemRole: false },
-    { name: 'reader', companyId: 2, isSystemRole: false },
-    { name: 'admin', isSystemRole: true }, // For general admin
-];
-
 const users = [
     { id: 1, name: 'Super Admin', username: 'superadmin', password: 'password123', role: 'superadmin' },
     { id: 2, name: 'Admin Banorte', username: 'admin_banorte', password: 'password123', role: 'admin', companyId: 1, groupIds: [1] },
@@ -82,8 +72,8 @@ const registrationsByCompany = {};
 const escalationsByCompany = {};
 const permissionsByCompany = {
     '1': {
-        // Granting full page access to the Administrators group
-        '1': ['dashboard', 'users', 'groups', 'processes', 'monitoring', 'escalation', 'permissions', 'messaging', 'maintenance']
+        // Example: Group with ID 1 can access dashboard and users pages
+        '1': ['dashboard', 'users']
     }
 };
 
@@ -120,7 +110,6 @@ const globalMessages = [];
 
 module.exports = {
     companies,
-    roles,
     processesByCompany,
     users,
     groupsByCompany,

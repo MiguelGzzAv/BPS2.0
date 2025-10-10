@@ -1,49 +1,65 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
-import MainLayout from './components/MainLayout';
-import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Selection from './pages/Selection';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Processes from './pages/Processes';
+import Groups from './pages/Groups';
 import Monitoring from './pages/Monitoring';
 import Escalation from './pages/Escalation';
+import Profile from './pages/Profile';
 import Configuration from './pages/Configuration';
-import Messaging from './pages/Messaging';
-import RolePermissionsManagement from './components/RolePermissionsManagement'; // Corrected path
 import Maintenance from './pages/Maintenance';
-
-// A wrapper to handle maintenance mode for each page
-const MaintenanceWrapper = ({ children, pageName }) => {
-    const { maintenanceStatus } = useAuth();
-    if (maintenanceStatus[pageName]) {
-        return <Maintenance pageName={pageName} />;
-    }
-    return children;
-};
+import Messaging from './pages/Messaging';
+import ProtectedRoute from './components/ProtectedRoute';
+import { useAuth } from './contexts/AuthContext';
+import './App.css';
 
 function App() {
-    return (
-        <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="dashboard" element={<MaintenanceWrapper pageName="dashboard"><Dashboard /></MaintenanceWrapper>} />
-                <Route path="selection" element={<Selection />} />
-                <Route path="users" element={<MaintenanceWrapper pageName="users"><Users /></MaintenanceWrapper>} />
-                <Route path="processes" element={<MaintenanceWrapper pageName="processes"><Processes /></MaintenanceWrapper>} />
-                <Route path="monitoring" element={<MaintenanceWrapper pageName="monitoring"><Monitoring /></MaintenanceWrapper>} />
-                <Route path="escalation" element={<MaintenanceWrapper pageName="escalation"><Escalation /></MaintenanceWrapper>} />
-                <Route path="configuration" element={<Configuration />} />
-                <Route path="messaging" element={<Messaging />} />
-                {/* Example of a route that might be part of the configuration page */}
-                <Route path="configuration/role-permissions" element={<RolePermissionsManagement />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-    );
+  const { isAuthenticated, user, maintenanceStatus } = useAuth();
+
+  // A wrapper to protect routes with maintenance mode
+  const MaintenanceWrapper = ({ pageName, children }) => {
+    // Superadmin can always access pages, even in maintenance mode
+    if (user?.role !== 'superadmin' && maintenanceStatus[pageName]) {
+      return <Maintenance />;
+    }
+    return children;
+  };
+
+  return (
+    <Routes>
+      {/* If the user is authenticated and tries to go to /login, redirect them to the selection page */}
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/selection" replace /> : <Login />}
+      />
+
+      {/* All routes inside ProtectedRoute require authentication */}
+      <Route element={<ProtectedRoute />}>
+        {/* These pages are not under maintenance mode */}
+        <Route path="/selection" element={<Selection />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/configuration" element={<Configuration />} />
+        <Route path="/messaging" element={<Messaging />} />
+
+        {/* These pages can be under maintenance */}
+        <Route path="/dashboard" element={<MaintenanceWrapper pageName="dashboard"><Dashboard /></MaintenanceWrapper>} />
+        <Route path="/users" element={<MaintenanceWrapper pageName="users"><Users /></MaintenanceWrapper>} />
+        <Route path="/processes" element={<MaintenanceWrapper pageName="processes"><Processes /></MaintenanceWrapper>} />
+        <Route path="/groups" element={<MaintenanceWrapper pageName="groups"><Groups /></MaintenanceWrapper>} />
+        <Route path="/monitoring" element={<MaintenanceWrapper pageName="monitoring"><Monitoring /></MaintenanceWrapper>} />
+        <Route path="/escalation" element={<MaintenanceWrapper pageName="escalation"><Escalation /></MaintenanceWrapper>} />
+      </Route>
+
+      {/* Default route handler */}
+      <Route
+        path="*"
+        element={<Navigate to={isAuthenticated ? "/selection" : "/login"} replace />}
+      />
+    </Routes>
+  );
 }
 
 export default App;

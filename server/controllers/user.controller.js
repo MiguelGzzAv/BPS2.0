@@ -13,14 +13,14 @@ const getUsers = async (req, res) => {
         const params = [];
         if (req.user.role === 'superadmin' && !req.query.companyId) {
             query = `
-                SELECT u.id, u.name, u.username, r.name AS role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName", u.role_id as "roleId"
+                SELECT u.id, u.name, u.username, r.name AS role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
                 FROM users u
                 LEFT JOIN companies c ON u.company_id = c.id
                 LEFT JOIN roles r ON u.role_id = r.id
             `;
         } else {
             query = `
-                SELECT u.id, u.name, u.username, r.name AS role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName", u.role_id as "roleId"
+                SELECT u.id, u.name, u.username, r.name AS role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
                 FROM users u
                 LEFT JOIN companies c ON u.company_id = c.id
                 LEFT JOIN roles r ON u.role_id = r.id
@@ -55,20 +55,20 @@ const createUser = async (req, res) => {
             return res.status(403).json({ error: 'Forbidden: You do not have permission to create users.' });
         }
 
-        if (!newUser.username || !newUser.name || !newUser.roleId || !newUser.password) {
-            return res.status(400).json({ error: 'Username, name, password, and roleId are required' });
+        if (!newUser.username || !newUser.name || !newUser.role || !newUser.password) {
+            return res.status(400).json({ error: 'Username, name, password, and role are required' });
         }
 
         const query = `
-            INSERT INTO users (name, username, password, role_id, company_id, group_ids)
+            INSERT INTO users (name, username, password, role, company_id, group_ids)
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, name, username, role_id AS "roleId", company_id AS "companyId", group_ids AS "groupIds"
+            RETURNING id, name, username, role, company_id AS "companyId", group_ids AS "groupIds"
         `;
         const params = [
             newUser.name,
             newUser.username,
             newUser.password, // In a real app, hash this password!
-            newUser.roleId,
+            newUser.role,
             companyIdForNewUser,
             newUser.groupIds || []
         ];
@@ -99,7 +99,7 @@ const updateUser = async (req, res) => {
         }
 
         // Prevent role escalation by non-superadmins
-        if (updates.roleId && updates.roleId !== userToUpdate.role_id && req.user.role !== 'superadmin') {
+        if (updates.role && updates.role !== userToUpdate.role && req.user.role !== 'superadmin') {
            return res.status(403).json({ error: 'Forbidden: You do not have permission to change user roles.'});
         }
 
@@ -111,7 +111,7 @@ const updateUser = async (req, res) => {
         const fieldMapping = {
             name: 'name',
             username: 'username',
-            roleId: 'role_id',
+            role: 'role',
             companyId: 'company_id',
             groupIds: 'group_ids',
             password: 'password'
@@ -144,16 +144,11 @@ const updateUser = async (req, res) => {
             UPDATE users
             SET ${queryParts.join(', ')}
             WHERE id = $${paramIndex}
-            RETURNING id, name, username, role_id AS "roleId", company_id AS "companyId", group_ids AS "groupIds"
+            RETURNING id, name, username, role, company_id AS "companyId", group_ids AS "groupIds"
         `;
 
         const { rows } = await db.query(query, queryParams);
-
-        // Fetch the role name to return it along with the updated user
-        const roleResult = await db.query('SELECT name FROM roles WHERE id = $1', [rows[0].roleId]);
-        const roleName = roleResult.rows.length > 0 ? roleResult.rows[0].name : null;
-
-        res.json({ ...rows[0], role: roleName });
+        res.json(rows[0]);
 
     } catch (error) {
         console.error('Error updating user:', error);
