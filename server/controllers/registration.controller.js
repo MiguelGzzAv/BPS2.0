@@ -51,12 +51,6 @@ const createRegistration = async (req, res) => {
             return res.status(400).json({ error: "A valid 'Responsable' must be selected to create a registration." });
         }
 
-        // The superadmin (ID 0) cannot be the author of a registration because they don't exist in the 'users' table.
-        // This check prevents a foreign key violation if the superadmin is logged in and no valid 'responsable' is chosen.
-        if (userIdToRegister === 0) {
-            return res.status(400).json({ error: "A valid 'Responsable' must be selected to create a registration." });
-        }
-
         const query = `
             INSERT INTO registrations (company_id, process_id, user_id, "timestamp", "values", phase)
             VALUES ($1, $2, $3, $4, $5, $6)
