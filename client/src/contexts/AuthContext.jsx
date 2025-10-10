@@ -76,13 +76,12 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const initAuth = async () => {
-            // Fetch maintenance status on initial load
-            await loadMaintenanceStatus();
-
             const storedUserJSON = localStorage.getItem('user');
             if (storedUserJSON) {
+                // If user is already logged in, load everything
                 const storedUser = JSON.parse(storedUserJSON);
                 setUser(storedUser);
+                await loadMaintenanceStatus(); // Load status for logged-in user
                 const storedCompanyId = sessionStorage.getItem('selectedCompanyId');
                 if (storedCompanyId) {
                     await loadAllPermissions(storedUser, storedCompanyId);
@@ -92,9 +91,11 @@ export const AuthProvider = ({ children }) => {
         initAuth();
     }, []);
 
-    const login = (userData) => {
+    const login = async (userData) => {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
+        // After a successful login, load the maintenance status
+        await loadMaintenanceStatus();
         setPagePermissions(new Set());
         setActionPermissions({});
     };
