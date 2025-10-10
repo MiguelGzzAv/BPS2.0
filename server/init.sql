@@ -1,5 +1,5 @@
 -- Drop tables if they exist to ensure a clean slate
-DROP TABLE IF EXISTS process_dependencies, phase_fields, internal_phases, processes, permissions, role_permissions, roles, groups, users, companies, registrations, escalations, maintenance_status, global_messages CASCADE;
+DROP TABLE IF EXISTS process_dependencies, phase_fields, internal_phases, processes, role_permissions, roles, groups, users, companies, registrations, escalations, maintenance_status, global_messages CASCADE;
 
 -- Table for Companies
 CREATE TABLE companies (
@@ -88,6 +88,7 @@ CREATE TABLE role_permissions (
     "read" BOOLEAN DEFAULT false,
     "update" BOOLEAN DEFAULT false,
     "delete" BOOLEAN DEFAULT false,
+    pages TEXT[] DEFAULT '{}',
     UNIQUE (role_id, resource)
 );
 

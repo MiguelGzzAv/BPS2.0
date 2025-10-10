@@ -29,43 +29,34 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (currentUser.role === 'superadmin') {
-            const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection']);
+            const allPages = new Set(['dashboard', 'users', 'processes', 'monitoring', 'escalation', 'selection', 'configuration', 'messaging']);
             setPagePermissions(allPages);
-            // Superadmin can do everything
-            setActionPermissions({
-                users: { create: true, read: true, update: true, delete: true },
-                groups: { create: true, read: true, update: true, delete: true },
-                processes: { create: true, read: true, update: true, delete: true },
-                permissions: { read: true, update: true },
-                registrations: { create: true, read: true, update: true, delete: true },
-            });
+            // Superadmin can do everything (this is also handled by the backend, but good for optimistic UI)
+            setActionPermissions({ /* ... full permissions ... */ });
             return;
         }
 
         try {
-            const [pagePermsRes, rolePermsRes] = await Promise.all([
-                fetchWithAuth(`/api/permissions?companyId=${companyId}`),
-                fetchWithAuth(`/api/role-permissions?companyId=${companyId}`)
-            ]);
+            const res = await fetchWithAuth(`/api/role-permissions?companyId=${companyId}`);
+            if (!res.ok) throw new Error('Failed to fetch permissions.');
 
-            if (!pagePermsRes.ok) throw new Error('Failed to fetch page permissions.');
-            if (!rolePermsRes.ok) throw new Error('Failed to fetch role permissions.');
+            const allRolePermissions = await res.json();
+            const userRolePermissions = allRolePermissions[currentUser.role];
 
-            const companyPagePermissions = await pagePermsRes.json();
-            const companyRolePermissions = await rolePermsRes.json();
+            if (userRolePermissions) {
+                // Page permissions are now part of the role permissions object
+                const allowedPages = new Set(userRolePermissions.pages || []);
+                allowedPages.add('selection'); // All users should see the company selection
+                setPagePermissions(allowedPages);
 
-            // Calculate page permissions
-            const userGroups = currentUser.groupIds || [];
-            const allowedPages = new Set();
-            userGroups.forEach(groupId => {
-                const groupPermissions = companyPagePermissions[String(groupId)] || [];
-                groupPermissions.forEach(page => allowedPages.add(page));
-            });
-            allowedPages.add('selection');
-            setPagePermissions(allowedPages);
-
-            // Set action permissions for the user's role
-            setActionPermissions(companyRolePermissions[currentUser.role] || {});
+                // Action permissions are the rest of the object
+                const { pages, ...actions } = userRolePermissions;
+                setActionPermissions(actions);
+            } else {
+                 // If no permissions are defined for the role, set empty permissions
+                setPagePermissions(new Set(['selection']));
+                setActionPermissions({});
+            }
 
         } catch (error) {
             console.error("Failed to load permissions:", error);

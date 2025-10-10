@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchWithAuth } from '../api';
 
-// Define the resources and the actions that can be performed on them
 const RESOURCES = {
     users: ['create', 'read', 'update', 'delete'],
     groups: ['create', 'read', 'update', 'delete'],
@@ -11,7 +10,10 @@ const RESOURCES = {
     registrations: ['create', 'read', 'update', 'delete'],
 };
 
-// Define the roles that can be managed
+const AVAILABLE_PAGES = [
+    'dashboard', 'users', 'processes', 'monitoring', 'escalation', 'permissions', 'messaging', 'maintenance'
+];
+
 const MANAGED_ROLES = ['admin', 'operator', 'reader'];
 
 const RolePermissionsManagement = () => {
@@ -46,14 +48,26 @@ const RolePermissionsManagement = () => {
         fetchData();
     }, [fetchData]);
 
-    const handlePermissionChange = (role, resource, action) => {
+    const handleActionPermissionChange = (role, resource, action) => {
         setPermissions(prev => {
-            const newPermissions = JSON.parse(JSON.stringify(prev)); // Deep copy
-            if (!newPermissions[role]) newPermissions[role] = {};
+            const newPermissions = JSON.parse(JSON.stringify(prev));
+            if (!newPermissions[role]) newPermissions[role] = { pages: [] };
             if (!newPermissions[role][resource]) newPermissions[role][resource] = {};
-
             newPermissions[role][resource][action] = !newPermissions[role][resource][action];
+            return newPermissions;
+        });
+    };
 
+    const handlePagePermissionChange = (role, page) => {
+        setPermissions(prev => {
+            const newPermissions = JSON.parse(JSON.stringify(prev));
+            if (!newPermissions[role]) newPermissions[role] = { pages: [] };
+            const pageIndex = newPermissions[role].pages.indexOf(page);
+            if (pageIndex > -1) {
+                newPermissions[role].pages.splice(pageIndex, 1);
+            } else {
+                newPermissions[role].pages.push(page);
+            }
             return newPermissions;
         });
     };
@@ -66,7 +80,7 @@ const RolePermissionsManagement = () => {
                 method: 'POST',
                 body: {
                     companyId,
-                    ...permissions
+                    permissions,
                 },
             });
             if (!response.ok) {
@@ -89,15 +103,15 @@ const RolePermissionsManagement = () => {
     return (
         <div>
             <header className="d-flex justify-content-between align-items-center mb-4">
-                <h2>Role Action Permissions</h2>
+                <h2>Role Permissions</h2>
                 {canManage && (
                     <button className="btn btn-primary" onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? 'Saving...' : 'Save All Role Permissions'}
+                        {isSaving ? 'Saving...' : 'Save All Permissions'}
                     </button>
                 )}
             </header>
             <p className="text-muted">
-                Define what actions each role can perform on different resources. This provides granular control over user capabilities.
+                Define what actions each role can perform (API access) and which pages they are allowed to see (UI visibility).
             </p>
 
             <div className="row">
@@ -108,6 +122,26 @@ const RolePermissionsManagement = () => {
                                 <h3>{role}</h3>
                             </div>
                             <div className="card-body">
+                                {/* Page Permissions */}
+                                <h5 className="mt-2">Page Access</h5>
+                                <div className="d-flex flex-wrap border rounded p-2 mb-4">
+                                    {AVAILABLE_PAGES.map(page => (
+                                        <div key={page} className="form-check form-check-inline me-4">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                id={`page-${role}-${page}`}
+                                                checked={permissions[role]?.pages?.includes(page) || false}
+                                                onChange={() => handlePagePermissionChange(role, page)}
+                                                disabled={!canManage}
+                                            />
+                                            <label className="form-check-label text-capitalize" htmlFor={`page-${role}-${page}`}>{page}</label>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Action Permissions */}
+                                <h5 className="mt-4">Action Permissions</h5>
                                 <table className="table table-sm table-bordered">
                                     <thead>
                                         <tr>
@@ -128,7 +162,7 @@ const RolePermissionsManagement = () => {
                                                                 className="form-check-input"
                                                                 type="checkbox"
                                                                 checked={permissions[role]?.[resource]?.[action] || false}
-                                                                onChange={() => handlePermissionChange(role, resource, action)}
+                                                                onChange={() => handleActionPermissionChange(role, resource, action)}
                                                                 disabled={!canManage}
                                                             />
                                                         </div>

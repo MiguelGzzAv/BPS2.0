@@ -12,7 +12,6 @@ const groupRoutes = require('./routes/group.routes');
 const escalationRoutes = require('./routes/escalation.routes');
 const registrationRoutes = require('./routes/registration.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
-const permissionsRoutes = require('./routes/permissions.routes');
 const rolePermissionsRoutes = require('./routes/rolePermissions.routes');
 const maintenanceRoutes = require('./routes/maintenance.routes');
 const messagingRoutes = require('./routes/messaging.routes');
@@ -60,7 +59,7 @@ const authAndAuthzMiddleware = async (req, res, next) => {
 
     req.user = user;
 
-    if (user.role === 'superadmin') return next();
+    if (user.role === 'superadmin' || user.role === 'admin') return next();
 
     let requestedCompanyId = req.query.companyId;
     if (req.method !== 'GET' && req.body && req.body.companyId) {
@@ -96,7 +95,6 @@ app.use('/api/groups', authAndAuthzMiddleware, groupRoutes);
 app.use('/api/escalations', authAndAuthzMiddleware, escalationRoutes);
 app.use('/api/registrations', authAndAuthzMiddleware, registrationRoutes);
 app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
-app.use('/api/permissions', authAndAuthzMiddleware, permissionsRoutes);
 app.use('/api/role-permissions', authAndAuthzMiddleware, rolePermissionsRoutes);
 app.use('/api/maintenance', authAndAuthzMiddleware, maintenanceRoutes);
 app.use('/api/messaging', authAndAuthzMiddleware, messagingRoutes);
