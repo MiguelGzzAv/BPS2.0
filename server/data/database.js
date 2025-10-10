@@ -86,7 +86,8 @@ const rolePermissionsByCompany = {
             'users': { create: true, read: true, update: true, delete: false },
             'groups': { create: true, read: true, update: true, delete: true },
             'processes': { create: true, read: true, update: true, delete: true },
-            'permissions': { read: true, update: true }
+            'permissions': { read: true, update: true },
+            'dashboard': { read: true }
         },
         'operator': {
             'registrations': { create: true, read: true, update: false, delete: false },

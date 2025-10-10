@@ -43,33 +43,24 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            const [pagePermsRes, rolePermsRes] = await Promise.all([
-                fetchWithAuth(`/api/permissions?companyId=${companyId}`),
-                fetchWithAuth(`/api/role-permissions?companyId=${companyId}`)
-            ]);
+            const rolePermsRes = await fetchWithAuth(`/api/role-permissions?companyId=${companyId}`);
 
-            if (!pagePermsRes.ok) throw new Error('Failed to fetch page permissions.');
             if (!rolePermsRes.ok) throw new Error('Failed to fetch role permissions.');
 
-            const companyPagePermissions = await pagePermsRes.json();
             const companyRolePermissions = await rolePermsRes.json();
+            const userRolePermissions = companyRolePermissions[currentUser.role] || {};
 
-            // Calculate page permissions
-            const userGroups = currentUser.groupIds || [];
-            const allowedPages = new Set();
-            userGroups.forEach(groupId => {
-                const groupPermissions = companyPagePermissions[String(groupId)] || [];
-                groupPermissions.forEach(page => allowedPages.add(page));
-            });
-            allowedPages.add('selection');
+            // Calculate page permissions from the single source of truth
+            const allowedPages = new Set(userRolePermissions.pages || []);
+            allowedPages.add('selection'); // Ensure selection is always available
             setPagePermissions(allowedPages);
 
             // Set action permissions for the user's role
-            setActionPermissions(companyRolePermissions[currentUser.role] || {});
+            setActionPermissions(userRolePermissions || {});
 
         } catch (error) {
             console.error("Failed to load permissions:", error);
-            setPagePermissions(new Set(['selection']));
+            setPagePermissions(new Set(['selection'])); // Fallback to selection page
             setActionPermissions({});
         }
     };
