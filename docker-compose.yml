@@ -35,9 +35,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # The volume mount below is commented out to ensure the code from the image is used,
-      # preventing sync issues during development. Re-enable for hot-reloading if needed.
-      # - ./server:/usr/src/app
+      # Mount source code for hot-reloading
+      - ./server:/usr/src/app
       # Don't overwrite node_modules from the host
       - /usr/src/app/node_modules
     environment:

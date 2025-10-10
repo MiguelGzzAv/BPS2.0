@@ -30,6 +30,21 @@ const createRegistration = async (req, res) => {
             return res.status(400).json({ error: 'processId, timestamp, and values are required' });
         }
 
+        // Find the operator's user ID from the form values.
+        const operatorValue = values.find(v => v.name.toLowerCase() === 'responsable');
+        let userIdToRegister = req.user.id; // Default to the logged-in user
+
+        if (operatorValue && operatorValue.value) {
+            const userResult = await db.query('SELECT id FROM users WHERE name = $1 AND company_id = $2', [operatorValue.value, companyId]);
+            if (userResult.rows.length > 0) {
+                userIdToRegister = userResult.rows[0].id;
+            } else {
+                // If the selected operator is not found, we can either throw an error or use the logged-in user.
+                // Using the logged-in user is a safe fallback.
+                console.warn(`Operator "${operatorValue.value}" not found. Falling back to logged-in user ID ${req.user.id}.`);
+            }
+        }
+
         const query = `
             INSERT INTO registrations (company_id, process_id, user_id, "timestamp", "values", phase)
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -38,7 +53,7 @@ const createRegistration = async (req, res) => {
         const params = [
             companyId,
             processId,
-            req.user.id,
+            userIdToRegister, // Use the determined user ID
             timestamp,
             JSON.stringify(values), // Ensure values are stringified for JSONB
             phase || 'default'

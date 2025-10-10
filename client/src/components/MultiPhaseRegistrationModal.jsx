@@ -22,7 +22,7 @@ const MultiPhaseRegistrationModal = ({ show, onHide, onSave, process, allRegistr
             default:
                 inputHtml = <input type="text" id={fieldId} className="form-control form-control-sm" data-field-name={field.name} placeholder={field.name} />;
         }
-        return <div className="mb-2">{inputHtml}</div>;
+        return <div key={field.name} className="mb-2">{inputHtml}</div>;
     };
 
     const handleSavePhase = (e) => {
@@ -40,7 +40,7 @@ const MultiPhaseRegistrationModal = ({ show, onHide, onSave, process, allRegistr
 
     return (
         <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
-            <div className="modal-dialog modal-fullscreen">
+            <div className="modal-dialog modal-dialog-centered modal-xl">
                 <div className="modal-content">
                     <div className="modal-header" style={{ backgroundColor: '#0d6efd', color: 'white' }}>
                         <h5 className="modal-title">Registrar Fases: {process.name}</h5>

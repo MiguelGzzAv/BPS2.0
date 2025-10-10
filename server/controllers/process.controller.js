@@ -53,14 +53,17 @@ const getProcesses = async (req, res) => {
 
         const processesWithStatusAndLock = processes.map(p => {
             const lastRegTime = lastRegistrationMap.get(p.id);
-            const isLocked = lastRegTime ? lastRegTime > twentyFourHoursAgo : false;
+            const status = states.get(p.id) || 'sin ejecucion';
+
+            // A process is locked if it was completed ('ok') within the last 24 hours.
+            const isLocked = lastRegTime && status === 'ok' ? lastRegTime > twentyFourHoursAgo : false;
 
             return {
                 ...p,
                 // Map snake_case from DB to camelCase for consistency
                 startTime: p.start_time,
                 endTime: p.end_time,
-                status: states.get(p.id) || 'sin ejecucion',
+                status: status,
                 isLocked: isLocked,
             };
         });

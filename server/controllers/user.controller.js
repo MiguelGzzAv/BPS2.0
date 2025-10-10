@@ -3,37 +3,27 @@ const { hasPermission } = require('../utils/permissionUtils');
 
 const getUsers = async (req, res) => {
     try {
-        const baseQuery = `
-            SELECT
-                u.id,
-                u.name,
-                u.username,
-                r.name AS role,
-                u.company_id AS "companyId",
-                u.group_ids AS "groupIds",
-                c.name AS "companyName"
-            FROM users u
-            LEFT JOIN roles r ON u.role_id = r.id
-            LEFT JOIN companies c ON u.company_id = c.id
-        `;
+        const companyId = req.user.role === 'superadmin' ? (req.query.companyId || req.user.companyId) : req.user.companyId;
+
+        if (!await hasPermission(req.user.role, 'users', 'read', companyId)) {
+            return res.status(403).json({ error: 'Forbidden: You do not have permission to view users.' });
+        }
 
         let query;
         const params = [];
-
-        if (req.user.role === 'superadmin') {
-            const companyId = req.query.companyId;
-            if (companyId) {
-                query = `${baseQuery} WHERE u.company_id = $1`;
-                params.push(companyId);
-            } else {
-                query = baseQuery;
-            }
+        if (req.user.role === 'superadmin' && !req.query.companyId) {
+            query = `
+                SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
+                FROM users u
+                LEFT JOIN companies c ON u.company_id = c.id
+            `;
         } else {
-            const companyId = req.user.companyId;
-            if (!companyId) {
-                return res.status(400).json({ error: 'User is not associated with a company.' });
-            }
-            query = `${baseQuery} WHERE u.company_id = $1`;
+            query = `
+                SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
+                FROM users u
+                LEFT JOIN companies c ON u.company_id = c.id
+                WHERE u.company_id = $1
+            `;
             params.push(companyId);
         }
 
@@ -52,8 +42,8 @@ const createUser = async (req, res) => {
 
         if (req.user.role === 'superadmin') {
             companyIdForNewUser = newUser.companyId;
-            if (newUser.roleId && !companyIdForNewUser) { // Assuming roleId is sent
-                 return res.status(400).json({ error: 'Superadmin must specify a companyId for non-superadmin users' });
+            if (newUser.role !== 'superadmin' && !companyIdForNewUser) {
+                return res.status(400).json({ error: 'Superadmin must specify a companyId for non-superadmin users' });
             }
         } else {
             companyIdForNewUser = req.user.companyId;
@@ -63,20 +53,20 @@ const createUser = async (req, res) => {
             return res.status(403).json({ error: 'Forbidden: You do not have permission to create users.' });
         }
 
-        if (!newUser.username || !newUser.name || !newUser.roleId || !newUser.password) {
-            return res.status(400).json({ error: 'Username, name, password, and roleId are required' });
+        if (!newUser.username || !newUser.name || !newUser.role || !newUser.password) {
+            return res.status(400).json({ error: 'Username, name, password, and role are required' });
         }
 
         const query = `
-            INSERT INTO users (name, username, password, role_id, company_id, group_ids)
+            INSERT INTO users (name, username, password, role, company_id, group_ids)
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, name, username, role_id, company_id AS "companyId", group_ids AS "groupIds"
+            RETURNING id, name, username, role, company_id AS "companyId", group_ids AS "groupIds"
         `;
         const params = [
             newUser.name,
             newUser.username,
-            newUser.password,
-            newUser.roleId,
+            newUser.password, // In a real app, hash this password!
+            newUser.role,
             companyIdForNewUser,
             newUser.groupIds || []
         ];
@@ -94,6 +84,7 @@ const updateUser = async (req, res) => {
         const userIdToUpdate = parseInt(req.params.id);
         const updates = req.body;
 
+        // First, get the user to check for existence and permissions
         const userResult = await db.query('SELECT * FROM users WHERE id = $1', [userIdToUpdate]);
         if (userResult.rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
@@ -105,10 +96,12 @@ const updateUser = async (req, res) => {
             return res.status(403).json({ error: 'Forbidden: You do not have permission to update users.' });
         }
 
-        if (updates.roleId && updates.roleId !== userToUpdate.role_id && req.user.role !== 'superadmin') {
+        // Prevent role escalation by non-superadmins
+        if (updates.role && updates.role !== userToUpdate.role && req.user.role !== 'superadmin') {
            return res.status(403).json({ error: 'Forbidden: You do not have permission to change user roles.'});
         }
 
+        // Dynamically build the update query
         const queryParts = [];
         const queryParams = [];
         let paramIndex = 1;
@@ -116,7 +109,7 @@ const updateUser = async (req, res) => {
         const fieldMapping = {
             name: 'name',
             username: 'username',
-            roleId: 'role_id',
+            role: 'role',
             companyId: 'company_id',
             groupIds: 'group_ids',
             password: 'password'
@@ -124,14 +117,18 @@ const updateUser = async (req, res) => {
 
         for (const key in updates) {
             if (fieldMapping[key] && updates[key] !== undefined) {
+                // Special handling for password, which shouldn't be updated if empty string
                 if (key === 'password' && !updates.password) continue;
+
                 queryParts.push(`${fieldMapping[key]} = $${paramIndex++}`);
                 queryParams.push(updates[key]);
             }
         }
 
         if (queryParts.length === 0) {
+            // If nothing to update, just return the user data without the password
             const { password, ...userWithoutPassword } = userToUpdate;
+            // Map snake_case from DB to camelCase for the response
             userWithoutPassword.companyId = userWithoutPassword.company_id;
             userWithoutPassword.groupIds = userWithoutPassword.group_ids;
             delete userWithoutPassword.company_id;
@@ -141,21 +138,15 @@ const updateUser = async (req, res) => {
 
         queryParams.push(userIdToUpdate);
 
-        const finalQuery = `
+        const query = `
             UPDATE users
             SET ${queryParts.join(', ')}
             WHERE id = $${paramIndex}
-            RETURNING id, name, username, role_id, company_id AS "companyId", group_ids AS "groupIds"
+            RETURNING id, name, username, role, company_id AS "companyId", group_ids AS "groupIds"
         `;
 
-        const { rows } = await db.query(finalQuery, queryParams);
-        // To return the role name, we'd need another query. For now, returning the ID is consistent.
-        const updatedUser = rows[0];
-        const roleRes = await db.query('SELECT name FROM roles WHERE id = $1', [updatedUser.role_id]);
-        updatedUser.role = roleRes.rows[0]?.name;
-        delete updatedUser.role_id;
-
-        res.json(updatedUser);
+        const { rows } = await db.query(query, queryParams);
+        res.json(rows[0]);
 
     } catch (error) {
         console.error('Error updating user:', error);
