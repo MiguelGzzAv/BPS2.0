@@ -13,15 +13,17 @@ const getUsers = async (req, res) => {
         const params = [];
         if (req.user.role === 'superadmin' && !req.query.companyId) {
             query = `
-                SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
+                SELECT u.id, u.name, u.username, r.name AS role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
                 FROM users u
                 LEFT JOIN companies c ON u.company_id = c.id
+                LEFT JOIN roles r ON u.role_id = r.id
             `;
         } else {
             query = `
-                SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
+                SELECT u.id, u.name, u.username, r.name AS role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
                 FROM users u
                 LEFT JOIN companies c ON u.company_id = c.id
+                LEFT JOIN roles r ON u.role_id = r.id
                 WHERE u.company_id = $1
             `;
             params.push(companyId);
