@@ -1,10 +1,19 @@
 -- Drop tables if they exist to ensure a clean slate
-DROP TABLE IF EXISTS process_dependencies, phase_fields, internal_phases, processes, permissions, role_permissions, groups, users, companies, registrations, escalations, maintenance_status, global_messages CASCADE;
+DROP TABLE IF EXISTS process_dependencies, phase_fields, internal_phases, processes, permissions, role_permissions, roles, groups, users, companies, registrations, escalations, maintenance_status, global_messages CASCADE;
 
 -- Table for Companies
 CREATE TABLE companies (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL
+);
+
+-- Table for Roles
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    is_system_role BOOLEAN DEFAULT false,
+    UNIQUE(company_id, name)
 );
 
 -- Table for Users
@@ -13,7 +22,7 @@ CREATE TABLE users (
     name VARCHAR(255) NOT NULL,
     username VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL,
+    role_id INTEGER REFERENCES roles(id),
     company_id INTEGER REFERENCES companies(id),
     group_ids INTEGER[]
 );
@@ -73,14 +82,13 @@ CREATE TABLE permissions (
 -- Table for Role-based CRUD Permissions
 CREATE TABLE role_permissions (
     id SERIAL PRIMARY KEY,
-    company_id INTEGER NOT NULL REFERENCES companies(id),
-    role VARCHAR(50) NOT NULL,
+    role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     resource VARCHAR(255) NOT NULL,
     "create" BOOLEAN DEFAULT false,
     "read" BOOLEAN DEFAULT false,
     "update" BOOLEAN DEFAULT false,
     "delete" BOOLEAN DEFAULT false,
-    UNIQUE (company_id, role, resource)
+    UNIQUE (role_id, resource)
 );
 
 -- Table for Registrations

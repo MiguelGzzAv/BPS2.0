@@ -45,19 +45,17 @@ const authAndAuthzMiddleware = async (req, res, next) => {
   }
 
   try {
-    const { rows } = await db.query('SELECT *, company_id AS "companyId" FROM users WHERE id = $1', [userId]);
+    const query = `
+        SELECT u.id, u.username, u.company_id AS "companyId", u.group_ids AS "groupIds", r.name AS role
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        WHERE u.id = $1
+    `;
+    const { rows } = await db.query(query, [userId]);
     const user = rows[0];
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid user.' });
-    }
-
-    // We need to fetch the role name for the user
-    if (user.role_id) {
-        const roleResult = await db.query('SELECT name FROM roles WHERE id = $1', [user.role_id]);
-        if (roleResult.rows.length > 0) {
-            user.role = roleResult.rows[0].name;
-        }
     }
 
     req.user = user;
@@ -122,33 +120,26 @@ app.post('/api/login', async (req, res) => {
   }
 
   try {
-    const userResult = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
+    const query = `
+        SELECT u.id, u.username, u.name, u.company_id, c.name as "companyName", r.name as role, u.group_ids
+        FROM users u
+        LEFT JOIN companies c ON u.company_id = c.id
+        LEFT JOIN roles r ON u.role_id = r.id
+        WHERE u.username = $1 AND u.password = $2
+    `;
+    const userResult = await db.query(query, [username, password]);
 
     if (userResult.rows.length > 0) {
         const user = userResult.rows[0];
-
-        // Fetch the role name
-        if (user.role_id) {
-            const roleResult = await db.query('SELECT name FROM roles WHERE id = $1', [user.role_id]);
-            if (roleResult.rows.length > 0) {
-                user.role = roleResult.rows[0].name;
-            }
-        }
-
-        const userToSend = { ...user };
-        delete userToSend.password;
-
-        if (user.company_id) {
-            const companyResult = await db.query('SELECT name FROM companies WHERE id = $1', [user.company_id]);
-            if (companyResult.rows.length > 0) {
-                userToSend.companyName = companyResult.rows[0].name;
-            }
-            userToSend.companyId = user.company_id;
-            delete userToSend.company_id;
-            userToSend.groupIds = user.group_ids;
-            delete userToSend.group_ids;
-        }
-
+        const userToSend = {
+            id: user.id,
+            username: user.username,
+            name: user.name,
+            role: user.role,
+            companyId: user.company_id,
+            companyName: user.companyName,
+            groupIds: user.group_ids || []
+        };
         res.json({ success: true, user: userToSend });
     } else {
         res.status(401).json({ success: false, message: 'Invalid username or password' });

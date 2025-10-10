@@ -17,7 +17,7 @@ const getProcesses = async (req, res) => {
             return res.status(400).json({ error: 'A companyId must be provided for this request.' });
         }
 
-        if (!await hasPermission(req.user.role, 'processes', 'read', companyId)) {
+        if (!await hasPermission(req.user.role, 'processes', 'read', req.user.role_id)) {
             return res.status(403).json({ error: 'Forbidden: You do not have permission to view processes.' });
         }
 
@@ -79,7 +79,7 @@ const createProcess = async (req, res) => {
     const { processData, companyId: reqCompanyId } = req.body;
     const companyId = req.user.role === 'superadmin' ? reqCompanyId : req.user.companyId;
 
-    if (!await hasPermission(req.user.role, 'processes', 'create', companyId)) {
+    if (!await hasPermission(req.user.role, 'processes', 'create', req.user.role_id)) {
         return res.status(403).json({ error: 'Forbidden: You do not have permission to create processes.' });
     }
     if (!companyId) {
@@ -149,7 +149,7 @@ const updateProcess = async (req, res) => {
     const { processData, companyId: reqCompanyId } = req.body;
     const companyId = req.user.role === 'superadmin' ? reqCompanyId : req.user.companyId;
 
-    if (!await hasPermission(req.user.role, 'processes', 'update', companyId)) {
+    if (!await hasPermission(req.user.role, 'processes', 'update', req.user.role_id)) {
         return res.status(403).json({ error: 'Forbidden: You do not have permission to update processes.' });
     }
     if (!companyId) {
@@ -238,7 +238,7 @@ const deleteProcess = async (req, res) => {
         return res.status(400).json({ error: 'A companyId must be provided for this request.' });
     }
 
-    if (!await hasPermission(req.user.role, 'processes', 'delete', companyId)) {
+    if (!await hasPermission(req.user.role, 'processes', 'delete', req.user.role_id)) {
         return res.status(403).json({ error: 'Forbidden: You do not have permission to delete processes.' });
     }
 

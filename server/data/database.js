@@ -53,6 +53,16 @@ const processesByCompany = {
     ],
     '2': []
 };
+const roles = [
+    { name: 'admin', companyId: 1, isSystemRole: false },
+    { name: 'operator', companyId: 1, isSystemRole: false },
+    { name: 'reader', companyId: 1, isSystemRole: false },
+    { name: 'admin', companyId: 2, isSystemRole: false },
+    { name: 'operator', companyId: 2, isSystemRole: false },
+    { name: 'reader', companyId: 2, isSystemRole: false },
+    { name: 'admin', isSystemRole: true }, // For general admin
+];
+
 const users = [
     { id: 1, name: 'Super Admin', username: 'superadmin', password: 'password123', role: 'superadmin' },
     { id: 2, name: 'Admin Banorte', username: 'admin_banorte', password: 'password123', role: 'admin', companyId: 1, groupIds: [1] },
@@ -110,6 +120,7 @@ const globalMessages = [];
 
 module.exports = {
     companies,
+    roles,
     processesByCompany,
     users,
     groupsByCompany,

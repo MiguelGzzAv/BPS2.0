@@ -18,11 +18,30 @@ async function seed() {
         }
         console.log('Companies seeded.');
 
+        // Seed Roles and get their IDs
+        const roleNameToIdMap = new Map();
+        for (const role of mockData.roles) {
+            const res = await db.query(
+                'INSERT INTO roles (company_id, name, is_system_role) VALUES ($1, $2, $3) ON CONFLICT (company_id, name) DO UPDATE SET name=EXCLUDED.name RETURNING id, name',
+                [role.companyId, role.name, role.isSystemRole]
+            );
+            if (res.rows[0]) {
+                roleNameToIdMap.set(role.name, res.rows[0].id);
+            }
+        }
+        console.log('Roles seeded.');
+
+
         // Seed Users
         for (const user of mockData.users) {
+            const roleId = roleNameToIdMap.get(user.role);
+            if (!roleId) {
+                console.warn(`Warning: Role '${user.role}' not found for user '${user.username}'. Skipping user.`);
+                continue;
+            }
             await db.query(
-                'INSERT INTO users (id, name, username, password, role, company_id, group_ids) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
-                [user.id, user.name, user.username, user.password, user.role, user.companyId, user.groupIds]
+                'INSERT INTO users (id, name, username, password, role_id, company_id, group_ids) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
+                [user.id, user.name, user.username, user.password, roleId, user.companyId, user.groupIds]
             );
         }
         console.log('Users seeded.');
@@ -92,12 +111,17 @@ async function seed() {
 
         // Seed Role Permissions
         for (const companyId in mockData.rolePermissionsByCompany) {
-            for (const role in mockData.rolePermissionsByCompany[companyId]) {
-                for (const resource in mockData.rolePermissionsByCompany[companyId][role]) {
-                    const permissions = mockData.rolePermissionsByCompany[companyId][role][resource];
+            for (const roleName in mockData.rolePermissionsByCompany[companyId]) {
+                const roleId = roleNameToIdMap.get(roleName);
+                if (!roleId) {
+                    console.warn(`Warning: Role '${roleName}' not found for permissions. Skipping.`);
+                    continue;
+                }
+                for (const resource in mockData.rolePermissionsByCompany[companyId][roleName]) {
+                    const permissions = mockData.rolePermissionsByCompany[companyId][roleName][resource];
                     await db.query(
-                        'INSERT INTO role_permissions (company_id, role, resource, "create", "read", "update", "delete") VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (company_id, role, resource) DO NOTHING',
-                        [parseInt(companyId), role, resource, permissions.create, permissions.read, permissions.update, permissions.delete]
+                        'INSERT INTO role_permissions (role_id, resource, "create", "read", "update", "delete") VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (role_id, resource) DO NOTHING',
+                        [roleId, resource, permissions.create, permissions.read, permissions.update, permissions.delete]
                     );
                 }
             }
