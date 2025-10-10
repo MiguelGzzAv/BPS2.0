@@ -5,7 +5,7 @@ const getUsers = async (req, res) => {
     try {
         const companyId = req.user.role === 'superadmin' ? (req.query.companyId || req.user.companyId) : req.user.companyId;
 
-        if (!await hasPermission(req.user.role, 'users', 'read', req.user.role_id)) {
+        if (!await hasPermission(req.user.role, 'users', 'read', companyId)) {
             return res.status(403).json({ error: 'Forbidden: You do not have permission to view users.' });
         }
 
@@ -51,7 +51,7 @@ const createUser = async (req, res) => {
             companyIdForNewUser = req.user.companyId;
         }
 
-        if (!await hasPermission(req.user.role, 'users', 'create', req.user.role_id)) {
+        if (!await hasPermission(req.user.role, 'users', 'create', companyIdForNewUser)) {
             return res.status(403).json({ error: 'Forbidden: You do not have permission to create users.' });
         }
 
@@ -94,7 +94,7 @@ const updateUser = async (req, res) => {
         const userToUpdate = userResult.rows[0];
         const companyId = userToUpdate.company_id;
 
-        if (!await hasPermission(req.user.role, 'users', 'update', req.user.role_id)) {
+        if (!await hasPermission(req.user.role, 'users', 'update', companyId)) {
             return res.status(403).json({ error: 'Forbidden: You do not have permission to update users.' });
         }
 
@@ -174,7 +174,7 @@ const deleteUser = async (req, res) => {
         const userToDelete = userResult.rows[0];
         const companyId = userToDelete.company_id;
 
-        if (!await hasPermission(req.user.role, 'users', 'delete', req.user.role_id)) {
+        if (!await hasPermission(req.user.role, 'users', 'delete', companyId)) {
             return res.status(403).json({ error: 'Forbidden: You do not have permission to delete users.' });
         }
 

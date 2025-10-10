@@ -26,7 +26,9 @@ async function seed() {
                 [role.companyId, role.name, role.isSystemRole]
             );
             if (res.rows[0]) {
-                roleNameToIdMap.set(role.name, res.rows[0].id);
+                // Use a composite key for company-specific roles to avoid name clashes in the map
+                const mapKey = role.companyId ? `${role.name}_${role.companyId}` : role.name;
+                roleNameToIdMap.set(mapKey, res.rows[0].id);
             }
         }
         console.log('Roles seeded.');
@@ -34,7 +36,9 @@ async function seed() {
 
         // Seed Users
         for (const user of mockData.users) {
-            const roleId = roleNameToIdMap.get(user.role);
+             if (user.username === 'superadmin') continue; // Skip superadmin, not a DB user
+            const userRoleMapKey = user.companyId ? `${user.role}_${user.companyId}` : user.role;
+            const roleId = roleNameToIdMap.get(userRoleMapKey);
             if (!roleId) {
                 console.warn(`Warning: Role '${user.role}' not found for user '${user.username}'. Skipping user.`);
                 continue;
@@ -112,9 +116,10 @@ async function seed() {
         // Seed Role Permissions
         for (const companyId in mockData.rolePermissionsByCompany) {
             for (const roleName in mockData.rolePermissionsByCompany[companyId]) {
-                const roleId = roleNameToIdMap.get(roleName);
+                const mapKey = companyId ? `${roleName}_${companyId}` : roleName;
+                const roleId = roleNameToIdMap.get(mapKey);
                 if (!roleId) {
-                    console.warn(`Warning: Role '${roleName}' not found for permissions. Skipping.`);
+                    console.warn(`Warning: Role '${roleName}' for company '${companyId}' not found for permissions. Skipping.`);
                     continue;
                 }
                 for (const resource in mockData.rolePermissionsByCompany[companyId][roleName]) {

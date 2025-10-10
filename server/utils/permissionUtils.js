@@ -10,8 +10,8 @@ const db = require('../db');
  * @returns {Promise<boolean>} - True if the user has permission, false otherwise.
  */
 const hasPermission = async (userRole, resource, action, roleId) => {
-    // Superadmins have all permissions implicitly.
-    if (userRole === 'superadmin') {
+    // Superadmins and admins have all permissions implicitly.
+    if (userRole === 'superadmin' || userRole === 'admin') {
         return true;
     }
 

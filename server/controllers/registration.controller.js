@@ -30,14 +30,25 @@ const createRegistration = async (req, res) => {
             return res.status(400).json({ error: 'processId, timestamp, and values are required' });
         }
 
-        // Find the 'responsable' user ID from the form values.
-        const responsableValue = values.find(v => v.name.toLowerCase() === 'responsable');
-        // If a 'responsable' is provided in the form, use their ID. Otherwise, default to the logged-in user's ID.
-        const userIdToRegister = responsableValue && responsableValue.value ? parseInt(responsableValue.value, 10) : req.user.id;
+        // Find the operator's user ID from the form values.
+        const operatorValue = values.find(v => v.name.toLowerCase() === 'responsable');
+        let userIdToRegister = req.user.id; // Default to the logged-in user
 
-        // Basic validation to ensure the user ID is a valid number.
-        if (isNaN(userIdToRegister)) {
-            return res.status(400).json({ error: 'Invalid ID for responsable.' });
+        if (operatorValue && operatorValue.value) {
+            const userResult = await db.query('SELECT id FROM users WHERE name = $1 AND company_id = $2', [operatorValue.value, companyId]);
+            if (userResult.rows.length > 0) {
+                userIdToRegister = userResult.rows[0].id;
+            } else {
+                // If the selected operator is not found, we can either throw an error or use the logged-in user.
+                // Using the logged-in user is a safe fallback.
+                console.warn(`Operator "${operatorValue.value}" not found. Falling back to logged-in user ID ${req.user.id}.`);
+            }
+        }
+
+        // The superadmin (ID 0) cannot be the author of a registration because they don't exist in the 'users' table.
+        // This check prevents a foreign key violation if the superadmin is logged in and no valid 'responsable' is chosen.
+        if (userIdToRegister === 0) {
+            return res.status(400).json({ error: "A valid 'Responsable' must be selected to create a registration." });
         }
 
         const query = `

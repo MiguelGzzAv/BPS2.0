@@ -46,7 +46,7 @@ const authAndAuthzMiddleware = async (req, res, next) => {
 
   try {
     const query = `
-        SELECT u.id, u.username, u.company_id AS "companyId", u.group_ids AS "groupIds", r.name AS role
+        SELECT u.id, u.username, u.company_id, u.role_id, r.name AS role
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
         WHERE u.id = $1
