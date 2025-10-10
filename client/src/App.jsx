@@ -1,6 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
 import MainLayout from './components/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
@@ -26,27 +26,23 @@ const MaintenanceWrapper = ({ children, pageName }) => {
 
 function App() {
     return (
-        <AuthProvider>
-            <Router>
-                <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                        <Route index element={<Navigate to="/dashboard" replace />} />
-                        <Route path="dashboard" element={<MaintenanceWrapper pageName="dashboard"><Dashboard /></MaintenanceWrapper>} />
-                        <Route path="selection" element={<Selection />} />
-                        <Route path="users" element={<MaintenanceWrapper pageName="users"><Users /></MaintenanceWrapper>} />
-                        <Route path="processes" element={<MaintenanceWrapper pageName="processes"><Processes /></MaintenanceWrapper>} />
-                        <Route path="monitoring" element={<MaintenanceWrapper pageName="monitoring"><Monitoring /></MaintenanceWrapper>} />
-                        <Route path="escalation" element={<MaintenanceWrapper pageName="escalation"><Escalation /></MaintenanceWrapper>} />
-                        <Route path="configuration" element={<Configuration />} />
-                        <Route path="messaging" element={<Messaging />} />
-                        {/* Example of a route that might be part of the configuration page */}
-                        <Route path="configuration/role-permissions" element={<RolePermissionsManagement />} />
-                    </Route>
-                    <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-            </Router>
-        </AuthProvider>
+        <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<MaintenanceWrapper pageName="dashboard"><Dashboard /></MaintenanceWrapper>} />
+                <Route path="selection" element={<Selection />} />
+                <Route path="users" element={<MaintenanceWrapper pageName="users"><Users /></MaintenanceWrapper>} />
+                <Route path="processes" element={<MaintenanceWrapper pageName="processes"><Processes /></MaintenanceWrapper>} />
+                <Route path="monitoring" element={<MaintenanceWrapper pageName="monitoring"><Monitoring /></MaintenanceWrapper>} />
+                <Route path="escalation" element={<MaintenanceWrapper pageName="escalation"><Escalation /></MaintenanceWrapper>} />
+                <Route path="configuration" element={<Configuration />} />
+                <Route path="messaging" element={<Messaging />} />
+                {/* Example of a route that might be part of the configuration page */}
+                <Route path="configuration/role-permissions" element={<RolePermissionsManagement />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
     );
 }
 
