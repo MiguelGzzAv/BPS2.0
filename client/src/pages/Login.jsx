@@ -25,14 +25,21 @@ function Login() {
             const data = await response.json();
 
             if (data.success) {
-                auth.login(data.user);
-                // If the user is not a superadmin, they belong to a specific company.
-                // We wait for the permissions to load completely before redirecting.
-                if (data.user.role !== 'superadmin') {
-                    await auth.selectCompany(data.user.companyId, data.user.companyName);
-                    navigate('/dashboard');
+                await auth.login(data.user); // login sets the user in context
+
+                if (data.user.role === 'superadmin') {
+                    navigate('/selection');
+                } else {
+                    // For regular users, automatically select their company and go to dashboard
+                    if (data.user.companyId && data.user.companyName) {
+                         await auth.selectCompany(data.user.companyId, data.user.companyName);
+                         navigate('/dashboard');
+                    } else {
+                        // If a regular user has no company, something is wrong. Send to selection.
+                        setError("User has no assigned company.");
+                        navigate('/selection');
+                    }
                 }
-                // Superadmins will be redirected to the company selection page by the router.
             } else {
                 setError(data.message || 'Login failed.');
             }
