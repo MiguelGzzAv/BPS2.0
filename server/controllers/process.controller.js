@@ -55,8 +55,8 @@ const getProcesses = async (req, res) => {
             const lastRegTime = lastRegistrationMap.get(p.id);
             const status = states.get(p.id) || 'sin ejecucion';
 
-            // A process is locked if it was completed ('ok') within the last 24 hours.
-            const isLocked = lastRegTime && status === 'ok' ? lastRegTime > twentyFourHoursAgo : false;
+            // A process is locked if it has had any registration within the last 24 hours.
+            const isLocked = lastRegTime ? lastRegTime > twentyFourHoursAgo : false;
 
             return {
                 ...p,

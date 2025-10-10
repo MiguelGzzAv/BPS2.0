@@ -16,7 +16,7 @@ const SingleRegistrationModal = ({ show, onHide, onSave, process, userList }) =>
             case 'responsable':
                 inputHtml = <select id={fieldId} className="form-select" data-field-name={field.name}>
                     <option value="">Choose...</option>
-                    {userList.map(user => <option key={user.id} value={user.name}>{user.name}</option>)}
+                    {userList.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
                 </select>;
                 break;
             default:

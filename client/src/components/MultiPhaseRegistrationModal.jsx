@@ -2,8 +2,8 @@ import React from 'react';
 
 const MultiPhaseRegistrationModal = ({ show, onHide, onSave, process, allRegistrations, userList }) => {
 
-    const getFormFieldHtml = (field) => {
-        const fieldId = `field-${process.id}-${field.name.replace(/\s+/g, '-')}`;
+    const getFormFieldHtml = (field, keyPrefix) => {
+        const fieldId = `field-${keyPrefix}-${field.name.replace(/\s+/g, '-')}`;
         let inputHtml;
         switch (field.type) {
             case 'status':
@@ -16,13 +16,13 @@ const MultiPhaseRegistrationModal = ({ show, onHide, onSave, process, allRegistr
             case 'responsable':
                 inputHtml = <select id={fieldId} className="form-select form-select-sm" data-field-name={field.name}>
                     <option value="">Choose...</option>
-                    {userList.map(user => <option key={user.id} value={user.name}>{user.name}</option>)}
+                    {userList.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
                 </select>;
                 break;
             default:
                 inputHtml = <input type="text" id={fieldId} className="form-control form-control-sm" data-field-name={field.name} placeholder={field.name} />;
         }
-        return <div key={field.name} className="mb-2">{inputHtml}</div>;
+        return <div key={fieldId} className="mb-2">{inputHtml}</div>;
     };
 
     const handleSavePhase = (e) => {
@@ -72,7 +72,7 @@ const MultiPhaseRegistrationModal = ({ show, onHide, onSave, process, allRegistr
                                                 <td>{phase.name}</td>
                                                 <td><span className={`badge ${badgeClass}`}>{statusValue.toUpperCase()}</span></td>
                                                 <td>
-                                                    {(phase.fields || []).map(field => getFormFieldHtml(field))}
+                                                    {(phase.fields || []).map(field => getFormFieldHtml(field, phase.name))}
                                                 </td>
                                                 <td>
                                                     <button
