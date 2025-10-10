@@ -82,8 +82,8 @@ const registrationsByCompany = {};
 const escalationsByCompany = {};
 const permissionsByCompany = {
     '1': {
-        // Example: Group with ID 1 can access dashboard and users pages
-        '1': ['dashboard', 'users']
+        // Granting full page access to the Administrators group
+        '1': ['dashboard', 'users', 'groups', 'processes', 'monitoring', 'escalation', 'permissions', 'messaging', 'maintenance']
     }
 };
 
