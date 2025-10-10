@@ -3,21 +3,45 @@ const { hasPermission } = require('../utils/permissionUtils');
 
 const getUsers = async (req, res) => {
     try {
-        const companyId = req.user.role === 'superadmin' ? (req.query.companyId || req.user.companyId) : req.user.companyId;
-
-        if (!await hasPermission(req.user.role, 'users', 'read', companyId)) {
-            return res.status(403).json({ error: 'Forbidden: You do not have permission to view users.' });
-        }
-
         let query;
         const params = [];
-        if (req.user.role === 'superadmin' && !req.query.companyId) {
-            query = `
-                SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
-                FROM users u
-                LEFT JOIN companies c ON u.company_id = c.id
-            `;
+
+        if (req.user.role === 'superadmin') {
+            const companyId = req.query.companyId;
+
+            // Superadmin permission is usually handled by middleware, but we can double-check.
+            if (!await hasPermission(req.user.role, 'users', 'read', companyId || null)) {
+                 return res.status(403).json({ error: 'Forbidden: You do not have permission to view users.' });
+            }
+
+            if (companyId) {
+                // Superadmin wants users for a specific company
+                query = `
+                    SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
+                    FROM users u
+                    LEFT JOIN companies c ON u.company_id = c.id
+                    WHERE u.company_id = $1
+                `;
+                params.push(companyId);
+            } else {
+                // Superadmin wants all users from all companies
+                query = `
+                    SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
+                    FROM users u
+                    LEFT JOIN companies c ON u.company_id = c.id
+                `;
+            }
         } else {
+            // Regular user case
+            const companyId = req.user.companyId;
+            if (!companyId) {
+                return res.status(400).json({ error: 'User is not associated with a company.' });
+            }
+
+            if (!await hasPermission(req.user.role, 'users', 'read', companyId)) {
+                return res.status(403).json({ error: 'Forbidden: You do not have permission to view users.' });
+            }
+
             query = `
                 SELECT u.id, u.name, u.username, u.role, u.company_id AS "companyId", u.group_ids AS "groupIds", c.name AS "companyName"
                 FROM users u
