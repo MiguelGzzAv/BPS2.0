@@ -12,7 +12,7 @@ const companies = [
     { id: 3, name: 'Santander' }
 ];
 
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(__dirname, 'client')));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // Middleware to parse JSON bodies
