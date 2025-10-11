@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const axios = require('axios');
+const cookieParser = require('cookie-parser');
 const app = express();
 const port = 3000;
 
@@ -10,25 +12,42 @@ const companies = [
     { id: 3, name: 'Santander' }
 ];
 
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(__dirname, 'client')));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // Middleware to parse JSON bodies
+app.use(cookieParser());
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client', 'login.html'));
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    if (username === 'admin' && password === '12345') {
+    try {
+        const response = await axios.post('http://auth-service:3001/login', { username, password });
+        const { token } = response.data;
+        res.cookie('token', token, { httpOnly: true });
         res.redirect('/dashboard');
-    } else {
-        res.send('Invalid username or password');
+    } catch (error) {
+        res.status(401).send('Invalid username or password');
     }
 });
 
-app.get('/dashboard', (req, res) => {
+const verifyToken = async (req, res, next) => {
+    const { token } = req.cookies;
+    if (!token) {
+        return res.redirect('/');
+    }
+    try {
+        await axios.post('http://auth-service:3001/validate', { token });
+        next();
+    } catch (error) {
+        return res.redirect('/');
+    }
+};
+
+app.get('/dashboard', verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, '../client', 'dashboard.html'));
 });
 
