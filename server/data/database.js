@@ -83,20 +83,48 @@ const escalationsByCompany = {};
 const rolePermissionsByCompany = {
     '1': { // Default permissions for Banorte
         'admin': {
+            pages: ['dashboard', 'monitoring', 'users', 'processes', 'escalation', 'selection'],
             'users': { create: true, read: true, update: true, delete: false },
             'groups': { create: true, read: true, update: true, delete: true },
             'processes': { create: true, read: true, update: true, delete: true },
             'permissions': { read: true, update: true },
-            'dashboard': { read: true }
+            'dashboard': { read: true },
+            'monitoring': { read: true },
+            'registrations': { read: true },
+            'escalation': { read: true }
         },
         'operator': {
+            pages: ['processes', 'selection'],
             'registrations': { create: true, read: true, update: false, delete: false },
             'processes': { read: true },
         },
          'reader': {
+            pages: ['processes', 'users', 'groups', 'selection'],
             'processes': { read: true },
             'users': { read: true },
             'groups': { read: true },
+        }
+    },
+    '2': { // Default permissions for Banamex - now mirrored for all roles
+        'admin': {
+            pages: ['dashboard', 'monitoring', 'users', 'processes', 'escalation', 'selection'],
+            'users': { create: true, read: true, update: true, delete: false },
+            'groups': { create: true, read: true, update: true, delete: true },
+            'processes': { create: true, read: true, update: true, delete: true },
+            'permissions': { read: true, update: true },
+            'dashboard': { read: true },
+            'monitoring': { read: true },
+            'registrations': { read: true },
+            'escalation': { read: true }
+        },
+        'operator': {
+            pages: ['processes', 'selection'],
+            'registrations': { create: true, read: true, update: false, delete: false },
+            'processes': { read: true },
+        },
+        'reader': {
+            pages: ['processes', 'selection'],
+            'processes': { read: true },
         }
     }
 };
