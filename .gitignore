@@ -1,0 +1,18 @@
+# Log files
+server.log
+client-dev.log
+
+# Node dependencies
+node_modules/
+/client/node_modules
+
+# Build output
+/client/dist
+
+# Jules scratchpad
+jules-scratch/
+
+# Environment variables
+.env
+.env.*
+!.env.example

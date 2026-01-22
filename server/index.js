@@ -1,96 +1,144 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const db = require('./db');
+const seed = require('./seed');
+
+// --- Route Imports ---
+const companyRoutes = require('./routes/company.routes');
+const processRoutes = require('./routes/process.routes');
+const userRoutes = require('./routes/user.routes');
+const groupRoutes = require('./routes/group.routes');
+const escalationRoutes = require('./routes/escalation.routes');
+const registrationRoutes = require('./routes/registration.routes');
+const dashboardRoutes = require('./routes/dashboard.routes');
+const rolePermissionsRoutes = require('./routes/rolePermissions.routes');
+const maintenanceRoutes = require('./routes/maintenance.routes');
+const messagingRoutes = require('./routes/messaging.routes');
+const databaseRoutes = require('./routes/database.routes');
+
 const app = express();
 const port = 3000;
 
-// Mock data
-const companies = [
-    { id: 1, name: 'Banorte' },
-    { id: 2, name: 'Banamex' },
-    { id: 3, name: 'Santander' }
-];
-
-app.use(express.static(path.join(__dirname, '../client')));
-
+// --- Core Middlewares ---
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); // Middleware to parse JSON bodies
+app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client', 'login.html'));
-});
+// --- Authentication & Authorization Middleware ---
+const authAndAuthzMiddleware = async (req, res, next) => {
+  const userId = req.headers['x-user-id'];
 
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    if (username === 'admin' && password === '12345') {
-        res.redirect('/dashboard');
+  if (userId === '0') {
+      req.user = { id: 0, username: 'superadmin', role: 'superadmin' };
+      return next();
+  }
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required. Please provide x-user-id header.' });
+  }
+
+  try {
+    const query = `
+        SELECT u.id, u.username, u.company_id, u.role_id, r.name AS role
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        WHERE u.id = $1
+    `;
+    const { rows } = await db.query(query, [userId]);
+    const user = rows[0];
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid user.' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+      console.error('Auth middleware error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// --- API Routes ---
+app.use('/api/companies', authAndAuthzMiddleware, companyRoutes);
+app.use('/api/processes', authAndAuthzMiddleware, processRoutes);
+app.use('/api/users', authAndAuthzMiddleware, userRoutes);
+app.use('/api/groups', authAndAuthzMiddleware, groupRoutes);
+app.use('/api/escalations', authAndAuthzMiddleware, escalationRoutes);
+app.use('/api/registrations', authAndAuthzMiddleware, registrationRoutes);
+app.use('/api/dashboard', authAndAuthzMiddleware, dashboardRoutes);
+app.use('/api/role-permissions', authAndAuthzMiddleware, rolePermissionsRoutes);
+app.use('/api/maintenance', authAndAuthzMiddleware, maintenanceRoutes);
+app.use('/api/messaging', authAndAuthzMiddleware, messagingRoutes);
+app.use('/api/database', authAndAuthzMiddleware, databaseRoutes);
+
+// --- Login Route (Unprotected) ---
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  if (username === 'superadmin' && password === 'superadmin') {
+    return res.json({
+      success: true,
+      user: { id: 0, username: 'superadmin', role: 'superadmin' },
+    });
+  }
+
+  try {
+    const query = `
+        SELECT u.id, u.username, u.name, u.company_id, c.name as "companyName", r.name as role, u.group_ids
+        FROM users u
+        LEFT JOIN companies c ON u.company_id = c.id
+        LEFT JOIN roles r ON u.role_id = r.id
+        WHERE u.username = $1 AND u.password = $2
+    `;
+    const userResult = await db.query(query, [username, password]);
+
+    if (userResult.rows.length > 0) {
+        const user = userResult.rows[0];
+        const userToSend = {
+            id: user.id,
+            username: user.username,
+            name: user.name,
+            role: user.role,
+            companyId: user.company_id,
+            companyName: user.companyName,
+            groupIds: user.group_ids || []
+        };
+        res.json({ success: true, user: userToSend });
     } else {
-        res.send('Invalid username or password');
+        res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client', 'dashboard.html'));
+// --- Static Files & Frontend Entry Point ---
+app.use(express.static(path.join(__dirname, '../client/dist')));
+app.get(/^\/(?!api).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
 });
 
-app.post('/forgot-password', (req, res) => {
-    const { email } = req.body;
-    console.log(`Password reset requested for email: ${email}`);
-    res.send('If an account with that email exists, a password reset link has been sent.');
+// --- Error Handling ---
+app.use((err, req, res, next) => {
+  console.error('--- UNHANDLED EXPRESS ERROR ---');
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
 });
 
-// API endpoint to get the list of companies
-app.get('/api/companies', (req, res) => {
-    res.json(companies);
-});
-
-// API endpoint to add a new company
-app.post('/api/companies', (req, res) => {
-    const { name } = req.body;
-    if (!name) {
-        return res.status(400).json({ error: 'Company name is required' });
+// --- Server Start ---
+const startServer = async () => {
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('Running in development mode. Seeding database...');
+        await seed();
     }
+    app.listen(port, () => {
+        console.log(`Server listening at http://localhost:${port}`);
+    });
+};
 
-    const newId = companies.length > 0 ? Math.max(...companies.map(c => c.id)) + 1 : 1;
-    const newCompany = { id: newId, name };
-    companies.push(newCompany);
-
-    console.log('Added new company:', newCompany);
-    res.status(201).json(newCompany);
-});
-
-// API endpoint to delete a company
-app.delete('/api/companies/:id', (req, res) => {
-    const { id } = req.params;
-    const companyIndex = companies.findIndex(c => c.id === parseInt(id));
-
-    if (companyIndex === -1) {
-        return res.status(404).json({ error: 'Company not found' });
-    }
-
-    companies.splice(companyIndex, 1);
-    console.log(`Deleted company with id: ${id}`);
-    res.status(204).send();
-});
-
-// API endpoint to update a company
-app.put('/api/companies/:id', (req, res) => {
-    const { id } = req.params;
-    const { name } = req.body;
-    const company = companies.find(c => c.id === parseInt(id));
-
-    if (!company) {
-        return res.status(404).json({ error: 'Company not found' });
-    }
-
-    if (!name) {
-        return res.status(400).json({ error: 'Company name is required' });
-    }
-
-    company.name = name;
-    console.log('Updated company:', company);
-    res.json(company);
-});
-
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
+startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
 });

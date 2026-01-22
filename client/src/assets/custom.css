@@ -1,0 +1,75 @@
+/*
+==============================================
+Custom Stylesheet - Final Version
+==============================================
+*/
+
+/* General Layout */
+body {
+    background-color: #f8f9fa; /* Light grey background */
+}
+
+.page-container {
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+/* Table Styling */
+.table {
+    margin-top: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.table thead {
+    background-color: #343a40;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.table-hover tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+.table td, .table th {
+    vertical-align: middle;
+}
+
+/* Company Selection Cards */
+.selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.company-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    text-align: center;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    background-color: #fff;
+}
+
+.company-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.company-card .btn {
+    margin-top: 1rem;
+    width: 100%;
+}
+
+/* Monitoring Page Status Styles */
+.badge-ok { background-color: #198754; }
+.badge-falla, .badge-error { background-color: #dc3545; }
+.badge-ambar { background-color: #ffc107; color: #000; }
+.badge-sin-ejecucion { background-color: #6c757d; }
+.badge-por-iniciar { background-color: #adb5bd; }
